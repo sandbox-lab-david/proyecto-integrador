@@ -124,7 +124,7 @@
     }
 
     function iniciar(t) {
-        return { tipo: 'iniciar_solicitud', etiqueta: 'Iniciar esta solicitud →', url: `/solicitudes/create?tramite=${t.id}` };
+        return { tipo: 'iniciar_solicitud', etiqueta: 'Iniciar esta solicitud →', url: `/estudiante/solicitudes/nueva?tramite=${t.id}` };
     }
 
     function siguientes(t, actual) {
@@ -200,7 +200,7 @@
 
         if (motivos.length) {
             r.resultado = { estado: 'no_cumple', motivos };
-            r.acciones = [{ tipo: 'iniciar_solicitud', etiqueta: 'Presentar de todas formas', url: `/solicitudes/create?tramite=${t.id}` }];
+            r.acciones = [{ tipo: 'iniciar_solicitud', etiqueta: 'Presentar de todas formas', url: `/estudiante/solicitudes/nueva?tramite=${t.id}` }];
             r.sugerencias = ['examen_gracia__descripcion'];
         } else {
             r.resultado = {
@@ -251,8 +251,8 @@
             r.titulo = 'Tus solicitudes';
             r.mensaje = 'Estas son las solicitudes que tienes registradas.';
             r.solicitudes = [
-                { id: 12, tramite: 'Examen de recuperación', estado: 'En revisión de la facultad', color: 'ambar', url: '/solicitudes/12' },
-                { id: 8, tramite: 'Retiro de materia', estado: 'Aprobada', color: 'verde', url: '/solicitudes/8' },
+                { id: 12, tramite: 'Examen de recuperación', estado: 'En revisión de la facultad', color: 'ambar', url: '/estudiante/solicitudes/12' },
+                { id: 8, tramite: 'Retiro de materia', estado: 'Aprobada', color: 'verde', url: '/estudiante/solicitudes/8' },
             ];
             return { status: 200, body: r };
         }

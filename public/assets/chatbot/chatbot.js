@@ -27,6 +27,24 @@
     const urlSegura = (u) => (typeof u === 'string' && (/^\/(?!\/)/.test(u) || /^https:\/\//i.test(u)) ? u : null);
     const errorSobre = (codigo, mensaje, reintentable) => ({ version: 2, error: { codigo, mensaje, reintentable, campos: {} } });
 
+    const memoria = {
+        clave: 'cb-flotante-abierto',
+        leer() {
+            try {
+                return sessionStorage.getItem(this.clave) === '1';
+            } catch (e) {
+                return false;
+            }
+        },
+        guardar(abierto) {
+            try {
+                sessionStorage.setItem(this.clave, abierto ? '1' : '0');
+            } catch (e) {
+                return;
+            }
+        },
+    };
+
     let contador = 0;
 
     class Chat {
@@ -53,9 +71,70 @@
             this.catalogo = null;
             this.tramite = null;
             this.ocupado = false;
+            this.cargado = false;
+            this.tramitePendiente = null;
+            this.flotante = raiz.classList.contains('cb-modo-flotante');
+            this.contenedor = raiz.closest('[data-cb-flotante]');
+            this.lanzador = this.contenedor ? this.contenedor.querySelector('[data-cb-abrir]') : null;
+            this.ampliar = this.parte('ampliar');
 
             this.escuchar();
+            if (this.flotante) {
+                this.escucharFlotante();
+                if (memoria.leer()) this.abrir(null, { sinFoco: true });
+            } else {
+                this.iniciarCarga();
+            }
+        }
+
+        iniciarCarga() {
+            if (this.cargado) return;
+            this.cargado = true;
             this.cargarCatalogo();
+        }
+
+        escucharFlotante() {
+            this.lanzador.addEventListener('click', () => this.abrir());
+            this.parte('cerrar').addEventListener('click', () => this.cerrar());
+            document.addEventListener('keydown', (e) => {
+                if (e.key === 'Escape' && !this.raiz.hidden && this.panel.hidden) this.cerrar();
+            });
+        }
+
+        abrir(tramiteId, opciones = {}) {
+            if (tramiteId) {
+                if (this.catalogo) {
+                    this.irATramite(tramiteId);
+                } else {
+                    this.tramitePendiente = tramiteId;
+                }
+            }
+            if (this.flotante) {
+                this.raiz.hidden = false;
+                this.contenedor.classList.add('cb-abierto');
+                this.lanzador.setAttribute('aria-expanded', 'true');
+                document.documentElement.classList.add('cb-chat-abierto');
+                memoria.guardar(true);
+            }
+            this.iniciarCarga();
+            if (!opciones.sinFoco && window.matchMedia('(min-width: 601px)').matches) {
+                requestAnimationFrame(() => this.entrada.focus());
+            }
+        }
+
+        cerrar() {
+            if (!this.flotante || this.raiz.hidden) return;
+            this.raiz.hidden = true;
+            this.contenedor.classList.remove('cb-abierto');
+            this.lanzador.setAttribute('aria-expanded', 'false');
+            document.documentElement.classList.remove('cb-chat-abierto');
+            memoria.guardar(false);
+            this.lanzador.focus();
+        }
+
+        irATramite(id) {
+            if (!this.porId.tramites[id] || (this.tramite && this.tramite.id === id)) return;
+            this.elegirTramite(id, { silencioso: true });
         }
 
         parte(nombre, dentro) {
@@ -96,7 +175,9 @@
             });
 
             this.panel.addEventListener('keydown', (e) => {
-                if (e.key === 'Escape') this.cerrarBuscar();
+                if (e.key !== 'Escape') return;
+                e.stopPropagation();
+                this.cerrarBuscar();
             });
         }
 
@@ -151,10 +232,16 @@
             };
             this.raiz.querySelectorAll('[data-cb="lista-tramites"]').forEach((l) => this.pintarLista(l, ''));
 
-            const conHistorial = await this.cargarHistorial();
-            if (conHistorial) return;
+            const pendiente = this.tramitePendiente;
+            this.tramitePendiente = null;
 
-            const inicial = this.porId.tramites[this.raiz.dataset.tramite];
+            const conHistorial = await this.cargarHistorial();
+            if (conHistorial) {
+                if (pendiente) this.irATramite(pendiente);
+                return;
+            }
+
+            const inicial = this.porId.tramites[pendiente || this.raiz.dataset.tramite];
             if (inicial) {
                 this.elegirTramite(inicial.id, { silencioso: true });
             } else {
@@ -221,6 +308,15 @@
             this.raiz.querySelectorAll('[data-tramite-id]').forEach((b) => {
                 b.setAttribute('aria-current', this.tramite && b.dataset.tramiteId === this.tramite.id ? 'true' : 'false');
             });
+            if (this.ampliar) {
+                const url = new URL(this.ampliar.href, location.href);
+                if (this.tramite) {
+                    url.searchParams.set('tramite', this.tramite.id);
+                } else {
+                    url.searchParams.delete('tramite');
+                }
+                this.ampliar.href = url.pathname + url.search;
+            }
         }
 
         preguntar(p) {
@@ -759,6 +855,15 @@
     function iniciar() {
         document.querySelectorAll('[data-chatbot]').forEach((raiz) => {
             if (!raiz.chatbot) raiz.chatbot = new Chat(raiz);
+        });
+
+        document.addEventListener('click', (e) => {
+            const disparador = e.target.closest('[data-abrir-chatbot]');
+            if (!disparador) return;
+            const raiz = document.querySelector('.cb-modo-flotante[data-chatbot]') || document.querySelector('[data-chatbot]');
+            if (!raiz || !raiz.chatbot) return;
+            e.preventDefault();
+            raiz.chatbot.abrir(disparador.dataset.abrirChatbot || null);
         });
     }
 

@@ -40,6 +40,27 @@ class InterfazChatTest extends TestCase
             ->assertDontSee('cb-lateral', false);
     }
 
+    public function test_el_widget_flotante_empieza_cerrado_con_su_boton(): void
+    {
+        $html = (string) $this->blade('<x-chat-widget modo="flotante" />');
+
+        $this->assertStringContainsString('data-cb-abrir', $html);
+        $this->assertStringContainsString('¿Dudas con un trámite?', $html);
+        $this->assertStringContainsString('aria-controls="cb-chat-flotante"', $html);
+        $this->assertMatchesRegularExpression('/id="cb-chat-flotante".*?role="dialog" hidden/s', $html);
+        $this->assertStringContainsString('data-cb="cerrar"', $html);
+        $this->assertStringNotContainsString('cb-lateral', $html);
+    }
+
+    public function test_la_pagina_de_demo_muestra_la_burbuja_y_el_boton_de_la_ficha(): void
+    {
+        $this->get('/chatbot/demo')
+            ->assertOk()
+            ->assertSee('cb-modo-flotante', false)
+            ->assertSee('data-abrir-chatbot="examen_recuperacion"', false)
+            ->assertSee('Consultar chatbot');
+    }
+
     public function test_resultado_cumple_con_datos_declarados_es_orientativo(): void
     {
         $vista = $this->blade('<x-resultado-elegibilidad :evaluacion="$e" />', [
