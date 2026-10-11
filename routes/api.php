@@ -21,5 +21,4 @@ Route::prefix('interno')->middleware('auth')->group(function () {
         // Devolvemos el resultado en formato JSON para que el frontend lo lea fácilmente
         return response()->json($cursos);
     });
-
 });

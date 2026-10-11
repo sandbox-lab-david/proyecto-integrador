@@ -27,4 +27,11 @@ class AutorizacionService
         })->first();
         
     }
+
+    //===C19 
+    public function asistentesDeFacultad(int $facultadId)
+    {
+        
+        return collect([]);
+    }
 }

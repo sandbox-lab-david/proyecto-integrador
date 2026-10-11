@@ -32,4 +32,21 @@ class CatalogoAcademicoService
                     ->get();
         
     }
+
+    //===C05
+    public function materiasDeMalla(int $mallaId, ?string $buscar = null): Collection
+    {
+        // Contrato Semana 1: Devolver colección vacía (stub).
+        return collect([]);
+    }
+
+    //===C10
+    public function docentes(bool $soloActivos = true): Collection
+    {
+        // Contrato Semana 1: Devolver colección vacía (stub).
+        return collect([]);
+    }
+    
+    
 }
+
