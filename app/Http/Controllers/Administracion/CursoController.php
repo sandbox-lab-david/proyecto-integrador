@@ -1,7 +1,11 @@
 <?php
 
-namespace App\Http\Controllers;
+namespace App\Http\Controllers\Administracion;
 
+use App\Http\Controllers\Controller;
+use App\Models\Curso;
+use App\Models\Materia;
+use App\Models\Periodo;
 use Illuminate\Http\Request;
 
 class CursoController extends Controller
