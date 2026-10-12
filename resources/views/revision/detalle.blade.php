@@ -34,15 +34,21 @@
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
                     <div>
                         <span class="text-slate-400 block">Estudiante:</span>
-                        <span class="text-slate-200 font-medium">{{ $solicitud->estudiante ?? 'N/D' }}</span>
+                        <span class="text-slate-200 font-medium">
+                            {{ $solicitud->carreraEstudiante->estudiante->nombre ?? ($solicitud->estudiante ?? 'N/D') }}
+                        </span>
                     </div>
                     <div>
                         <span class="text-slate-400 block">Código / ID:</span>
-                        <span class="text-slate-200 font-medium">{{ $solicitud->codigo ?? 'N/D' }}</span>
+                        <span class="text-slate-200 font-medium">
+                            {{ $solicitud->carreraEstudiante->estudiante->codigo ?? ($solicitud->codigo ?? 'N/D') }}
+                        </span>
                     </div>
                     <div>
                         <span class="text-slate-400 block">Carrera:</span>
-                        <span class="text-slate-200 font-medium">{{ $solicitud->carrera ?? 'N/D' }}</span>
+                        <span class="text-slate-200 font-medium">
+                            {{ $solicitud->carreraEstudiante->nombreCarrera ?? ($solicitud->carrera ?? 'N/D') }}
+                        </span>
                     </div>
                     <div>
                         <span class="text-slate-400 block">Trámite:</span>
@@ -50,11 +56,11 @@
                     </div>
                     <div>
                         <span class="text-slate-400 block">Estado Actual:</span>
-                        <span class="text-indigo-400 font-bold">{{ $solicitud->estado ?? 'Enviado' }}</span>
+                        <span class="text-indigo-400 font-bold">{{ $solicitud->estadoSolicitud ?? 'Enviado' }}</span>
                     </div>
                     <div>
-                        <span class="text-slate-400 block">Fecha de Envío:</span>
-                        <span class="text-slate-200 font-medium">{{ $solicitud->fecha ?? 'N/D' }}</span>
+                        <span class="text-slate-400 block">Fecha de Registro:</span>
+                        <span class="text-slate-200 font-medium">{{ $solicitud->created_at ?? ($solicitud->fecha ?? 'N/D') }}</span>
                     </div>
                 </div>
 
@@ -93,7 +99,7 @@
 
             <!-- Formulario de Revisión (Bloqueado si ya está finalizado) -->
             @php
-                $esFinalizado = in_array($solicitud->estado ?? '', ['Aprobado', 'Rechazado']);
+                $esFinalizado = in_array($solicitud->estadoSolicitud ?? '', ['Aprobado', 'Rechazado']);
             @endphp
 
             <form action="{{ route('revision.guardar', $solicitud->id) }}" method="POST" class="bg-slate-900 border border-slate-800 rounded-xl p-6 shadow-lg" onsubmit="return validarAccion(event);">
@@ -135,7 +141,7 @@
                 </div>
                 @else
                 <div class="p-4 bg-slate-950 rounded-lg border border-slate-800 text-center text-sm text-slate-300">
-                    🔒 Este caso ya se encuentra <span class="font-bold text-white uppercase">{{ $solicitud->estado }}</span> y está bloqueado para edición.
+                    🔒 Este caso ya se encuentra <span class="font-bold text-white uppercase">{{ $solicitud->estadoSolicitud }}</span> y está bloqueado para edición.
                 </div>
                 @endunless
             </form>

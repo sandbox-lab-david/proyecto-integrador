@@ -94,14 +94,22 @@
                                     </a>
                                 </td>
                                 <td class="p-4">
-                                    <div class="font-medium text-slate-200">{{ $solicitud->estudiante ?? 'N/D' }}</div>
-                                    <div class="text-xs text-slate-400">{{ $solicitud->codigo ?? 'N/D' }}</div>
+                                    <!-- Ajustado a la relación del Grupo 2 -->
+                                    <div class="font-medium text-slate-200">
+                                        {{ $solicitud->carreraEstudiante->estudiante->nombre ?? ($solicitud->estudiante ?? 'N/D') }}
+                                    </div>
+                                    <div class="text-xs text-slate-400">
+                                        {{ $solicitud->carreraEstudiante->estudiante->codigo ?? ($solicitud->codigo ?? 'N/D') }}
+                                    </div>
                                 </td>
-                                <td class="p-4 text-slate-300">{{ $solicitud->carrera ?? 'N/D' }}</td>
+                                <td class="p-4 text-slate-300">
+                                    {{ $solicitud->carreraEstudiante->nombreCarrera ?? ($solicitud->carrera ?? 'N/D') }}
+                                </td>
                                 <td class="p-4 text-slate-300">{{ $solicitud->tramite ?? 'N/D' }}</td>
                                 <td class="p-4">
                                     @php
-                                        $estado = $solicitud->estado ?? 'Enviado';
+                                        // Usando estadoSolicitud de la BD del Grupo 2
+                                        $estado = $solicitud->estadoSolicitud ?? 'Enviado';
                                         $claseEstado = match($estado) {
                                             'Aprobado' => 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20',
                                             'Rechazado' => 'bg-red-500/10 text-red-400 border-red-500/20',
