@@ -4,6 +4,8 @@ namespace App\Services\Academico;
 use App\Models\Curso;
 use App\Models\Malla;
 use Illuminate\Database\Eloquent\Collection;
+use App\Models\Periodo;
+use Illuminate\Support\Carbon;
 
 class CatalogoAcademicoService
 {
@@ -48,6 +50,24 @@ class CatalogoAcademicoService
     {
         // Contrato Semana 1: Devolver colección vacía (stub).
         return collect([]);
+    }
+
+    //===C08:Devuelve la semana actual del periodo activo, o null si no aplica.
+    public function semanaActual(?Carbon $fecha = null) : ?int
+    {
+        $fecha = $fecha ?? now();
+        $periodo = Periodo::where('activo', true)
+                    ->first();
+        if (! $periodo) { 
+            return null;
+        }
+        $inicio = Carbon::parse($periodo->fecha_inicio);
+        $fin = Carbon::parse($periodo->fecha_fin);
+        if ($fecha->lt($inicio) || $fecha->gt($fin->endOfDay())) { 
+            return null; 
+        }
+        $dias = (int) $inicio->diffInDays($fecha);
+        return intdiv($dias, 7) + 1;
     }
 
     //===C10
