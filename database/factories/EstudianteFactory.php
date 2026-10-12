@@ -23,7 +23,7 @@ class EstudianteFactory extends Factory
             'correo' => fake()->unique()->userName() . '@uees.edu.ec',
             'nombres' => fake()->firstName(), 
             'apellidos' => fake()->lastName(),
-            'cedula' => fake()->numerify('##########'),
+            'cedula' => fake()->unique()->numerify('##########'),
             'celular' => fake()->numerify('09########'),
         ];
     }
