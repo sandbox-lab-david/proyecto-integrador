@@ -17,6 +17,8 @@ final class HttpPrologClient implements PrologClient
         private readonly float $timeout = 3.0,
         private readonly float $connectTimeout = 1.0,
         private readonly RespuestaMotorValidator $validator = new RespuestaMotorValidator(),
+        private readonly string $apiKey = '',
+        private readonly int $intentos = 2,
     ) {
     }
 
@@ -26,6 +28,8 @@ final class HttpPrologClient implements PrologClient
             (string) config('chatbot.prolog.url', 'http://127.0.0.1:8081'),
             (float) config('chatbot.prolog.timeout', 3.0),
             (float) config('chatbot.prolog.connect_timeout', 1.0),
+            apiKey: (string) config('chatbot.prolog.api_key', ''),
+            intentos: (int) config('chatbot.prolog.intentos', 2),
         );
     }
 
@@ -72,25 +76,47 @@ final class HttpPrologClient implements PrologClient
         $this->lanzarErrorDelMotor($resp->status(), $resp->json());
     }
 
+    /**
+     * Envia la peticion. Reintenta SOLO si no se pudo conectar (p. ej. el motor
+     * se esta reiniciando): consultar/evaluar no modifican nada, asi que repetir
+     * es seguro. Un timeout no se reintenta para respetar el presupuesto de tiempo,
+     * y un 503 del motor (sobrecarga/limite) tampoco, para no empeorarlo.
+     */
     private function llamar(callable $peticion): \Illuminate\Http\Client\Response
     {
-        try {
-            $http = Http::baseUrl(rtrim($this->baseUrl, '/'))
-                ->connectTimeout($this->connectTimeout)
-                ->timeout($this->timeout)
-                ->acceptJson();
-            return $peticion($http);
-        } catch (ConnectionException $e) {
-            $msg = $e->getMessage();
-            if (str_contains($msg, 'cURL error 28') || stripos($msg, 'timed out') !== false) {
-                throw PrologException::tiempoAgotado($e);
+        $maximo = max(1, $this->intentos);
+
+        for ($intento = 1; ; $intento++) {
+            try {
+                $http = Http::baseUrl(rtrim($this->baseUrl, '/'))
+                    ->connectTimeout($this->connectTimeout)
+                    ->timeout($this->timeout)
+                    ->acceptJson();
+                if ($this->apiKey !== '') {
+                    $http = $http->withHeaders(['X-Api-Key' => $this->apiKey]);
+                }
+                return $peticion($http);
+            } catch (ConnectionException $e) {
+                $msg = $e->getMessage();
+                if (str_contains($msg, 'cURL error 28') || stripos($msg, 'timed out') !== false) {
+                    throw PrologException::tiempoAgotado($e);
+                }
+                if ($intento >= $maximo) {
+                    throw PrologException::noDisponible($e);   // rechazada, DNS, reset...
+                }
+                usleep(150_000);
             }
-            throw PrologException::noDisponible($e);   // rechazada, DNS, reset...
         }
     }
 
     private function lanzarErrorDelMotor(int $status, mixed $json): never
     {
+        if (in_array($status, [401, 403], true)) {
+            // El motor rechazo la credencial: es un fallo de configuracion, no del usuario.
+            throw new PrologException(500, 'error_interno',
+                'El motor rechazo la credencial del puente (revisar PROLOG_API_KEY).');
+        }
+
         $err = is_array($json) ? ($json['error'] ?? null) : null;
         $valido = is_array($err)
             && ($json['version'] ?? null) === 2

@@ -4,15 +4,28 @@
 %
 %   Arranque:  swipl prolog/kb/servidor.pl                 (puerto 8081)
 %              swipl prolog/kb/servidor.pl --port=9000
-%   Variables: PROLOG_PORT, PROLOG_HOST (127.0.0.1), PROLOG_LIMITE (segundos)
 %
-% Rutas:  GET /salud   POST /consulta   POST /evaluar
+% Rutas (las del contrato, sin anadir ninguna):
+%   GET /salud   POST /consulta   POST /evaluar
 %
 % El puente NO contiene reglas de negocio. Solo:
-%   1. valida el JSON de entrada (422 si es invalido),
-%   2. llama a consultar/3 o evaluar/5 definidos en hechos.pl / reglas.pl,
-%   3. valida la Salida que devuelven las reglas,
-%   4. anade version, kb_version, tramite_id e intencion y responde.
+%   1. protege el servicio (limites, credencial, tamano, apagado ordenado),
+%   2. valida el JSON de entrada (422 si es invalido),
+%   3. llama a consultar/3 o evaluar/5 de hechos.pl / reglas.pl,
+%   4. valida la Salida y anade version, kb_version, tramite_id e intencion.
+%
+% Configuracion por variables de entorno (todas opcionales):
+%   PROLOG_HOST             interfaz a escuchar            (127.0.0.1)
+%   PROLOG_PORT             puerto                         (8081)
+%   PROLOG_API_KEY          credencial compartida con Laravel (sin valor = sin
+%                           autenticacion; SOLO para desarrollo)
+%   PROLOG_WORKERS          hilos = peticiones simultaneas (8)
+%   PROLOG_LIMITE           segundos max. por regla        (2.5)
+%   PROLOG_MAX_BODY         bytes max. del cuerpo          (16384)
+%   PROLOG_RATE_MAX         peticiones por ventana y por IP (600)
+%   PROLOG_RATE_VENTANA     segundos de la ventana         (60)
+%   PROLOG_TIMEOUT_CONEXION segundos de inactividad de una conexion (15)
+%   PROLOG_DRENAJE          segundos para terminar peticiones al apagar (10)
 % ============================================================================
 :- module(puente, []).
 
@@ -23,31 +36,39 @@
 :- use_module(library(lists)).
 :- use_module(library(apply)).
 :- use_module(library(pairs)).
+:- use_module(library(random)).
 
-:- dynamic kb_cargada/1, kb_dir/1.
+:- dynamic kb_cargada/1, kb_dir/1, apagando/0, ventana/3.
 
 :- prolog_load_context(directory, Dir), asserta(kb_dir(Dir)).
 
 :- initialization(arrancar, main).
 
-:- http_handler(root(salud),    manejar_salud,    []).
-:- http_handler(root(consulta), manejar_consulta, []).
-:- http_handler(root(evaluar),  manejar_evaluar,  []).
+:- http_handler(root(salud),    envolver(salud),    []).
+:- http_handler(root(consulta), envolver(consulta), []).
+:- http_handler(root(evaluar),  envolver(evaluar),  []).
 
 intenciones_consulta([ consultar_requisitos, consultar_documentos,
                        consultar_costo, consultar_plazo, consultar_descripcion ]).
 
 % ----------------------------------------------------------------------------
-% Arranque y carga del conocimiento
+% Configuracion
 % ----------------------------------------------------------------------------
 
-arrancar :-
-    puerto(Port),
-    ( getenv('PROLOG_HOST', Host) -> true ; Host = '127.0.0.1' ),
-    cargar_conocimiento,
-    http_server(http_dispatch, [port(Host:Port)]),
-    format(user_error, "Puente Prolog escuchando en http://~w:~w~n", [Host, Port]),
-    thread_get_message(_).               % mantiene vivo el proceso
+env_texto(Nombre, Defecto, Valor) :-
+    (   getenv(Nombre, V), V \== '' -> Valor = V ; Valor = Defecto ).
+env_num(Nombre, Defecto, Valor) :-
+    (   getenv(Nombre, A), A \== '', atom_number(A, N) -> Valor = N ; Valor = Defecto ).
+
+cfg(host,             V) :- env_texto('PROLOG_HOST', '127.0.0.1', V).
+cfg(workers,          V) :- env_num('PROLOG_WORKERS', 8, V).
+cfg(limite,           V) :- env_num('PROLOG_LIMITE', 2.5, V).
+cfg(max_body,         V) :- env_num('PROLOG_MAX_BODY', 16384, V).
+cfg(rate_max,         V) :- env_num('PROLOG_RATE_MAX', 600, V).
+cfg(rate_ventana,     V) :- env_num('PROLOG_RATE_VENTANA', 60, V).
+cfg(timeout_conexion, V) :- env_num('PROLOG_TIMEOUT_CONEXION', 15, V).
+cfg(drenaje,          V) :- env_num('PROLOG_DRENAJE', 10, V).
+cfg(api_key,          V) :- getenv('PROLOG_API_KEY', V0), V0 \== '', V = V0.   % falla si no hay
 
 puerto(Port) :-
     current_prolog_flag(argv, Argv), member(A, Argv),
@@ -55,11 +76,45 @@ puerto(Port) :-
 puerto(Port) :- getenv('PROLOG_PORT', A), atom_number(A, Port), !.
 puerto(8081).
 
-limite(L) :- getenv('PROLOG_LIMITE', A), atom_number(A, L), !.
-limite(2.5).
+% ----------------------------------------------------------------------------
+% Arranque, carga del conocimiento y apagado ordenado
+% ----------------------------------------------------------------------------
+
+arrancar :-
+    puerto(Port), cfg(host, Host), cfg(workers, W), cfg(timeout_conexion, TC),
+    cargar_conocimiento,
+    instalar_senales,
+    http_server(http_dispatch, [port(Host:Port), workers(W), timeout(TC)]),
+    (   cfg(api_key, _) -> Auth = activada
+    ;   Auth = 'DESACTIVADA (definir PROLOG_API_KEY en produccion)' ),
+    format(user_error, "Puente Prolog escuchando en http://~w:~w (workers=~w, auth=~w)~n",
+           [Host, Port, W, Auth]),
+    thread_get_message(_).               % mantiene vivo el proceso
+
+instalar_senales :-
+    forall(member(S, [term, int]), catch(on_signal(S, _, apagar), _, true)).
+
+% Al recibir SIGTERM/SIGINT: deja de aceptar trabajo nuevo (503), espera a las
+% peticiones en curso (hasta PROLOG_DRENAJE segundos) y termina.
+apagar(Senal) :-
+    format(user_error, "Senal ~w: drenando peticiones en curso...~n", [Senal]),
+    ( apagando -> true ; assertz(apagando) ),
+    cfg(drenaje, Max), get_time(T0),
+    esperar_vuelo(T0, Max),
+    format(user_error, "Servidor detenido.~n", []),
+    halt(0).
+
+esperar_vuelo(T0, Max) :-
+    flag(en_vuelo, N, N), get_time(T),
+    (   N =< 0 -> true
+    ;   T - T0 >= Max
+    ->  format(user_error, "Drenaje agotado con ~w peticion(es) en curso.~n", [N])
+    ;   sleep(0.1), esperar_vuelo(T0, Max)
+    ).
 
 % Se carga UNA sola vez y todo o nada: si falta un archivo, no hay version
 % valida y el motor queda "no_listo" (nunca mezcla versiones a medias).
+% Para publicar una version nueva se reinicia el servicio.
 cargar_conocimiento :-
     retractall(kb_cargada(_)),
     kb_dir(Dir),
@@ -90,28 +145,141 @@ obtener_kb_version(V) :-
     text_to_string(V0, V).
 
 % ----------------------------------------------------------------------------
+% Envoltorio de cada peticion: id de correlacion, contador, registro y red de
+% seguridad. Nunca deja escapar una excepcion al servidor HTTP.
+% ----------------------------------------------------------------------------
+
+envolver(Op, Request) :-
+    get_time(T0),
+    id_peticion(Request, Id),
+    nb_setval(http_id, Id),
+    nb_setval(http_estado, 0),
+    setup_call_cleanup(
+        flag(en_vuelo, N, N+1),
+        seguro(Op, Request),
+        ( flag(en_vuelo, M, M-1), registrar(Op, Request, T0) )).
+
+seguro(Op, Request) :-
+    (   catch(( protegido(Op, Request)
+              -> true
+              ;  responder_error(500, error_interno, "El motor no produjo respuesta.", false, _{}) ),
+              E,
+              catch(error_inesperado(E), _, true))
+    ->  true
+    ;   true
+    ).
+
+% Id de correlacion: se respeta X-Request-Id si es seguro (evita inyeccion de
+% cabeceras); si no, se genera uno. Se devuelve en la respuesta y en el log.
+id_peticion(Request, Id) :-
+    (   memberchk(x_request_id(V), Request), format(atom(Id0), "~w", [V]), id_seguro(Id0)
+    ->  Id = Id0
+    ;   random_between(0, 281474976710655, X), format(atom(Id), "~16r", [X])
+    ).
+
+id_seguro(A) :-
+    atom_length(A, N), N >= 1, N =< 64,
+    atom_codes(A, Cs), forall(member(C, Cs), id_char(C)).
+id_char(C) :- C < 128, ( code_type(C, alnum) ; C == 0'- ; C == 0'_ ), !.
+
+peer_texto(Request, T) :-
+    (   memberchk(peer(P), Request)
+    ->  (   P = ip(A,B,C,D) -> format(atom(T), "~w.~w.~w.~w", [A,B,C,D])
+        ;   format(atom(T), "~w", [P]) )
+    ;   T = desconocido
+    ).
+
+registrar(Op, Request, T0) :-
+    get_time(T1), Ms is round((T1 - T0) * 1000),
+    nb_getval(http_estado, Est), nb_getval(http_id, Id),
+    peer_texto(Request, Peer),
+    format_time(atom(Ts), '%FT%T%:z', T1),
+    with_mutex(puente_log,
+        format(user_error, "~w id=~w peer=~w op=~w status=~w ms=~w~n",
+               [Ts, Id, Peer, Op, Est, Ms])).
+
+% ----------------------------------------------------------------------------
+% Proteccion previa (se evalua en este orden; el primer rechazo gana)
+% ----------------------------------------------------------------------------
+
+protegido(salud, _Request) :- !, manejar_salud.
+protegido(Op, Request) :-
+    (   rechazo(Request, Status, Codigo, Msg, Reint, Cab)
+    ->  responder_error(Status, Codigo, Msg, Reint, _{}, Cab)
+    ;   atender_(Op, Request)
+    ).
+
+rechazo(_, 503, motor_no_disponible, "El motor se esta deteniendo.", true,
+        ['Retry-After'-5]) :-
+    apagando.
+rechazo(R, 405, datos_invalidos, "Usa el metodo POST.", false, ['Allow'-'POST']) :-
+    \+ memberchk(method(post), R).
+rechazo(R, 503, motor_no_disponible,
+        "Demasiadas peticiones; reintenta en unos segundos.", true,
+        ['Retry-After'-Seg]) :-
+    peer_texto(R, P), limite_excedido(P, Seg).
+rechazo(R, 403, acceso_denegado, "Credencial del motor invalida o ausente.", false, []) :-
+    \+ autorizado(R).
+rechazo(_, 503, motor_no_disponible, "El motor no tiene conocimiento cargado.", true, []) :-
+    \+ kb_cargada(_).
+rechazo(R, 422, datos_invalidos, "El Content-Type debe ser application/json.", false, []) :-
+    \+ content_type_json(R).
+rechazo(R, 422, datos_invalidos, Msg, false, []) :-
+    tam_cuerpo_invalido(R, Msg).
+
+content_type_json(R) :-
+    memberchk(content_type(CT), R), format(atom(A), "~w", [CT]),
+    sub_atom(A, 0, _, _, 'application/json').
+
+tam_cuerpo_invalido(R, Msg) :-
+    cfg(max_body, Max),
+    (   memberchk(content_length(L), R)
+    ->  integer(L), L > Max,
+        format(string(Msg), "El cuerpo excede ~w bytes.", [Max])
+    ;   Msg = "Se requiere la cabecera Content-Length."
+    ).
+
+% Credencial compartida (cabecera X-Api-Key), comparada en tiempo constante.
+autorizado(R) :-
+    (   cfg(api_key, Esperada)
+    ->  memberchk(x_api_key(Enviada), R),
+        format(atom(E), "~w", [Esperada]), format(atom(S), "~w", [Enviada]),
+        iguales(E, S)
+    ;   true
+    ).
+
+iguales(A, B) :-
+    atom_codes(A, Ca), atom_codes(B, Cb),
+    length(Ca, N), length(Cb, N),
+    difiere(Ca, Cb, 0, D), D =:= 0.
+difiere([], [], D, D).
+difiere([X|Xs], [Y|Ys], D0, D) :- D1 is D0 \/ (X xor Y), difiere(Xs, Ys, D1, D).
+
+% Limite de peticiones: ventana fija por IP de origen (la de Laravel, en la
+% practica). Las ventanas viejas se descartan para no crecer sin limite.
+limite_excedido(Peer, Retry) :-
+    cfg(rate_max, Max), cfg(rate_ventana, Seg),
+    get_time(Now), Id is floor(Now / Seg),
+    with_mutex(puente_rate, contar(Peer, Id, C)),
+    C > Max,
+    Retry is max(1, ceiling(Seg - (Now - Id * Seg))).
+
+contar(Peer, Id, C) :-
+    forall(( ventana(P, I, _), I < Id ), retractall(ventana(P, I, _))),
+    (   retract(ventana(Peer, Id, C0)) -> true ; C0 = 0 ),
+    C is C0 + 1,
+    assertz(ventana(Peer, Id, C)).
+
+% ----------------------------------------------------------------------------
 % Manejadores
 % ----------------------------------------------------------------------------
 
-manejar_salud(_Request) :-
-    (   kb_cargada(V)
-    ->  reply_json_dict(_{version:2, estado:listo, kb_version:V}, [status(200)])
-    ;   reply_json_dict(_{version:2, estado:no_listo, kb_version:null}, [status(503)])
+manejar_salud :-
+    (   kb_cargada(V), \+ apagando
+    ->  responder(_{version:2, estado:listo, kb_version:V}, 200)
+    ;   responder(_{version:2, estado:no_listo, kb_version:null}, 503)
     ).
 
-manejar_consulta(Request) :- atender(consulta, Request).
-manejar_evaluar(Request)  :- atender(evaluar,  Request).
-
-atender(Op, Request) :-
-    catch(atender_(Op, Request), E, error_inesperado(E)).
-
-atender_(_, Request) :-
-    \+ memberchk(method(post), Request), !,
-    responder_error(405, datos_invalidos, "Usa el metodo POST.", false, _{}).
-atender_(_, _) :-
-    \+ kb_cargada(_), !,
-    responder_error(503, motor_no_disponible,
-                    "El motor no tiene conocimiento cargado.", true, _{}).
 atender_(Op, Request) :-
     (   catch(http_read_json_dict(Request, Body), _, fail), is_dict(Body)
     ->  validar_y_ejecutar(Op, Body)
@@ -131,7 +299,7 @@ ejecutar(Op, Body) :-
     kb_cargada(KbV),
     get_dict(tramite_id, Body, TS), atom_string(Tramite, TS),
     get_dict(intencion,  Body, IS), atom_string(Intencion, IS),
-    limite(Lim),
+    cfg(limite, Lim),
     (   Op == consulta
     ->  Goal = user:consultar(Intencion, Tramite, Salida0)
     ;   get_dict(perfil, Body, P0), perfil_sin_nulos(P0, Perfil),
@@ -145,7 +313,7 @@ ejecutar(Op, Body) :-
     ),
     normalizar_salida(Op, Salida0, Salida),
     Resp = Salida.put(_{version:2, kb_version:KbV, tramite_id:Tramite, intencion:Intencion}),
-    reply_json_dict(Resp, [status(200)]).
+    responder(Resp, 200).
 
 error_inesperado(salida_invalida(Msg)) :- !,
     print_message(error, format("Salida invalida de las reglas: ~w", [Msg])),
@@ -160,11 +328,22 @@ error_inesperado(E) :-
     print_message(error, E),
     responder_error(500, error_interno, "Fallo inesperado en el motor.", false, _{}).
 
+% Toda respuesta pasa por aqui: registra el estado para el log y devuelve el id.
+responder(Dict, Status) :- responder(Dict, Status, []).
+responder(Dict, Status, Cabeceras) :-
+    nb_setval(http_estado, Status),
+    nb_getval(http_id, Id),
+    format("X-Request-Id: ~w~n", [Id]),
+    forall(member(K-V, Cabeceras), format("~w: ~w~n", [K, V])),
+    reply_json_dict(Dict, [status(Status)]).
+
 responder_error(Status, Codigo, Mensaje, Reintentable, Campos) :-
-    reply_json_dict(_{ version:2,
-                       error:_{ codigo:Codigo, mensaje:Mensaje,
-                                reintentable:Reintentable, campos:Campos } },
-                    [status(Status)]).
+    responder_error(Status, Codigo, Mensaje, Reintentable, Campos, []).
+responder_error(Status, Codigo, Mensaje, Reintentable, Campos, Cabeceras) :-
+    responder(_{ version:2,
+                 error:_{ codigo:Codigo, mensaje:Mensaje,
+                          reintentable:Reintentable, campos:Campos } },
+              Status, Cabeceras).
 
 campos_dict(Errs, Dict) :-
     msort(Errs, Sorted),

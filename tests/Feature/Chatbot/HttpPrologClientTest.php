@@ -96,4 +96,39 @@ class HttpPrologClientTest extends TestCase
         try { $this->cliente()->evaluar(['perfil' => []] + self::EVALUAR); } catch (PrologException) {}
         Http::assertSent(fn ($req) => str_contains($req->body(), '"perfil":{}'));
     }
+
+    public function test_envia_la_credencial_en_la_cabecera(): void
+    {
+        Http::fake(['*' => Http::response($this->ok())]);
+        (new HttpPrologClient('http://prolog.test', apiKey: 'clave-secreta'))->consultar(self::CONSULTA);
+        Http::assertSent(fn ($req) => $req->hasHeader('X-Api-Key', 'clave-secreta'));
+    }
+
+    public function test_credencial_rechazada_es_500_de_configuracion(): void
+    {
+        Http::fake(['*' => Http::response(['version' => 2, 'error' => ['codigo' => 'acceso_denegado',
+            'mensaje' => 'x', 'reintentable' => false, 'campos' => []]], 403)]);
+        $e = $this->codigo(fn () => $this->cliente()->consultar(self::CONSULTA));
+        $this->assertSame([500, 'error_interno'], [$e->status, $e->codigo]);
+    }
+
+    public function test_503_por_limite_se_conserva_como_reintentable(): void
+    {
+        Http::fake(['*' => Http::response(['version' => 2, 'error' => ['codigo' => 'motor_no_disponible',
+            'mensaje' => 'Demasiadas peticiones', 'reintentable' => true, 'campos' => []]], 503)]);
+        $e = $this->codigo(fn () => $this->cliente()->consultar(self::CONSULTA));
+        $this->assertSame([503, true], [$e->status, $e->reintentable]);
+        Http::assertSentCount(1);   // un 503 del motor NO se reintenta
+    }
+
+    public function test_reintenta_si_no_hay_conexion_y_se_recupera(): void
+    {
+        $n = 0;
+        Http::fake(function () use (&$n) {
+            if (++$n === 1) throw new ConnectionException('cURL error 7: Failed to connect');
+            return Http::response($this->ok());
+        });
+        $this->assertSame(['Req 1'], $this->cliente()->consultar(self::CONSULTA)['items']);
+        $this->assertSame(2, $n);
+    }
 }
