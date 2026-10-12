@@ -3,180 +3,166 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Detalle de Solicitud - Módulo 3</title>
+    <title>Revisión de Solicitud - {{ $solicitud->id ?? 'N/D' }}</title>
     <script src="https://cdn.tailwindcss.com"></script>
 </head>
-<body class="bg-slate-950 text-slate-100 font-sans antialiased min-h-screen flex">
-
-    <aside class="w-64 bg-slate-900 border-r border-slate-800 p-6 flex flex-col justify-between">
-        <div>
-            <h1 class="text-xl font-bold tracking-wider text-white mb-8">UEES Solicitudes <span class="text-xs bg-indigo-600 px-2 py-1 rounded text-white ml-2">M3</span></h1>
-            <nav class="space-y-3">
-                <a href="{{ route('revision.asistente') }}" class="block px-4 py-2.5 rounded-lg bg-indigo-600 text-white font-medium">Bandeja Asistente</a>
-                <a href="#" class="block px-4 py-2.5 rounded-lg text-slate-400 hover:bg-slate-800 hover:text-white transition">Bandeja Director</a>
-                <a href="#" class="block px-4 py-2.5 rounded-lg text-slate-400 hover:bg-slate-800 hover:text-white transition">Agendas Consejo</a>
-                <a href="#" class="block px-4 py-2.5 rounded-lg text-slate-400 hover:bg-slate-800 hover:text-white transition">Resoluciones</a>
-            </nav>
-        </div>
-        <div class="text-xs text-slate-500">Módulo de Revisión y Consejo</div>
-    </aside>
-
+<body class="bg-slate-950 text-slate-100 min-h-screen">
     <main class="flex-1 p-10 overflow-y-auto">
         <div class="max-w-4xl mx-auto">
-            
+
+            <!-- Encabezado -->
             <div class="flex justify-between items-center mb-6">
                 <div>
-                    <h2 class="text-2xl font-bold text-white">Revisión de Solicitud #{{ $solicitud->id }}</h2>
+                    <h2 class="text-2xl font-bold text-white">Revisión de Solicitud {{ $solicitud->id ?? 'N/D' }}</h2>
                     <p class="text-sm text-slate-400">Detalle y validación documental del caso</p>
                 </div>
-                <a href="{{ route('revision.asistente') }}" class="bg-slate-800 hover:bg-slate-700 text-slate-300 px-4 py-2 rounded-lg text-sm font-medium transition">
-                    &larr; Volver a la Bandeja
+                <a href="{{ route('revision.asistente') }}" class="bg-slate-800 hover:bg-slate-700 text-slate-300 text-sm px-4 py-2 rounded-lg transition">
+                    ← Volver a la Bandeja
                 </a>
             </div>
 
-            @if(session('success'))
-                <div class="mb-6 p-4 bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 rounded-xl text-sm font-medium">
-                    {{ session('success') }}
-                </div>
-            @endif
-
+            <!-- Alertas de estado -->
             @if(session('error'))
-                <div class="mb-6 p-4 bg-rose-500/10 border border-rose-500/20 text-rose-400 rounded-xl text-sm font-medium">
+                <div class="mb-4 p-4 bg-red-900/50 border border-red-700 text-red-200 rounded-lg text-sm">
                     {{ session('error') }}
                 </div>
             @endif
 
-            <div class="bg-slate-900 border border-slate-800 rounded-xl p-6 mb-6 shadow-xl space-y-4">
-                <h3 class="text-sm font-semibold text-indigo-400 uppercase tracking-wider mb-2">Información del Estudiante</h3>
-                <div class="grid grid-cols-2 gap-4 text-sm">
+            <!-- Tarjeta de Información del Estudiante -->
+            <div class="bg-slate-900 border border-slate-800 rounded-xl p-6 mb-6 shadow-lg">
+                <h3 class="text-base font-semibold text-white mb-4">Información del Solicitante</h3>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
                     <div>
-                        <span class="text-slate-400 block text-xs">Estudiante</span>
-                        <span class="font-medium text-white text-base">{{ $solicitud->estudiante }}</span>
+                        <span class="text-slate-400 block">Estudiante:</span>
+                        <span class="text-slate-200 font-medium">{{ $solicitud->estudiante ?? 'N/D' }}</span>
                     </div>
                     <div>
-                        <span class="text-slate-400 block text-xs">Código</span>
-                        <span class="font-mono text-slate-300">{{ $solicitud->codigo }}</span>
+                        <span class="text-slate-400 block">Código / ID:</span>
+                        <span class="text-slate-200 font-medium">{{ $solicitud->codigo ?? 'N/D' }}</span>
                     </div>
                     <div>
-                        <span class="text-slate-400 block text-xs">Carrera</span>
-                        <span class="text-slate-300">{{ $solicitud->carrera }}</span>
+                        <span class="text-slate-400 block">Carrera:</span>
+                        <span class="text-slate-200 font-medium">{{ $solicitud->carrera ?? 'N/D' }}</span>
                     </div>
                     <div>
-                        <span class="text-slate-400 block text-xs">Trámite</span>
-                        <span class="text-slate-300">{{ $solicitud->tramite }}</span>
+                        <span class="text-slate-400 block">Trámite:</span>
+                        <span class="text-slate-200 font-medium">{{ $solicitud->tramite ?? 'N/D' }}</span>
                     </div>
                     <div>
-                        <span class="text-slate-400 block text-xs">Materia</span>
-                        <span class="text-slate-300">{{ $solicitud->materia ?? 'N/A' }}</span>
+                        <span class="text-slate-400 block">Estado Actual:</span>
+                        <span class="text-indigo-400 font-bold">{{ $solicitud->estado ?? 'Enviado' }}</span>
                     </div>
                     <div>
-                        <span class="text-slate-400 block text-xs">Estado Actual</span>
-                        @php
-                            $estadoClase = match($solicitud->estado) {
-                                'Aplica' => 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20',
-                                'Requiere corrección' => 'bg-amber-500/10 text-amber-400 border-amber-500/20',
-                                'Rechazado' => 'bg-rose-500/10 text-rose-400 border-rose-500/20',
-                                default => 'bg-sky-500/10 text-sky-400 border-sky-500/20'
-                            };
-                        @endphp
-                        <span class="px-2.5 py-1 rounded-full text-xs font-semibold border {{ $estadoClase }} inline-block mt-1">
-                            {{ $solicitud->estado }}
-                        </span>
+                        <span class="text-slate-400 block">Fecha de Envío:</span>
+                        <span class="text-slate-200 font-medium">{{ $solicitud->fecha ?? 'N/D' }}</span>
                     </div>
                 </div>
 
-                <div class="pt-4 border-t border-slate-800">
-                    <span class="text-slate-400 block text-xs mb-1">Motivo de la Solicitud</span>
-                    <p class="text-sm text-slate-300 bg-slate-950 p-3 rounded-lg border border-slate-800/60">{{ $solicitud->motivo }}</p>
+                <div class="mt-4 pt-4 border-t border-slate-800">
+                    <span class="text-slate-400 block text-sm mb-1">Motivo de la Solicitud:</span>
+                    <p class="text-slate-300 text-sm bg-slate-950 p-3 rounded-lg border border-slate-800/60">
+                        {{ $solicitud->motivo ?? 'Sin motivo especificado.' }}
+                    </p>
                 </div>
             </div>
 
-            <div class="bg-slate-900 border border-slate-800 rounded-xl p-6 mb-6 shadow-xl">
-                <h3 class="text-sm font-semibold text-indigo-400 uppercase tracking-wider mb-4">Documento del Expediente</h3>
-                <div class="flex items-center justify-between bg-slate-950 p-4 rounded-lg border border-slate-800/60">
-                    <div class="flex items-center space-x-3">
-                        <svg class="w-8 h-8 text-rose-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z"></path>
-                        </svg>
-                        <div>
-                            <span class="text-sm font-medium text-white block">Expediente_Solicitud_{{ $solicitud->id }}.pdf</span>
-                            <span class="text-xs text-slate-400">Documento adjunto por el estudiante</span>
-                        </div>
+            <!-- Documentos Adjuntos (Integrados con repositorio de archivos / otros grupos) -->
+            <div class="bg-slate-900 border border-slate-800 rounded-xl p-6 mb-6 shadow-lg">
+                <h3 class="text-base font-semibold text-white mb-4">Documentos Adjuntos (Módulo de Archivos)</h3>
+                @if(!empty($solicitud->documentos) && is_array($solicitud->documentos) && count($solicitud->documentos) > 0)
+                    <div class="space-y-3">
+                        @foreach($solicitud->documentos as $doc)
+                            <div class="flex items-center justify-between bg-slate-950 p-3 rounded-lg border border-slate-800">
+                                <div class="flex items-center space-x-3">
+                                    <svg class="w-6 h-6 text-red-400" fill="currentColor" viewBox="0 0 20 20">
+                                        <path fill-rule="evenodd" d="M4 4a2 2 0 012-2h4.586A2 2 0 0112 2.586L15.414 6A2 2 0 0116 7.414V16a2 2 0 01-2 2H6a2 2 0 01-2-2V4z" clip-rule="evenodd"></path>
+                                    </svg>
+                                    <div>
+                                        <p class="text-sm font-medium text-slate-200">{{ is_object($doc) ? ($doc->nombre ?? 'Documento') : $doc }}</p>
+                                        <p class="text-xs text-slate-400">PDF Adjunto por Estudiante / Sistema</p>
+                                    </div>
+                                </div>
+                                <a href="{{ is_object($doc) && isset($doc->url) ? $doc->url : '#' }}" target="_blank" class="text-xs bg-slate-800 hover:bg-slate-700 text-slate-300 px-3 py-1.5 rounded-md transition">Ver / Descargar</a>
+                            </div>
+                        @endforeach
                     </div>
-                    <div class="flex gap-3">
-                        <a href="{{ route('documento.descargar', 'CARRERA.pdf') }}" target="_blank" class="bg-indigo-600 hover:bg-indigo-500 text-white px-4 py-2 rounded-lg text-xs font-semibold transition shadow-md">
-                            Ver / Descargar PDF
-                        </a>
-                    </div>
-                </div>
+                @else
+                    <p class="text-sm text-slate-400">No hay documentos registrados para este caso o el repositorio externo no devolvió archivos.</p>
+                @endif
             </div>
 
+            <!-- Formulario de Revisión (Bloqueado si ya está finalizado) -->
             @php
-                $esFinalizado = in_array($solicitud->estado, ['Aplica', 'Rechazado', 'Aprobado']);
+                $esFinalizado = in_array($solicitud->estado ?? '', ['Aprobado', 'Rechazado']);
             @endphp
 
-            <form action="{{ route('revision.caso.decidir', $solicitud->id) }}" method="POST" class="space-y-6">
+            <form action="{{ route('revision.guardar', $solicitud->id) }}" method="POST" class="bg-slate-900 border border-slate-800 rounded-xl p-6 shadow-lg" onsubmit="return validarAccion(event);">
                 @csrf
-                
-                <div class="bg-slate-900 border border-slate-800 p-6 rounded-xl shadow-xl">
-                    <h3 class="text-sm font-semibold text-white mb-4">Registrar Revisión y Decisión</h3>
-                    
-                    <div class="space-y-3 mb-6">
-                        <label class="flex items-center space-x-3 text-sm text-slate-300 cursor-pointer">
-                            <input type="checkbox" name="check_documento" value="1" 
-                                {{ old('check_documento', $solicitud->check_documento) ? 'checked' : '' }} 
-                                {{ $esFinalizado ? 'disabled' : '' }}
-                                class="rounded bg-slate-950 border-slate-800 text-indigo-600 focus:ring-indigo-500 w-4 h-4">
-                            <span>Documento legible y válido</span>
-                        </label>
+                <h3 class="text-sm font-semibold text-white mb-4">Registrar Revisión y Decisión</h3>
 
-                        <label class="flex items-center space-x-3 text-sm text-slate-300 cursor-pointer">
-                            <input type="checkbox" name="check_datos" value="1" 
-                                {{ old('check_datos', $solicitud->check_datos) ? 'checked' : '' }} 
-                                {{ $esFinalizado ? 'disabled' : '' }}
-                                class="rounded bg-slate-950 border-slate-800 text-indigo-600 focus:ring-indigo-500 w-4 h-4">
-                            <span>Datos del estudiante coinciden con el expediente</span>
-                        </label>
-
-                        <label class="flex items-center space-x-3 text-sm text-slate-300 cursor-pointer">
-                            <input type="checkbox" name="check_requisitos" value="1" 
-                                {{ old('check_requisitos', $solicitud->check_requisitos) ? 'checked' : '' }} 
-                                {{ $esFinalizado ? 'disabled' : '' }}
-                                class="rounded bg-slate-950 border-slate-800 text-indigo-600 focus:ring-indigo-500 w-4 h-4">
-                            <span>Requisitos institucionales completos</span>
-                        </label>
-                    </div>
-
-                    <div class="mb-6">
-                        <label class="block text-xs text-slate-400 mb-2">Observaciones Internas / Motivo de Rechazo</label>
-                        <textarea name="observaciones_internas" rows="3" 
-                            {{ $esFinalizado ? 'disabled' : '' }}
-                            class="w-full bg-slate-950 border border-slate-800 rounded-lg p-3 text-sm text-slate-200 focus:outline-none focus:border-indigo-500" 
-                            placeholder="Ingrese notas u observaciones sobre la revisión...">{{ old('observaciones_internas', $solicitud->observaciones_internas) }}</textarea>
-                    </div>
-
-                    @if($esFinalizado)
-                        <div class="p-4 bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 rounded-xl text-sm font-medium">
-                            Este caso ya se encuentra procesado (Estado: {{ $solicitud->estado }}). Las opciones de modificación están bloqueadas.
-                        </div>
-                    @else
-                        <div class="flex flex-wrap gap-4">
-                            <button type="submit" name="decision" value="aplica" class="bg-emerald-600 hover:bg-emerald-500 text-white px-5 py-2.5 rounded-lg text-sm font-semibold transition shadow-md">
-                                Aprobar / Aplica
-                            </button>
-                            <button type="submit" name="decision" value="correccion" class="bg-amber-600 hover:bg-amber-500 text-white px-5 py-2.5 rounded-lg text-sm font-semibold transition shadow-md">
-                                Requiere Corrección
-                            </button>
-                            <button type="submit" name="decision" value="rechaza" onclick="return confirm('¿Está seguro de rechazar esta solicitud?')" class="bg-rose-600 hover:bg-rose-500 text-white px-5 py-2.5 rounded-lg text-sm font-semibold transition shadow-md">
-                                No aplica / Rechazar
-                            </button>
-                        </div>
-                    @endif
+                <div class="space-y-3 mb-6">
+                    <label class="flex items-center space-x-3 text-sm text-slate-300 cursor-pointer">
+                        <input type="checkbox" name="check_documento" value="1" {{ $esFinalizado ? 'disabled' : '' }} class="rounded bg-slate-950 border-slate-800 text-indigo-600 focus:ring-indigo-500 w-4 h-4">
+                        <span>Documento legible y válido</span>
+                    </label>
+                    <label class="flex items-center space-x-3 text-sm text-slate-300 cursor-pointer">
+                        <input type="checkbox" name="check_datos" value="1" {{ $esFinalizado ? 'disabled' : '' }} class="rounded bg-slate-950 border-slate-800 text-indigo-600 focus:ring-indigo-500 w-4 h-4">
+                        <span>Datos del estudiante coinciden con el expediente</span>
+                    </label>
+                    <label class="flex items-center space-x-3 text-sm text-slate-300 cursor-pointer">
+                        <input type="checkbox" name="check_requisitos" value="1" {{ $esFinalizado ? 'disabled' : '' }} class="rounded bg-slate-950 border-slate-800 text-indigo-600 focus:ring-indigo-500 w-4 h-4">
+                        <span>Cumple con los requisitos normativos de la facultad</span>
+                    </label>
                 </div>
+
+                <div class="mb-6">
+                    <label class="block text-sm font-medium text-slate-300 mb-2">Observaciones del Asistente</label>
+                    <textarea name="observaciones" rows="3" {{ $esFinalizado ? 'disabled' : '' }} class="w-full bg-slate-950 border border-slate-800 rounded-lg p-3 text-sm text-slate-200 focus:ring-2 focus:ring-indigo-500 focus:outline-none" placeholder="Escriba sus observaciones o motivo de devolución..."></textarea>
+                </div>
+
+                <!-- 3 Botones de Decisión con confirmación -->
+                @unless($esFinalizado)
+                <div class="flex justify-end space-x-3">
+                    <button type="submit" name="accion" value="rechazar" onclick="window.accionSeleccionada = 'rechazar'" class="bg-red-600/20 hover:bg-red-600/30 text-red-300 border border-red-600/40 px-4 py-2 rounded-lg text-sm transition">
+                        Rechazar Solicitud
+                    </button>
+                    <button type="submit" name="accion" value="observado" onclick="window.accionSeleccionada = 'observado'" class="bg-amber-600/20 hover:bg-amber-600/30 text-amber-300 border border-amber-600/40 px-4 py-2 rounded-lg text-sm transition">
+                        Marcar como Observado
+                    </button>
+                    <button type="submit" name="accion" value="aprobar" onclick="window.accionSeleccionada = 'aprobar'" class="bg-indigo-600 hover:bg-indigo-500 text-white px-5 py-2 rounded-lg text-sm font-medium transition shadow-lg shadow-indigo-600/20">
+                        Aprobar y Enviar a Consejo
+                    </button>
+                </div>
+                @else
+                <div class="p-4 bg-slate-950 rounded-lg border border-slate-800 text-center text-sm text-slate-300">
+                    🔒 Este caso ya se encuentra <span class="font-bold text-white uppercase">{{ $solicitud->estado }}</span> y está bloqueado para edición.
+                </div>
+                @endunless
             </form>
 
         </div>
     </main>
 
+    <!-- Script de confirmación -->
+    <script>
+        function validarAccion(event) {
+            let accion = window.accionSeleccionada;
+            let mensaje = "¿Está seguro de realizar esta acción?";
+            
+            if (accion === 'aprobar') {
+                mensaje = "¿Está completamente seguro de APROBAR esta solicitud y enviarla a Consejo?";
+            } else if (accion === 'rechazar') {
+                mensaje = "¿Está seguro de RECHAZAR esta solicitud? Esta acción finalizará el trámite.";
+            } else if (accion === 'observado') {
+                mensaje = "¿Desea marcar este caso como OBSERVADO para que el estudiante corrija los datos?";
+            }
+
+            if (!confirm(mensaje)) {
+                event.preventDefault();
+                return false;
+            }
+            return true;
+        }
+    </script>
 </body>
 </html>
