@@ -3,6 +3,8 @@ namespace App\Services\Academico;
 
 use App\Models\Estudiante;
 use Illuminate\Support\Facades\Auth;
+use App\Models\CarreraEstudiante;
+use Illuminate\Database\Eloquent\Collection;
 
 class EstudianteService
 {
@@ -32,6 +34,15 @@ class EstudianteService
         
         return null; // Si es un profesor o no ha iniciado sesión, devuelve nulo
         
+    }
+
+    //=== C13: Devuelve las inscripciones activas del estudiante, con carrera, modalidad y malla.
+    public function carrerasActivas(int $estudianteId): Collection
+    {
+        return CarreraEstudiante::with(['carreraModalidad.carrera', 'carreraModalidad.modalidad', 'malla'])
+                                ->where('estudiante_id', $estudianteId)
+                                ->where('estado', 'activo')
+                                ->get();
     }
 
     //===C14 
