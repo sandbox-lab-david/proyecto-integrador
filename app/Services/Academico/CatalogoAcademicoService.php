@@ -2,6 +2,7 @@
 namespace App\Services\Academico;
 
 use App\Models\Curso;
+use App\Models\Malla;
 use Illuminate\Database\Eloquent\Collection;
 
 class CatalogoAcademicoService
@@ -31,6 +32,15 @@ class CatalogoAcademicoService
                     ->where('periodo_id', $periodoId)
                     ->get();
         
+    }
+
+    //===C04: Devuelve las mallas de una carrera, la vigente primero.
+    public function mallasDeCarrera(int $carreraId): Collection
+    {
+        return Malla::where('carrera_id', $carreraId)
+                    ->orderByDesc('vigente')
+                    ->orderByDesc('version')
+                    ->get();
     }
 
     //===C05
