@@ -12,11 +12,18 @@ class DatabaseSeeder extends Seeder
 
     public function run(): void
     {
+        // Grupo 1
+        $this->call([
+            UsuarioDemoSeeder::class,
+            //CursoSeeder::Class,
+        ]);
+
         User::factory()->create([
             'name' => 'Test User',
             'email' => 'test@example.com',
         ]);
 
+        // Grupo 3
         $this->call([
             SolicitudRevisionSeeder::class,
             SolicitudSeeder::class,
