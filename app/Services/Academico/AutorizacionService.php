@@ -2,6 +2,7 @@
 namespace App\Services\Academico;
 
 use App\Models\Trabajador;
+use App\Models\User; 
 
 class AutorizacionService
 {
@@ -33,5 +34,18 @@ class AutorizacionService
     {
         
         return collect([]);
+    }
+
+    // ==== C15
+    public function tieneRol(User $u, string|array $codigos): bool
+    {
+        $codigos = (array) $codigos;
+        $trabajador = $u->trabajador;
+
+        if (! $trabajador) { 
+            return false; 
+        }
+        
+        return $trabajador->roles()->whereIn('codigo', $codigos)->exists();
     }
 }
