@@ -7,6 +7,7 @@ use App\Services\Archivos\FirmadosTemporales;
 use App\Services\Archivos\RespaldosTemporales;
 use App\Services\Solicitudes\BorradoresTemporales;
 use App\Services\Solicitudes\TramitesSimulados;
+use App\Services\Solicitudes\DocumentosTemporales;
 use Illuminate\Http\JsonResponse;
 use App\Http\Requests\Estudiante\GuardarBorradorRequest;
 use Illuminate\Http\Response;
@@ -23,6 +24,7 @@ class BorradorTemporalController extends Controller
         private readonly TramitesSimulados $tramites,
         private readonly RespaldosTemporales $respaldos,
         private readonly FirmadosTemporales $firmados,
+        private readonly DocumentosTemporales $documentos,
     ) {}
 
     public function update(GuardarBorradorRequest $request, string $tramite): JsonResponse
@@ -63,6 +65,7 @@ class BorradorTemporalController extends Controller
         }
 
         $this->firmados->quitar($tramite);
+        $this->documentos->quitar($tramite);
 
         return response()->noContent();
     }

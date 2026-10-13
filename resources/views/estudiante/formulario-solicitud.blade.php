@@ -651,8 +651,9 @@
 
                                     @case('numero')
                                         <input id="{{ $id }}" name="{{ $campo['nombre'] }}"
-                                            type="number" step="0.01"
-                                            min="{{ $campo['min'] }}" max="{{ $campo['max'] }}"
+                                            type="number" step="{{ $campo['step'] ?? '0.01' }}"
+                                            @isset($campo['min']) min="{{ $campo['min'] }}" @endisset
+                                            @isset($campo['max']) max="{{ $campo['max'] }}" @endisset
                                             @required($campo['obligatorio'])>
                                         @break
 
@@ -662,9 +663,14 @@
                                             @required($campo['obligatorio'])>
                                         @break
 
+                                    @case('hora')
+                                        <input id="{{ $id }}" name="{{ $campo['nombre'] }}"
+                                            type="time" step="60" @required($campo['obligatorio'])>
+                                        @break
+
                                     @default
                                         <input id="{{ $id }}" name="{{ $campo['nombre'] }}"
-                                            type="text" maxlength="255"
+                                            type="text" maxlength="{{ $campo['max_length'] ?? 255 }}"
                                             @required($campo['obligatorio'])>
                                 @endswitch
 
@@ -704,6 +710,9 @@
 
                     <h3>Documentos de este trámite</h3>
                     <ul id="requisitos-respaldo" class="requisitos-respaldo"></ul>
+                    @if ($tramite['documentos_orientativos'] ?? false)
+                        <p class="ayuda">Las opciones de respaldo son orientativas. Adjunta las que correspondan a tu caso; la facultad confirmará los documentos exigidos.</p>
+                    @endif
 
                     <div class="carga">
                         <x-subir-archivo id="archivos" name="archivo"
@@ -805,8 +814,16 @@
 
                         <button id="confirmar-solicitud" class="principal"
                             type="button">
-                            {{ $codigoTramite === 'recuperacion' ? 'Descargar documento Word' : 'Confirmar solicitud' }}
+                            Descargar documento Word
                         </button>
+                    </div>
+
+                    <div class="campo">
+                        <label for="formato-documento">Formato de descarga</label>
+                        <select id="formato-documento">
+                            <option value="docx">Word (.docx)</option>
+                            <option value="pdf">PDF (requiere LibreOffice en el servidor)</option>
+                        </select>
                     </div>
 
                     <p id="mensaje-confirmacion" class="seleccion"
@@ -822,6 +839,8 @@
                             <li>Escanéalo completo en un solo archivo PDF.</li>
                             <li>Súbelo aquí. Si subes otro, reemplaza al anterior.</li>
                         </ol>
+                        <p class="ayuda">Una nueva descarga Word reemplaza la versión
+                            anterior y requiere volver a subir el PDF firmado.</p>
 
                         <div class="carga">
                             <x-subir-archivo id="firmado" name="firmado"
@@ -850,9 +869,18 @@
                         </div>
 
                         <p id="recibido-firmado" class="ayuda" hidden>
-                            Recibimos tu PDF firmado. En esta demostración
-                            la solicitud todavía no se envía a revisión.
+                            Recibimos tu PDF firmado. Para enviar, confirma que
+                            corresponde al documento descargado y a los datos actuales.
                         </p>
+                        <button id="enviar-solicitud" class="principal" type="button" disabled>
+                            Enviar a revisión
+                        </button>
+                        @unless ($envioDisponible)
+                            <p class="ayuda">El envío estará disponible cuando se integre
+                                el acceso del estudiante, los catálogos reales y los estados
+                                de revisión. Por ahora se conservan datos y archivos temporales.</p>
+                        @endunless
+                        <p id="mensaje-envio" class="seleccion" role="status"></p>
                     </section>
                 </section>
             </div>
@@ -999,9 +1027,11 @@
                 control.type = definicion.tipo === 'numero' ? 'number' : 'text';
 
                 if (definicion.tipo === 'numero') {
-                    control.min = definicion.min;
-                    control.max = definicion.max;
-                    control.step = '0.01';
+                    if (definicion.min !== undefined) control.min = definicion.min;
+                    if (definicion.max !== undefined) control.max = definicion.max;
+                    control.step = definicion.step ?? '0.01';
+                } else {
+                    control.maxLength = definicion.max_length ?? 255;
                 }
             }
 
@@ -1513,49 +1543,60 @@
         document.getElementById('volver-respaldos')
             .addEventListener('click', () => mostrarPaso(3));
 
+        document.getElementById('formato-documento').addEventListener('change', evento => {
+            document.getElementById('confirmar-solicitud').textContent =
+                evento.target.value === 'pdf' ? 'Descargar documento PDF' : 'Descargar documento Word';
+        });
+
         document.getElementById('confirmar-solicitud')
             .addEventListener('click', async () => {
                 const declaracion = document.getElementById('declaracion');
 
                 if (!declaracion.reportValidity()) return;
 
-                bloqueFirmado.hidden = false;
-
-                if (@json($codigoTramite) === 'recuperacion') {
+                {
                     const boton = document.getElementById('confirmar-solicitud');
                     const mensaje = document.getElementById('mensaje-confirmacion');
+                    if (boton.disabled) return;
                     boton.disabled = true;
+                    const formato = document.getElementById('formato-documento').value;
                     mensaje.textContent = 'Preparando el documento…';
                     try {
-                        const respuesta = await fetch(@json(route('solicitudes.documento')), {
+                        const respuesta = await enCola(() => fetch(@json(route('solicitudes.documento')), {
                             method: 'POST',
                             headers: {'Content-Type': 'application/json', 'Accept': 'application/json', 'X-CSRF-TOKEN': @json(csrf_token())},
-                            body: JSON.stringify({tramite: 'recuperacion', nombre: textoDe('nombre'), codigo: textoDe('codigo'), carrera: textoDe('carrera'), correo: textoDe('correo'), celular: textoDe('celular'), materia_id: elegidas[0]?.id})
-                        });
+                            body: JSON.stringify({...datosBorrador(), formato, tramite: @json($codigoTramite), nombre: textoDe('nombre'), codigo: textoDe('codigo'), carrera: textoDe('carrera'), correo: textoDe('correo'), declaracion: declaracion.checked})
+                        }));
                         if (!respuesta.ok) {
+                            if (respuesta.status === 429) {
+                                const segundos = Math.max(1, Number(respuesta.headers.get('Retry-After')) || 60);
+                                throw new Error(`Has alcanzado el límite de descargas. Espera ${segundos} segundos antes de intentar otra vez.`);
+                            }
                             const error = await respuesta.json();
-                            throw new Error(error.message || 'No se pudo generar el documento.');
+                            throw new Error(Object.values(error.errors || {}).flat().join(' ') || error.message || 'No se pudo generar el documento.');
                         }
                         const url = URL.createObjectURL(await respuesta.blob());
                         const enlace = document.createElement('a');
                         enlace.href = url;
-                        enlace.download = 'solicitud-recuperacion.docx';
+                        enlace.download = 'solicitud-' + @json($codigoTramite) + '.' + formato;
                         enlace.click();
                         setTimeout(() => URL.revokeObjectURL(url), 60000);
+                        if (respuesta.headers.get('X-Firmado-Conservado') !== '1') {
+                            firmado = null;
+                            pintarFirmado();
+                        }
+                        bloqueFirmado.hidden = false;
+                        if (formato === 'pdf') {
+                            mensaje.textContent = 'PDF descargado. Revísalo, imprímelo, fírmalo y sube el PDF firmado. Descargar no envía la solicitud.';
+                            return;
+                        }
                         mensaje.textContent = 'Word descargado con datos de demostración. Ábrelo en Microsoft Word y usa Archivo → Exportar → Crear PDF. Imprímelo, fírmalo y sube abajo el PDF firmado. La solicitud todavía no se guarda ni se envía.';
                     } catch (error) {
                         mensaje.textContent = error.message;
                     } finally {
                         boton.disabled = false;
                     }
-                    return;
                 }
-
-                document.getElementById('mensaje-confirmacion').textContent =
-                    'Vista de demostración: la solicitud no se guardó. ' +
-                    'Cuando el sistema esté conectado, aquí se generará ' +
-                    'tu código de solicitud y el documento oficial para firmar. ' +
-                    'Mientras tanto puedes probar abajo la subida del PDF firmado.';
             });
 
         // PDF firmado (RF-2.11): uno por trámite, en la carpeta temporal de la sesión.
@@ -1571,6 +1612,7 @@
 
             fila.hidden = firmado === null;
             document.getElementById('recibido-firmado').hidden = firmado === null;
+            document.getElementById('enviar-solicitud').disabled = !@json($envioDisponible) || firmado === null;
 
             if (firmado) {
                 fila.querySelector('.archivo-nombre').textContent = firmado.nombre_original;
@@ -1641,6 +1683,28 @@
         bloqueFirmado.hidden = firmado === null;
         pintarFirmado();
 
+        document.getElementById('enviar-solicitud').addEventListener('click', async () => {
+            const boton = document.getElementById('enviar-solicitud');
+            const mensaje = document.getElementById('mensaje-envio');
+            const declaracion = document.getElementById('declaracion');
+            if (!declaracion.reportValidity()) return;
+            boton.disabled = true;
+            mensaje.textContent = 'Guardando el expediente y enviando a revisión…';
+            try {
+                const respuesta = await enCola(() => fetch(@json(route('solicitudes.enviar')), {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json', 'Accept': 'application/json', 'X-CSRF-TOKEN': @json(csrf_token())},
+                    body: JSON.stringify({...datosBorrador(), tramite: @json($codigoTramite), nombre: textoDe('nombre'), codigo: textoDe('codigo'), carrera: textoDe('carrera'), correo: textoDe('correo'), declaracion: declaracion.checked})
+                }));
+                const resultado = await respuesta.json();
+                if (!respuesta.ok) throw new Error(Object.values(resultado.errors || {}).flat().join(' ') || resultado.message);
+                window.location.assign(resultado.url);
+            } catch (error) {
+                mensaje.textContent = error.message || 'No se pudo enviar. Tus datos permanecen guardados.';
+                pintarFirmado();
+            }
+        });
+
         // Borrador: guardar, descartar y retomar.
         function cuandoSeGuardo(iso) {
             const fecha = new Date(iso);
@@ -1697,6 +1761,12 @@
             cancelarGuardado();
 
             const respuesta = await enCola(() => enviarBorrador());
+
+            if (respuesta?.status === 429) {
+                const segundos = Math.max(1, Number(respuesta.headers.get('Retry-After')) || 60);
+                estadoBorrador.textContent = `No se guardaron los últimos cambios: espera ${segundos} segundos y pulsa Guardar borrador.`;
+                return;
+            }
 
             if (respuesta?.status === 422) {
                 const detalle = await respuesta.json().catch(() => null);
@@ -1792,8 +1862,14 @@
             document.getElementById('confirmar-datos').checked = borrador.paso > 1;
 
             tramite.campos.forEach(definicion => {
+                let valorGuardado = borrador.campos[definicion.nombre] ?? '';
+                if (definicion.tipo === 'lista' && definicion.opciones['sí']) {
+                    const normalizado = valorGuardado.trim().toLowerCase();
+                    if (normalizado === 'si' || normalizado === 'sí') valorGuardado = 'sí';
+                    if (normalizado === 'no') valorGuardado = 'no';
+                }
                 document.getElementById(`campo-${definicion.nombre}`).value =
-                    borrador.campos[definicion.nombre] ?? '';
+                    valorGuardado;
             });
             actualizarCondicionales();
 

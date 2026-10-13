@@ -14,6 +14,15 @@ class BorradoresTemporalesTest extends TestCase
 {
     use ArchivosDePrueba;
 
+    public function test_guardar_borradores_no_consume_el_limite_de_documentos(): void
+    {
+        for ($i = 0; $i < 12; $i++) {
+            $this->guardar()->assertOk();
+        }
+        // Datos incompletos: debe validar, no rechazar por límite de descargas.
+        $this->postJson(route('solicitudes.documento'), [])->assertStatus(422);
+    }
+
     protected function setUp(): void
     {
         parent::setUp();

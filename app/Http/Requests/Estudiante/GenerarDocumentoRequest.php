@@ -3,6 +3,8 @@
 namespace App\Http\Requests\Estudiante;
 
 use App\Services\Solicitudes\TramitesSimulados;
+use App\Services\Solicitudes\DocumentoSolicitud;
+use App\Services\Solicitudes\ReglasCampoSolicitud;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
@@ -16,11 +18,13 @@ class GenerarDocumentoRequest extends FormRequest
 
     public function rules(TramitesSimulados $tramites): array
     {
-        return [
+        $definicion = $tramites->buscar((string) $this->input('tramite'));
+        $reglas = [
+            'formato' => ['sometimes', 'in:docx,pdf'],
             'tramite' => [
                 'required',
                 'string',
-                Rule::in(['recuperacion']),
+                Rule::in(array_keys(DocumentoSolicitud::PLANTILLAS)),
             ],
 
             'nombre' => ['required', 'string', 'max:150'],
@@ -35,12 +39,26 @@ class GenerarDocumentoRequest extends FormRequest
                 'regex:/\A[0-9]+\z/',
             ],
 
-            'materia_id' => [
-                'required',
-                'string',
-                Rule::in(array_column($tramites->materias(), 'id')),
-            ],
+            'materias' => ['present', 'array', 'min:'.(($definicion['max_materias'] ?? 0) > 0 ? 1 : 0), 'max:'.($definicion['max_materias'] ?? 0)],
+            'materias.*.id' => ['required', 'distinct', Rule::in(array_column($tramites->materias(), 'id'))],
+            'materias.*.datos' => ['present', 'array'],
+            'campos' => ['present', 'array'],
+            'declaracion' => ['required', 'accepted'],
         ];
+        foreach (['campos' => 'campos', 'campos_materia' => 'materias.*.datos'] as $grupo => $prefijo) {
+            $campos = $definicion[$grupo] ?? [];
+            $reglas[$prefijo] = ['present', 'array'.($campos ? ':'.implode(',', array_column($campos, 'nombre')) : '')];
+            foreach ($campos as $campo) {
+                $requerido = $campo['obligatorio'];
+                if (isset($campo['mostrar_si'])) {
+                    $condicion = $campo['mostrar_si'];
+                    $requerido = $requerido && $this->input('campos.'.$condicion['campo']) === $condicion['valor'];
+                }
+                $tipo = ReglasCampoSolicitud::tipo($campo);
+                $reglas[$prefijo.'.'.$campo['nombre']] = array_merge([$requerido ? 'required' : 'nullable', 'string'], $tipo);
+            }
+        }
+        return $reglas;
     }
 
     public function messages(): array
@@ -48,7 +66,12 @@ class GenerarDocumentoRequest extends FormRequest
         return [
             'required' => 'El campo :attribute es obligatorio.',
             'string' => 'El campo :attribute debe enviarse como texto.',
-            'max' => 'El campo :attribute no debe superar :max caracteres.',
+            'max.string' => 'El campo :attribute no debe superar :max caracteres.',
+            'max.numeric' => 'El campo :attribute no debe ser mayor que :max.',
+            'max.array' => 'El campo :attribute admite como máximo :max elementos.',
+            'integer' => 'El campo :attribute debe ser un número entero.',
+            'numeric' => 'El campo :attribute debe ser numérico.',
+            'date_format' => 'El campo :attribute debe tener el formato :format.',
 
             'correo.email' => 'Ingresa un correo electrónico válido.',
 
@@ -59,7 +82,7 @@ class GenerarDocumentoRequest extends FormRequest
             'materia_id.required' => 'Selecciona una materia.',
             'materia_id.in' => 'Selecciona una materia del catálogo de prueba.',
 
-            'tramite.in' => 'La generación de este documento está disponible para examen de recuperación.',
+            'tramite.in' => 'Selecciona un trámite válido para generar su documento.',
         ];
     }
 

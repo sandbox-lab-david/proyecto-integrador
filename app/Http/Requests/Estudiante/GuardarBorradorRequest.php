@@ -3,6 +3,7 @@
 namespace App\Http\Requests\Estudiante;
 
 use App\Services\Solicitudes\TramitesSimulados;
+use App\Services\Solicitudes\ReglasCampoSolicitud;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
@@ -65,27 +66,7 @@ class GuardarBorradorRequest extends FormRequest
             foreach ($definicion[$grupo] as $campo) {
                 $rutaCampo = $prefijo.'.'.$campo['nombre'];
 
-                $reglas[$rutaCampo] = match ($campo['tipo']) {
-                    'numero' => [
-                        'nullable',
-                        'string',
-                        'numeric',
-                        'min:'.$campo['min'],
-                        'max:'.$campo['max'],
-                    ],
-                    'lista' => [
-                        'nullable',
-                        'string',
-                        Rule::in(array_keys($campo['opciones'])),
-                    ],
-                    'fecha' => [
-                        'nullable',
-                        'string',
-                        'date_format:Y-m-d',
-                        'before_or_equal:today',
-                    ],
-                    default => ['nullable', 'string', 'max:2000'],
-                };
+                $reglas[$rutaCampo] = array_merge(['nullable', 'string'], ReglasCampoSolicitud::tipo($campo));
             }
         }
 
