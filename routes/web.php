@@ -11,6 +11,7 @@ Route::get('/', function () {
     return view('welcome');
 });
 
+require __DIR__.'/chatbot.php';
 require __DIR__.'/estudiantes.php';
 Route::get('/tramites', function () {
     return view('tramites.index');
