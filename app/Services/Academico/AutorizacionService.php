@@ -2,6 +2,7 @@
 namespace App\Services\Academico;
 
 use App\Models\Trabajador;
+use App\Models\User; 
 
 class AutorizacionService
 {
@@ -26,5 +27,25 @@ class AutorizacionService
                   ->whereNull('fecha_fin'); // Si fecha_fin es nula, significa que sigue en el cargo
         })->first();
         
+    }
+
+    //===C19 
+    public function asistentesDeFacultad(int $facultadId)
+    {
+        
+        return collect([]);
+    }
+
+    // ==== C15
+    public function tieneRol(User $u, string|array $codigos): bool
+    {
+        $codigos = (array) $codigos;
+        $trabajador = $u->trabajador;
+
+        if (! $trabajador) { 
+            return false; 
+        }
+        
+        return $trabajador->roles()->whereIn('codigo', $codigos)->exists();
     }
 }

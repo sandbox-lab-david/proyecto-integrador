@@ -54,8 +54,11 @@ Route::prefix('interno')->middleware('auth')->group(function () {
         // Devolvemos el resultado en formato JSON para que el frontend lo lea fácilmente
         return response()->json($cursos);
     });
+<<<<<<< HEAD:routes/appi.php
 
 
     
 
+=======
+>>>>>>> d3c3bd4331bca2767d4e5be21fd044363ca7f3a5:routes/api.php
 });

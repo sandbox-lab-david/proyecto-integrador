@@ -14,7 +14,7 @@ return new class extends Migration
         Schema::create('director_carreras', function (Blueprint $table) {
             $table->id();
             $table->foreignid('carrera_id')->constrained('carreras')->onDelete('cascade');
-            $table->foreignid('trabajador_id')->constrained('trabjajadores')->onDelete('cascade');
+            $table->foreignid('trabajador_id')->constrained('trabajadores')->onDelete('cascade');
             $table->date('fecha_inicio');
             $table->date('fecha_fin')->nullable();
             $table->timestamps();
