@@ -13,6 +13,7 @@ use App\Services\Solicitudes\TramitesSimulados;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\ValidationException;
+use PHPUnit\Framework\Attributes\DataProvider;
 use Tests\TestCase;
 
 class EnvioSolicitudTest extends TestCase
@@ -42,12 +43,12 @@ class EnvioSolicitudTest extends TestCase
         });
     }
 
-    private function preparar(): array
+    private function preparar(array $campos = []): array
     {
         $datos = ['tramite' => 'gracia', 'nombre' => 'Ana Pérez', 'codigo' => '20260001',
             'carrera' => 'Computación', 'correo' => 'ana@uees.edu.ec', 'celular' => '0991234567',
             'materias' => [app(TramitesSimulados::class)->materias()[0] + ['datos' => ['nota' => '70', 'asistencia' => '80']]],
-            'campos' => ['motivo' => 'Solicito rendir el examen.'], 'declaracion' => true];
+            'campos' => $campos + ['motivo' => 'Solicito rendir el examen.'], 'declaracion' => true];
         app(DocumentosTemporales::class)->guardar('gracia', 'Word de prueba', $datos);
         app(FirmadosTemporales::class)->guardar($this->pdf(), 'gracia');
         $respaldo = app(RespaldosTemporales::class)->agregar($this->pdf(), 'gracia');
@@ -72,6 +73,23 @@ class EnvioSolicitudTest extends TestCase
         $this->assertSame($usuario->id, $generado->documentoFirmado->subido_por);
         $this->assertNull(app(DocumentosTemporales::class)->buscar('gracia'));
         $this->assertNull(app(FirmadosTemporales::class)->buscar('gracia'));
+    }
+
+    #[DataProvider('valoresGpa')]
+    public function test_conserva_gpa_cero_y_distingue_el_campo_vacio(array $campos, ?string $esperado): void
+    {
+        $this->integrar();
+        $solicitud = app(EnvioSolicitud::class)->enviar(User::factory()->create(), $this->preparar($campos));
+        $this->assertSame($esperado, $solicitud->fresh()->gpa_declarado);
+    }
+
+    public static function valoresGpa(): array
+    {
+        return [
+            'cero del periodo' => [['gpa_periodo' => '0'], '0.00'],
+            'cero general' => [['gpa_general' => '0'], '0.00'],
+            'vacio' => [['gpa_periodo' => ''], null],
+        ];
     }
 
     public function test_un_error_revierte_registros_y_conserva_temporales(): void

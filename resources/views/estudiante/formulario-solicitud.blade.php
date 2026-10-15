@@ -29,6 +29,7 @@
             display: flex;
             align-items: center;
             gap: 22px;
+            flex-wrap: wrap;
         }
 
         .logo {
@@ -423,6 +424,7 @@
                 alt="Universidad Espíritu Santo"
             >
             <strong>Portal del estudiante</strong>
+            <x-campana-notificaciones />
         </div>
     </header>
 

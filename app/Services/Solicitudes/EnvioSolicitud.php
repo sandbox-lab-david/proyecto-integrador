@@ -92,6 +92,7 @@ class EnvioSolicitud
             for ($intento = 0; ; $intento++) {
                 try {
                     $solicitud = DB::transaction(function () use ($usuario, $datos, $contexto, $integracion, $word, $pdf, $firmado, $respaldos) {
+                        $gpa = $datos['campos']['gpa_periodo'] ?? $datos['campos']['gpa_general'] ?? null;
                         $solicitud = Solicitud::create([
                             'codigo' => $this->solicitudes->siguienteCodigo(),
                             'carrera_estudiante_id' => $contexto['carrera_estudiante_id'],
@@ -99,7 +100,7 @@ class EnvioSolicitud
                             'periodo_id' => $contexto['periodo_id'],
                             'estado_solicitud_id' => $contexto['estado_solicitud_id'],
                             'detalle' => $datos,
-                            'gpa_declarado' => ($datos['campos']['gpa_periodo'] ?? $datos['campos']['gpa_general'] ?? '') ?: null,
+                            'gpa_declarado' => $gpa === '' ? null : $gpa,
                             'fecha_ultima_recuperacion' => ($datos['campos']['ultima_recuperacion'] ?? '') ?: null,
                             'declaracion_veracidad' => true,
                         ]);

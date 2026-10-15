@@ -712,6 +712,7 @@
         <a class="enlace-solicitudes" href="{{ route('solicitudes.index') }}">
             Mis solicitudes
         </a>
+        <x-campana-notificaciones />
     </div>
 </header>
 

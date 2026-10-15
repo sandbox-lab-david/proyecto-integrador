@@ -8,6 +8,8 @@ use App\Http\Controllers\Estudiante\RespaldoTemporalController;
 use App\Http\Controllers\Estudiante\SolicitudController;
 use Illuminate\Support\Facades\Route;
 
+require __DIR__.'/notificaciones.php';
+
 Route::post('/estudiante/solicitudes/documento', [SolicitudController::class, 'documento'])
     ->middleware('throttle:10,1,documentos-estudiante:')->name('solicitudes.documento');
 
