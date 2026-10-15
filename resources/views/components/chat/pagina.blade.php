@@ -6,6 +6,7 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>{{ $titulo }} · UEES</title>
+    @vite('resources/css/app.css')
     <link rel="stylesheet" href="{{ asset('assets/chatbot/chatbot.css') }}">
 </head>
 <body class="cb cb-cuerpo">
