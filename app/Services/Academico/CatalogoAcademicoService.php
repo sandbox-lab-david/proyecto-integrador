@@ -29,10 +29,10 @@ class CatalogoAcademicoService
         */
 
         if ($soloActivas){
-        return $facultadesFalsas->where('activo', true)->values();
+            return Facultad::where('activo', true)->get();
         }
 
-        return Fcultad::all();
+        return Facultad::all();
     }
 
     // ===C07: Devuelve el periodo academico activo actualmente

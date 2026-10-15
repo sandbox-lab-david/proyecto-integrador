@@ -4,7 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 
-class Importacion extends Model
+class Importaciones extends Model
 {
     protected $fillable = [
         'entidad',
