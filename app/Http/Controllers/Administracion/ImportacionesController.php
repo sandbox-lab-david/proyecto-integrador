@@ -11,7 +11,9 @@ class ImportacionesController extends Controller
      */
     public function index()
     {
+        $importaciones = Importacion::with('user')->orderBy('created_at', 'desc')->paginate(10);
         
+        return view('importaciones.index', compact('importaciones'));
     }
 
     /**
@@ -33,9 +35,10 @@ class ImportacionesController extends Controller
     /**
      * Display the specified resource.
      */
-    public function show(string $id)
+    public function show(Importacion $importacion)
     {
-        //
+        
+        return view('importaciones.show', compact('importacion'));
     }
 
     /**
@@ -57,8 +60,12 @@ class ImportacionesController extends Controller
     /**
      * Remove the specified resource from storage.
      */
-    public function destroy(string $id)
+    public function destroy(Importacion $importacion)
     {
-        //
+
+        
+        $importacion->delete();
+
+        return redirect()->route('importaciones.index')->with('success', 'Registro del historial eliminado');
     }
 }
