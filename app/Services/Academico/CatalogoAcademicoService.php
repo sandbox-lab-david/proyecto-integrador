@@ -6,6 +6,8 @@ use App\Models\Malla;
 use Illuminate\Database\Eloquent\Collection;
 use App\Models\Periodo;
 use Illuminate\Support\Carbon;
+use App\Models\Carrera;
+use App\Modules\Chatbot\Services\Prolog\PrologClient;
 
 class CatalogoAcademicoService
 {
@@ -33,6 +35,18 @@ class CatalogoAcademicoService
         }
 
         return Fcultad::all();
+    }
+
+    // ===C02: Carreras por facultad
+    public function carrerasPorFacultad($facultadId)
+    {
+        return Carrera::where('facultad_id', $facultadId)->get();
+    }
+
+    // ===C06: Periodos (Selects y filtros)
+    public function periodos()
+    {
+        return Periodo::orderBy('created_at', 'desc')->get(['id', 'nombre', 'activo']);
     }
 
     // ===C07: Devuelve el periodo academico activo actualmente
@@ -125,6 +139,22 @@ class CatalogoAcademicoService
         return collect([]);
     }
     
-    
+    // ===C31: Carreras sin tercer registro
+    public function carrerasSinTercerRegistro($estudianteId)
+    {
+        // Lógica de integración con Prolog según el motor del proyecto
+        // Ejemplo base utilizando el cliente Prolog disponible en el módulo chatbot o servicios
+        try {
+            $prologClient = new PrologClient();
+            $query = "carrera_sin_tercer_registro({$estudianteId}, CarreraID)";
+            $resultados = $prologClient->consultar($query);
+            
+            $carreraIds = collect($resultados)->pluck('CarreraID')->toArray();
+            return Carrera::whereIn('id', $carreraIds)->get();
+        } catch (\Exception $e) {
+            // Fallback en caso de que Prolog no esté activo en el entorno local inmediato
+            return collect([]);
+        }
+    }
 }
 

@@ -10,5 +10,7 @@ class RolTrabajador extends Model
     use HasFactory;
 
     protected $table = 'rol_trabajador';
+    public $incrementing = false;
+    protected $primaryKey = ['trabajador_id', 'rol_id'];
     protected $fillable = ['trabajador_id', 'rol_codigo', 'activo'];
 }
