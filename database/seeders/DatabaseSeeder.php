@@ -19,7 +19,7 @@ class DatabaseSeeder extends Seeder
             CarreraSeeder::class,
             PeriodoSeeder::class,
             UsuarioDemoSeeder::class,
-            CursoSeeder::Class,
+        CursoSeeder::Class,
             // Aquí agregarán luego FacultadSeeder, PeriodoSeeder, etc.
         ]);
 
