@@ -2,11 +2,22 @@
 namespace App\Services\Academico;
 
 use App\Models\Trabajador;
-use App\Models\User; 
+use App\Models\User;
+use App\Models\DirectorCarrera;
+use App\Models\Carrera;
 
 class AutorizacionService
 {
-    
+    // ==== C17: Carreras que dirige
+    public function carrerasQueDirige($trabajadorId)
+    {
+        return DirectorCarrera::where('trabajador_id', $trabajadorId)
+            ->with('carrera')
+            ->get()
+            ->pluck('carrera');
+    }
+
+
     // ==== C18: Encuentra qué profesor/trabajador es el director actual de una carrera.
     public function directorDeCarrera(int $carreraId)
     {
@@ -47,5 +58,23 @@ class AutorizacionService
         }
         
         return $trabajador->roles()->whereIn('codigo', $codigos)->exists();
+    }
+
+    // ==== C20: Puede ver carrera
+    public function puedeVerCarrera($user, $carreraId)
+    {
+        // Verificar si el usuario es administrador global o director de esta carrera específica
+        if ($user->hasRole && $user->hasRole('Administrador')) {
+            return true;
+        }
+
+        $trabajadorId = $user->trabajador->id ?? null;
+        if (!$trabajadorId) {
+            return false;
+        }
+
+        return DirectorCarrera::where('trabajador_id', $trabajadorId)
+            ->where('carrera_id', $carreraId)
+            ->exists();
     }
 }
