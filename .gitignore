@@ -22,3 +22,9 @@
 Homestead.json
 Homestead.yaml
 Thumbs.db
+
+# Contexto local de trabajo (no versionar)
+/CONTEXTO_Y_DECISIONES_LOCAL.md
+
+# Revisiones locales fechadas del proyecto (no versionar)
+/revisiones-locales/
