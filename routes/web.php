@@ -1,7 +1,6 @@
 <?php
 
 use Illuminate\Support\Facades\Route;
-<<<<<<< HEAD
 use App\Http\Controllers\RevisionController;
 use App\Http\Controllers\ResolucionController;
 use Illuminate\Support\Facades\Storage;
@@ -13,13 +12,6 @@ Route::get('/descargar-documento/{nombre}', function ($nombre) {
     }
     abort(404, 'Archivo no encontrado.');
 })->name('documento.descargar');
-=======
-use App\Http\Controllers\RevisionController; // ===== Grupo 3
-use App\Http\Controllers\Administracion\CursoController;
-use App\Http\Controllers\Administracion\DirectorCarreraController;
-use App\Http\Controllers\Administracion\UserController;
-use App\Http\Controllers\Administracion\ImportacionesController;
->>>>>>> 14da9b03ae2b6f3bbe13fb26951d91d301d13bd9
 
 Route::get('/', function () {
     return view('welcome');
