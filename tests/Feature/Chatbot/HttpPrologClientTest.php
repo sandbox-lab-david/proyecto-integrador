@@ -2,8 +2,8 @@
 
 namespace Tests\Feature\Chatbot;
 
-use App\Modules\Chatbot\Services\Prolog\HttpPrologClient;
-use App\Modules\Chatbot\Services\Prolog\PrologException;
+use App\Services\Chatbot\Prolog\HttpPrologClient;
+use App\Services\Chatbot\Prolog\PrologException;
 use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Support\Facades\Http;
 use Tests\TestCase;

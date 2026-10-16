@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Modules\Chatbot\Services\Prolog;
+namespace App\Services\Chatbot\Prolog;
 
 use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Support\Facades\Http;

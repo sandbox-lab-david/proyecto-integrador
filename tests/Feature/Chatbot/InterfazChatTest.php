@@ -135,7 +135,16 @@ class InterfazChatTest extends TestCase
 
     public function test_reporte_sin_preguntas_muestra_estado_vacio(): void
     {
-        $this->get('/chatbot/reporte')
+        $admin = new \App\Models\User([
+            'name' => 'Administrador General',
+            'email' => 'admin@uees.edu.ec',
+        ]);
+        $admin->id = 1;
+        $admin->email_verified_at = now();
+        $admin->role = 'admin';
+
+        $this->actingAs($admin)
+            ->get('/chatbot/reporte')
             ->assertOk()
             ->assertSee('No hay preguntas sin resolver');
     }
