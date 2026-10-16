@@ -7,6 +7,7 @@ use Illuminate\Support\Facades\DB;
 
 class RevisionController extends Controller
 {
+<<<<<<< HEAD
     /**
      * Muestra la bandeja de solicitudes para la asistente.
      */
@@ -29,10 +30,41 @@ class RevisionController extends Controller
      * Muestra el detalle del caso y el expediente para su respectiva revisión.
      */
     public function show($id)
+=======
+    public function bandejaAsistente(Request $request)
+    {
+        $filtroEstado = $request->get('estado');
+        $filtroTramite = $request->get('tramite');
+
+        $query = DB::table('solicitudes');
+
+        if ($filtroEstado) {
+            $query->where('estado', $filtroEstado);
+        }
+        if ($filtroTramite) {
+            $query->where('tramite', $filtroTramite);
+        }
+
+        $solicitudes = $query->get()->map(function($item) {
+            if (isset($item->documentos) && is_string($item->documentos)) {
+                $item->documentos = json_decode($item->documentos);
+            }
+            return $item;
+        });
+
+        $tramitesDisponibles = DB::table('solicitudes')->distinct()->pluck('tramite');
+        $estadosDisponibles = DB::table('solicitudes')->distinct()->pluck('estado');
+
+        return view('revision.asistente', compact('solicitudes', 'filtroEstado', 'filtroTramite', 'tramitesDisponibles', 'estadosDisponibles'));
+    }
+
+    public function detalleCaso($id)
+>>>>>>> 14da9b03ae2b6f3bbe13fb26951d91d301d13bd9
     {
         $solicitud = DB::table('solicitudes')->where('id', $id)->first();
 
         if (!$solicitud) {
+<<<<<<< HEAD
             return redirect()->route('revision.asistente')->with('error', 'La solicitud no existe.');
         }
 
@@ -122,5 +154,44 @@ class RevisionController extends Controller
 
         return redirect()->route('revision.caso.detalle', $id)
             ->with('success', 'La decisión se ha registrado correctamente y el estado cambió a: ' . $nuevoEstado);
+=======
+            abort(404, 'La solicitud no fue encontrada.');
+        }
+
+        if (isset($solicitud->documentos) && is_string($solicitud->documentos)) {
+            $solicitud->documentos = json_decode($solicitud->documentos);
+        }
+
+        return view('revision.detalle', compact('solicitud'));
+    }
+
+    public function guardarRevision(Request $request, $id)
+    {
+        // Verificar el estado actual para evitar modificaciones si ya está finalizado
+        $solicitudActual = DB::table('solicitudes')->where('id', $id)->first();
+        if ($solicitudActual && in_array($solicitudActual->estado, ['Aprobado', 'Rechazado'])) {
+            return redirect()->route('revision.detalle', $id)
+                ->with('error', 'Este caso ya fue procesado y no puede ser modificado.');
+        }
+
+        $accion = $request->input('accion');
+        $nuevoEstado = 'En revisión';
+
+        if ($accion === 'aprobar') {
+            $nuevoEstado = 'Aprobado';
+        } elseif ($accion === 'rechazar') {
+            $nuevoEstado = 'Rechazado';
+        } elseif ($accion === 'observado') {
+            $nuevoEstado = 'Observado';
+        }
+
+        // Actualizar estado en PostgreSQL
+        DB::table('solicitudes')->where('id', $id)->update([
+            'estado' => $nuevoEstado
+        ]);
+
+        return redirect()->route('revision.asistente')
+            ->with('success', 'La solicitud ha sido actualizada a estado: ' . $nuevoEstado);
+>>>>>>> 14da9b03ae2b6f3bbe13fb26951d91d301d13bd9
     }
 }
