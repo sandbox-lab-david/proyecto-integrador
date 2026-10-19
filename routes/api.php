@@ -13,8 +13,6 @@ Route::controller(ChatbotController::class)
     ->group(function () {
         Route::get('/catalogo', 'catalogo');
         Route::post('/mensaje', 'mensaje');
-        Route::get('/historial', 'historial');
-        Route::delete('/historial', 'limpiarHistorial');
     });
 
 // Agrupamos las rutas internas protegidas

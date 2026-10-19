@@ -4,18 +4,16 @@ namespace App\Services\Chatbot;
 
 use App\Services\Chatbot\Prolog\PrologClient;
 use App\Services\Chatbot\Prolog\PrologException;
-use App\Models\MensajeChat;
 use App\Models\User;
+use InvalidArgumentException;
 
 /**
  * Fachada pública del motor Prolog para uso de otros módulos (G2, G3 y chat interno).
- * Implementa los tres contratos definidos en el Excel (C72, C73 y C74):
+ * Expone consultas y orientaciones del motor (C72 y C74):
  *   - C72: evaluar(Solicitud|string, bool|array, ...)
- *   - C73: ultimaEvaluacion(int|string, ?string)
  *   - C74: consultar(string, string|User|null)
  *
- * Los grupos G2/G3 deben depender exclusivamente de esta clase y NO de PrologClient
- * directamente, asegurando desacoplamiento del módulo Chatbot.
+ * No conserva resultados por solicitud ni cambia estados de solicitudes.
  */
 class PrologService
 {
@@ -67,15 +65,15 @@ class PrologService
     }
 
     /**
-     * C72: Evalúa si un estudiante cumple los requisitos de elegibilidad para un trámite.
+     * C72: Obtiene una orientación inmediata sobre elegibilidad.
      *
      * Compatible tanto con el modelo Solicitud (usado por G2 en paso 4 y G3 en revisión)
      * como con llamadas directas por identificador de trámite y perfil array.
      *
      * @param  mixed  $solicitudOTramiteId  Instancia de Solicitud u objeto similar, o string id del trámite
-     * @param  mixed  $perfilOConVerificados Array de perfil (promedio, materia...) o booleano de datos verificados
-     * @param  string $origenDatos          'manual' | 'sesion'
-     * @param  bool   $conDatosVerificados  true si la asistente de facultad ya verificó los datos
+     * @param  mixed  $perfilOConVerificados Perfil o indicador histórico; este último no acredita datos
+     * @param  string $origenDatos          Argumento histórico; los datos de esta entrada son declarados
+     * @param  bool   $conDatosVerificados  Argumento histórico; no se transmite al motor
      * @return array                        Respuesta validada con resultado.estado y resultado.motivos
      * @throws PrologException              Si el motor Prolog no responde o rechaza la consulta
      */
@@ -85,17 +83,15 @@ class PrologService
         string $origenDatos = 'manual',
         bool $conDatosVerificados = false
     ): array {
-        $tramiteId = 'examen_recuperacion';
+        $tramiteId = null;
         $perfil = [];
-        $verificados = $conDatosVerificados;
 
         // Si se recibe un objeto Solicitud (uso por G2 y G3)
         if (is_object($solicitudOTramiteId)) {
             // Extraer el identificador del trámite desde el modelo
             $tramiteId = $solicitudOTramiteId->tipoTramite->codigo
-                ?? $solicitudOTramiteId->tipo_tramite_id
                 ?? $solicitudOTramiteId->tramite
-                ?? 'examen_recuperacion';
+                ?? null;
 
             // Extraer perfil desde el campo detalle y materias asociadas
             $detalle = (array) ($solicitudOTramiteId->detalle ?? []);
@@ -108,55 +104,50 @@ class PrologService
                 'materia_id' => $primeraMateria['materia_id'] ?? $primeraMateria['codigo'] ?? null,
             ]);
 
-            if (is_bool($perfilOConVerificados)) {
-                $verificados = $perfilOConVerificados;
-            }
-            $origenDatos = isset($solicitudOTramiteId->user_id) ? 'sesion' : 'manual';
         } else {
-            $tramiteId = (string) $solicitudOTramiteId;
+            $tramiteId = $solicitudOTramiteId;
             $perfil = is_array($perfilOConVerificados) ? $perfilOConVerificados : [];
         }
 
-        // Limpiar valores nulos para Prolog
-        $perfilFiltrado = array_filter($perfil, fn ($v) => $v !== null && $v !== '');
+        $idsValidos = array_column($this->catalogoService->obtenerCatalogo()['tramites'], 'id');
+        if (!is_string($tramiteId) || !in_array($tramiteId, $idsValidos, true)) {
+            throw new InvalidArgumentException('El trámite no tiene un identificador válido para el chatbot.');
+        }
+
+        // El contrato HTTP del motor acepta solo estos cuatro campos.
+        $perfilFiltrado = array_intersect_key($perfil, array_flip([
+            'materia_id', 'promedio', 'asistencia', 'tipo_solicitante',
+        ]));
+        $perfilFiltrado = array_filter($perfilFiltrado, fn ($v) => $v !== null && $v !== '');
+        foreach (['promedio', 'asistencia'] as $campo) {
+            if (array_key_exists($campo, $perfilFiltrado)) {
+                $valor = $perfilFiltrado[$campo];
+                if (!is_numeric($valor) || is_bool($valor) || $valor < 0 || $valor > 100) {
+                    throw new InvalidArgumentException("El campo {$campo} debe ser un número entre 0 y 100.");
+                }
+                $perfilFiltrado[$campo] = (float) $valor;
+            }
+        }
+        foreach (['materia_id', 'tipo_solicitante'] as $campo) {
+            if (array_key_exists($campo, $perfilFiltrado)) {
+                if ($campo === 'materia_id' && is_int($perfilFiltrado[$campo])) {
+                    $perfilFiltrado[$campo] = (string) $perfilFiltrado[$campo];
+                }
+                if (!is_string($perfilFiltrado[$campo]) || trim($perfilFiltrado[$campo]) === '') {
+                    throw new InvalidArgumentException("El campo {$campo} debe ser texto no vacío.");
+                }
+            }
+        }
         $perfilPayload = empty($perfilFiltrado) ? new \stdClass() : $perfilFiltrado;
 
         return $this->client->evaluar([
-            'version'                => 2,
-            'tramite_id'             => $tramiteId,
-            'intencion'              => 'evaluar_elegibilidad',
-            'fecha'                  => now()->toDateString(),
-            'origen_datos'           => $origenDatos,
-            'perfil'                 => $perfilPayload,
-            'con_datos_verificados' => $verificados,
+            'version'      => 2,
+            'tramite_id'   => $tramiteId,
+            'intencion'    => 'evaluar_elegibilidad',
+            'fecha'        => now()->toDateString(),
+            'origen_datos' => 'manual',
+            'perfil'       => $perfilPayload,
         ]);
-    }
-
-    /**
-     * C73: Recupera el resultado de la última evaluación de elegibilidad registrada.
-     *
-     * Usado por G3 para mostrar la pre-validación en la bandeja de detalle de solicitudes,
-     * o por el chatbot para recuperar evaluaciones recientes en la sesión.
-     *
-     * @param  int|string   $solicitudOId Identificador numérico de la solicitud o código de trámite
-     * @param  string|null  $sessionToken Token de sesión si la consulta proviene del chatbot
-     * @return array|null                 Último resultado o null si aún no existe registro
-     */
-    public function ultimaEvaluacion(int|string $solicitudOId, ?string $sessionToken = null): ?array
-    {
-        $query = MensajeChat::where('intencion', 'evaluar_elegibilidad');
-
-        if ($sessionToken) {
-            $query->whereHas('conversacion', fn ($q) => $q->where('session_id', $sessionToken));
-        }
-
-        if (is_string($solicitudOId)) {
-            $query->where('tramite_id', $solicitudOId);
-        }
-
-        $ultimo = $query->latest('created_at')->first();
-
-        return $ultimo?->payload;
     }
 
     /**

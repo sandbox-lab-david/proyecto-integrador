@@ -133,34 +133,4 @@ class InterfazChatTest extends TestCase
             ->assertSee('Iniciar esta solicitud');
     }
 
-    public function test_reporte_sin_preguntas_muestra_estado_vacio(): void
-    {
-        $admin = new \App\Models\User([
-            'name' => 'Administrador General',
-            'email' => 'admin@uees.edu.ec',
-        ]);
-        $admin->id = 1;
-        $admin->email_verified_at = now();
-        $admin->role = 'admin';
-
-        $this->actingAs($admin)
-            ->get('/chatbot/reporte')
-            ->assertOk()
-            ->assertSee('No hay preguntas sin resolver');
-    }
-
-    public function test_reporte_lista_las_preguntas_no_resueltas(): void
-    {
-        $this->view('chatbot.reporte', [
-            'preguntas' => [
-                ['texto' => 'puedo pedir beca?', 'tramite' => null, 'fecha' => '2026-10-08 10:30:00'],
-                ['texto' => 'cuanto cuesta el supletorio', 'tramite' => 'Examen supletorio', 'fecha' => '2026-10-08 11:00:00'],
-            ],
-        ])
-            ->assertSee('2 preguntas')
-            ->assertSee('puedo pedir beca?')
-            ->assertSee('Ninguno')
-            ->assertSee('Examen supletorio')
-            ->assertSee('08/10/2026 11:00');
-    }
 }

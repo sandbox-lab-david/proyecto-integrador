@@ -180,7 +180,7 @@ class ChatbotMensajeValidationTest extends TestCase
         $this->assertStringContainsString('declarativo', (string) $response->json('aviso'));
     }
 
-    public function test_reporte_rechaza_usuario_sin_rol_admin(): void
+    public function test_reporte_de_conversaciones_no_esta_disponible(): void
     {
         $estudiante = new User(['name' => 'Carlos Estudiante', 'email' => 'carlos@uees.edu.ec']);
         $estudiante->id = 5;
@@ -188,7 +188,7 @@ class ChatbotMensajeValidationTest extends TestCase
 
         $this->actingAs($estudiante)
             ->get('/chatbot/reporte')
-            ->assertForbidden();
+            ->assertNotFound();
     }
 
     public function test_api01_exceso_de_solicitudes_dispara_throttle_429(): void

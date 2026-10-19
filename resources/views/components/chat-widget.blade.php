@@ -2,6 +2,7 @@
     'tramite' => null,
     'modo' => 'pagina',
     'simulado' => true,
+    'urlMensaje' => null,
 ])
 
 @php
@@ -23,8 +24,7 @@
          data-tramite="{{ $tramite }}"
          data-simulado="{{ $simulado ? '1' : '0' }}"
          data-url-catalogo="{{ url('/chatbot/catalogo') }}"
-         data-url-mensaje="{{ url('/chatbot/mensaje') }}"
-         data-url-historial="{{ url('/chatbot/historial') }}"
+         data-url-mensaje="{{ $urlMensaje ?? url('/chatbot/mensaje') }}"
          data-url-login="{{ url('/login') }}"
          data-csrf="{{ csrf_token() }}"
          aria-label="Asistente de trámites"

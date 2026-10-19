@@ -34,7 +34,9 @@ class ChatbotOrchestratorService
             }
 
             // API-01: Si en texto libre se infiere una evaluación personal, exigir sesión
-            if ($intencionInferida === 'evaluar_elegibilidad' && !auth()->check()) {
+            $pruebaLocal = config('app.env') === 'local'
+                && request()->routeIs('chatbot.pruebas.mensaje');
+            if ($intencionInferida === 'evaluar_elegibilidad' && !auth()->check() && !$pruebaLocal) {
                 return $this->respuestaRequiereSesion($tramiteDetectado);
             }
 

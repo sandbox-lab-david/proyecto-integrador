@@ -210,11 +210,6 @@ html:has(.cb-cuerpo),.cb-cuerpo{height:100%}
 .cb-panel-buscar-cab{display:flex;align-items:center}
 .cb-panel-buscar-cab strong{font:700 15px var(--cb-titulo-fuente)}
 
-.cb-reporte{max-width:960px;width:100%;margin:0 auto;padding:32px 24px;display:flex;flex-direction:column;gap:18px}
-.cb-eyebrow{font-size:11px;letter-spacing:1.6px;font-weight:700;color:var(--cb-vino);text-transform:uppercase;margin-bottom:8px}
-.cb-reporte-cab h1{font:700 26px/1.2 var(--cb-titulo-fuente);letter-spacing:-.5px}
-.cb-reporte-cab p:last-child{color:var(--cb-gris);margin-top:6px;font-size:14px}
-.cb-reporte-total{font-size:13px;color:var(--cb-gris)}
 .cb-vacio{background:var(--cb-blanco);border:1px dashed var(--cb-linea-campo);border-radius:var(--cb-radio);padding:28px;text-align:center}
 .cb-vacio strong{font:700 15px var(--cb-titulo-fuente)}
 .cb-vacio p{font-size:13.5px;color:var(--cb-gris);margin-top:4px}
@@ -240,7 +235,6 @@ html:has(.cb-cuerpo),.cb-cuerpo{height:100%}
   .cb-composer-in{border:0;border-radius:0;padding:10px 14px 14px;flex-wrap:wrap}
   .cb-tramite-chip{max-width:100%;height:34px;font-size:12.5px}
   .cb-escribir{flex-basis:100%}
-  .cb-reporte{padding:24px 16px}
   .cb-tabla thead{display:none}
   .cb-tabla tr{display:block;border-bottom:1px solid var(--cb-linea-suave);padding:10px 14px}
   .cb-tabla td{display:block;padding:2px 0;border:0}

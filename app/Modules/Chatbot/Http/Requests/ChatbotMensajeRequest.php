@@ -17,12 +17,14 @@ class ChatbotMensajeRequest extends FormRequest
     {
         if ($this->esEvaluacionPersonal()) {
             $user = $this->user();
-            if ($user === null) {
+            $pruebaLocal = config('app.env') === 'local'
+                && $this->routeIs('chatbot.pruebas.mensaje');
+            if ($user === null && !$pruebaLocal) {
                 return false;
             }
 
             // API-01: Comprobar que el usuario institucional tenga permisos (no inactivo ni suspendido)
-            $rol = $user->rol ?? $user->role ?? null;
+            $rol = $user?->rol ?? $user?->role ?? null;
             if ($rol !== null && in_array($rol, ['inactivo', 'suspendido', 'bloqueado'], true)) {
                 abort(403, 'Tu cuenta institucional se encuentra inhabilitada para realizar evaluaciones.');
             }

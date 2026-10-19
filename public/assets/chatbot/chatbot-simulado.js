@@ -2,7 +2,6 @@
     'use strict';
 
     const KB = 'avance-001';
-    const CLAVE_HISTORIAL = 'cb-simulado-historial';
 
     const categorias = [
         { id: 'evaluaciones', nombre: 'Evaluaciones', descripcion: 'Recuperación, gracia, supletorio' },
@@ -306,28 +305,6 @@
         return { status: 200, body: informativa(t, p.id.split('__')[1]) };
     }
 
-    function leerHistorial() {
-        try {
-            return JSON.parse(sessionStorage.getItem(CLAVE_HISTORIAL)) || [];
-        } catch (e) {
-            return [];
-        }
-    }
-
-    function guardarHistorial(mensajes) {
-        try {
-            sessionStorage.setItem(CLAVE_HISTORIAL, JSON.stringify(mensajes));
-        } catch (e) {
-            return;
-        }
-    }
-
-    function textoUsuario(payload) {
-        if (payload.texto) return payload.texto;
-        const p = pregunta(payload.pregunta_id);
-        return p ? p.texto : '';
-    }
-
     async function pedir(metodo, url, cuerpo) {
         const ruta = new URL(url, location.href).pathname;
         const lento = cuerpo && /lento/.test(normalizar(cuerpo.texto));
@@ -337,27 +314,8 @@
             return { status: 200, body: { version: 2, categorias, tramites, preguntas } };
         }
 
-        if (ruta.endsWith('/historial')) {
-            if (metodo === 'DELETE') {
-                guardarHistorial([]);
-                return { status: 200, body: { version: 2, mensajes: [] } };
-            }
-            return { status: 200, body: { version: 2, mensajes: leerHistorial() } };
-        }
-
         if (ruta.endsWith('/mensaje')) {
-            const r = mensaje(cuerpo);
-            if (r.status === 200) {
-                const historial = leerHistorial();
-                if (!cuerpo.datos_usuario || !Object.keys(cuerpo.datos_usuario).length) {
-                    historial.push({ emisor: 'usuario', texto: textoUsuario(cuerpo), respuesta: null });
-                }
-                if (r.body.estado === 'respondido') {
-                    historial.push({ emisor: 'bot', texto: r.body.mensaje || r.body.titulo || '', respuesta: r.body });
-                }
-                guardarHistorial(historial);
-            }
-            return r;
+            return mensaje(cuerpo);
         }
 
         return error(404, 'error_interno', 'Ruta no encontrada.', false);

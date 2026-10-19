@@ -59,7 +59,6 @@
             this.urls = {
                 catalogo: raiz.dataset.urlCatalogo,
                 mensaje: raiz.dataset.urlMensaje,
-                historial: raiz.dataset.urlHistorial,
                 login: raiz.dataset.urlLogin,
             };
             this.simulado = raiz.dataset.simulado === '1' && window.ChatbotSimulado;
@@ -235,40 +234,12 @@
             const pendiente = this.tramitePendiente;
             this.tramitePendiente = null;
 
-            const conHistorial = await this.cargarHistorial();
-            if (conHistorial) {
-                if (pendiente) this.irATramite(pendiente);
-                return;
-            }
-
             const inicial = this.porId.tramites[pendiente || this.raiz.dataset.tramite];
             if (inicial) {
                 this.elegirTramite(inicial.id, { silencioso: true });
             } else {
                 this.bienvenida();
             }
-        }
-
-        async cargarHistorial() {
-            const r = await this.pedir('GET', this.urls.historial);
-            const lista = r.body && Array.isArray(r.body.mensajes) ? r.body.mensajes : [];
-            if (!lista.length) return false;
-
-            lista.forEach((m) => {
-                if (m.emisor === 'usuario') {
-                    this.agregarUsuario(m.texto, m.nota);
-                } else if (m.respuesta) {
-                    this.pintarRespuesta(m.respuesta, { sinSugerencias: true });
-                } else {
-                    this.agregarBot(m.texto);
-                }
-            });
-
-            const ultimo = [...lista].reverse().find((m) => m.respuesta && m.respuesta.tramite_id);
-            if (ultimo) this.fijarTramite(ultimo.respuesta.tramite_id);
-            this.agregarBot('Puedes seguir con tu consulta o empezar una nueva.');
-            this.agregarSugerencias(this.opcionesCategorias(), (c) => this.elegirCategoria(c));
-            return true;
         }
 
         bienvenida() {
@@ -843,9 +814,8 @@
             this.parte('cambiar').focus();
         }
 
-        async nuevaConsulta() {
+        nuevaConsulta() {
             if (this.ocupado || !this.catalogo) return;
-            this.pedir('DELETE', this.urls.historial);
             this.mensajes.replaceChildren();
             this.fijarTramite(null);
             this.bienvenida();

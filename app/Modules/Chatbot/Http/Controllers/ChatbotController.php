@@ -8,7 +8,6 @@ use App\Models\MensajeChat;
 use App\Modules\Chatbot\Http\Requests\ChatbotMensajeRequest;
 use App\Services\Chatbot\ChatbotCatalogoService;
 use App\Services\Chatbot\ChatbotOrchestratorService;
-use Illuminate\Contracts\View\View;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
@@ -97,122 +96,26 @@ class ChatbotController extends Controller
     }
 
     /**
-     * Endpoint de historial para el frontend.
-     * Lee los mensajes almacenados en la conversación activa.
+     * Agrupa métricas por sesión y propietario, sin transferir conversaciones
+     * anónimas a una cuenta ni mezclar cuentas que compartan navegador.
      */
-    public function historial(Request $request): JsonResponse
-    {
-        $conversacion = $this->obtenerConversacionActiva($request, crearSiNoExiste: false);
-
-        if (!$conversacion) {
-            return response()->json(['mensajes' => []], 200);
-        }
-
-        try {
-            $mensajes = $conversacion->mensajes()
-                ->orderBy('id', 'asc')
-                ->get()
-                ->map(function (MensajeChat $m) {
-                    if ($m->emisor === 'usuario') {
-                        return [
-                            'emisor' => 'usuario',
-                            'texto'  => $m->texto,
-                        ];
-                    }
-
-                    return [
-                        'emisor'    => 'bot',
-                        'texto'     => $m->texto,
-                        'respuesta' => $m->payload ?? [
-                            'version' => 2,
-                            'estado'  => 'respondido',
-                            'tipo'    => $m->intencion ?? 'descripcion',
-                            'mensaje' => $m->texto,
-                        ],
-                    ];
-                });
-
-            return response()->json(['mensajes' => $mensajes], 200);
-        } catch (\Throwable $e) {
-            report($e);
-            return response()->json(['mensajes' => []], 200);
-        }
-    }
-
-    /**
-     * Borra el historial de la conversación actual.
-     * El botón "Nueva consulta" del frontend llama a DELETE /chatbot/historial.
-     */
-    public function limpiarHistorial(Request $request): JsonResponse
-    {
-        try {
-            $conversacion = $this->obtenerConversacionActiva($request, crearSiNoExiste: false);
-            if ($conversacion) {
-                $conversacion->delete();
-            }
-        } catch (\Throwable $e) {
-            report($e);
-        }
-
-        return response()->json(null, 204);
-    }
-
-    /**
-     * Vista de reporte con las preguntas no resueltas por el chatbot.
-     * Protegida con rol:admin.
-     */
-    public function reporte(): View
-    {
-        try {
-            $noResueltas = MensajeChat::where('emisor', 'usuario')
-                ->where('resuelta', false)
-                ->orderByDesc('created_at')
-                ->limit(100)
-                ->get();
-
-            $preguntas = $noResueltas->map(fn (MensajeChat $m) => [
-                'texto'   => $m->texto,
-                'tramite' => $m->tramite_id,
-                'fecha'   => $m->created_at?->toDateTimeString() ?? now()->toDateTimeString(),
-            ]);
-        } catch (\Throwable $e) {
-            report($e);
-            $preguntas = collect([]);
-        }
-
-        return view('chatbot.reporte', ['preguntas' => $preguntas]);
-    }
-
-    /**
-     * Obtiene la conversación activa de la sesión o usuario actual.
-     */
-    protected function obtenerConversacionActiva(Request $request, bool $crearSiNoExiste = true): ?Conversacion
+    protected function obtenerConversacionActiva(Request $request): ?Conversacion
     {
         try {
             $userId = $request->user()?->id;
-            $sessionId = $request->session()->getId();
+            $sessionId = $request->hasSession() ? $request->session()->getId() : null;
 
-            // 1. Buscar por usuario autenticado si existe
-            if ($userId) {
-                $conversacion = Conversacion::where('user_id', $userId)->latest('updated_at')->first();
-                if ($conversacion) {
-                    return $conversacion;
-                }
-            }
-
-            // 2. Buscar por session_id
             if ($sessionId) {
-                $conversacion = Conversacion::where('session_id', $sessionId)->latest('updated_at')->first();
+                $query = Conversacion::where('session_id', $sessionId);
+                if ($userId === null) {
+                    $query->whereNull('user_id');
+                } else {
+                    $query->where('user_id', $userId);
+                }
+                $conversacion = $query->latest('updated_at')->first();
                 if ($conversacion) {
-                    if ($userId && !$conversacion->user_id) {
-                        $conversacion->update(['user_id' => $userId]);
-                    }
                     return $conversacion;
                 }
-            }
-
-            if (!$crearSiNoExiste) {
-                return null;
             }
 
             return Conversacion::create([

@@ -2,13 +2,20 @@
 
 namespace Tests\Feature\Chatbot;
 
+use App\Models\Conversacion;
 use App\Models\User;
-use App\Services\Chatbot\ChatbotCatalogoService;
-use App\Services\Chatbot\ChatbotOrchestratorService;
+use App\Modules\Chatbot\Http\Controllers\ChatbotController;
+use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Http\Request;
+use Illuminate\Session\ArraySessionHandler;
+use Illuminate\Session\Store;
+use ReflectionMethod;
 use Tests\TestCase;
 
 class ChatbotControllerTest extends TestCase
 {
+    use RefreshDatabase;
+
     public function test_catalogo_retorna_version_2_y_listas(): void
     {
         $response = $this->getJson('/chatbot/catalogo');
@@ -23,35 +30,69 @@ class ChatbotControllerTest extends TestCase
             ]);
     }
 
-    public function test_historial_vacio_retorna_array_de_mensajes(): void
+    public function test_conversaciones_y_reporte_no_se_exponen_por_http(): void
     {
-        $response = $this->getJson('/chatbot/historial');
-
-        $response->assertOk()
-            ->assertJsonStructure(['mensajes']);
+        $this->getJson('/chatbot/historial')->assertNotFound();
+        $this->deleteJson('/chatbot/historial')->assertNotFound();
+        $this->getJson('/api/chatbot/historial')->assertNotFound();
+        $this->deleteJson('/api/chatbot/historial')->assertNotFound();
+        $this->get('/chatbot/reporte')->assertNotFound();
     }
 
-    public function test_limpiar_historial_retorna_204(): void
+    public function test_una_interaccion_anonima_se_guarda_para_metricas(): void
     {
-        $response = $this->deleteJson('/chatbot/historial');
+        $this->enviarPregunta('primera pregunta anónima');
 
-        $response->assertNoContent();
+        $anonima = Conversacion::sole();
+        $this->assertNull($anonima->user_id);
+        $this->assertSame(2, $anonima->mensajes()->count());
     }
 
-    public function test_reporte_con_admin_muestra_vista_reporte(): void
+    public function test_api_sin_sesion_tambien_guarda_la_interaccion_anonima(): void
     {
-        $admin = new User([
-            'name' => 'Admin de Pruebas',
-            'email' => 'admin@uees.edu.ec',
-        ]);
-        $admin->id = 1;
-        $admin->email_verified_at = now();
-        $admin->role = 'admin';
+        $this->postJson('/api/chatbot/mensaje', [
+            'version' => 2,
+            'texto' => 'consulta anónima por API',
+        ])->assertOk();
 
-        $response = $this->actingAs($admin)->get('/chatbot/reporte');
+        $conversacion = Conversacion::sole();
+        $this->assertNull($conversacion->user_id);
+        $this->assertNull($conversacion->session_id);
+        $this->assertSame(2, $conversacion->mensajes()->count());
+    }
 
-        $response->assertOk()
-            ->assertSee('Preguntas no resueltas');
+    public function test_la_misma_sesion_no_mezcla_anonimos_ni_cuentas_distintas(): void
+    {
+        $anonima = $this->obtenerConversacionDeMetricas(null);
+        $primeraCuenta = User::factory()->create();
+        $primera = $this->obtenerConversacionDeMetricas($primeraCuenta);
+        $segundaCuenta = User::factory()->create();
+        $segunda = $this->obtenerConversacionDeMetricas($segundaCuenta);
+
+        $this->assertSame(3, Conversacion::count());
+        $this->assertNull($anonima->fresh()->user_id);
+        $this->assertSame(str_repeat('a', 40), $anonima->session_id);
+        $this->assertSame($anonima->session_id, $primera->session_id);
+        $this->assertSame($anonima->session_id, $segunda->session_id);
+        $this->assertSame($primeraCuenta->id, $primera->user_id);
+        $this->assertSame($segundaCuenta->id, $segunda->user_id);
+        $this->assertSame($primera->id, $this->obtenerConversacionDeMetricas($primeraCuenta)->id);
+        $this->assertSame($anonima->id, $this->obtenerConversacionDeMetricas(null)->id);
+    }
+
+    private function enviarPregunta(string $texto): void
+    {
+        $this->postJson('/chatbot/mensaje', ['version' => 2, 'texto' => $texto])->assertOk();
+    }
+
+    private function obtenerConversacionDeMetricas(?User $user): Conversacion
+    {
+        $request = Request::create('/chatbot/mensaje', 'POST');
+        $request->setLaravelSession(new Store('test', new ArraySessionHandler(60), str_repeat('a', 40)));
+        $request->setUserResolver(fn () => $user);
+
+        return (new ReflectionMethod(ChatbotController::class, 'obtenerConversacionActiva'))
+            ->invoke(app(ChatbotController::class), $request);
     }
 
     public function test_mensaje_consulta_estado_solicitud_retorna_tipo_estado_solicitud(): void
