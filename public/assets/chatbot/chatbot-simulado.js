@@ -140,6 +140,11 @@
             r.titulo = t.nombre;
             r.mensaje = 'Todavía no hay información confirmada para este trámite.';
             r.aviso = 'La facultad aún no confirma los requisitos de este trámite. Puedes presentar la solicitud y la revisan caso por caso.';
+            if (sufijo === 'documentos') {
+                r.documentos = [{ id: `${t.id}_respaldo_1`, nombre: 'Respaldo del motivo de la solicitud.', descripcion: 'Consulta con la facultad si debes adjuntar este respaldo y en qué formato.', obligatorio: false, formato: 'Por confirmar', url: null }];
+            } else if (sufijo === 'plazo') {
+                r.plazo = { texto: 'Consulta con la facultad la fecha límite para tu período académico.', inicio: null, fin: null };
+            }
             return r;
         }
 
@@ -185,7 +190,13 @@
         const motivos = [];
 
         if (t.id !== 'examen_recuperacion') {
-            r.resultado = { estado: 'revision_manual', motivos: [{ codigo: 'regla_pendiente', texto: 'La facultad todavía no confirma la regla de este trámite.' }] };
+            r.resultado = {
+                estado: 'requiere_revision',
+                motivos: [
+                    { codigo: 'evaluacion_no_disponible', texto: 'No hay una evaluación automática implementada para este trámite. Esta respuesta no determina cumplimiento ni incumplimiento.' },
+                    { codigo: 'orientacion_tramite', texto: 'La facultad todavía no confirma la regla de este trámite.' },
+                ],
+            };
             return { status: 200, body: r };
         }
 
@@ -203,10 +214,11 @@
             r.sugerencias = ['examen_gracia__descripcion'];
         } else {
             r.resultado = {
-                estado: 'cumple',
+                estado: 'requiere_revision',
                 motivos: [
                     { codigo: 'gpa_ok', texto: `Tu GPA de ${datos.gpa} supera el mínimo de 75.` },
                     { codigo: 'sin_recuperacion', texto: 'No registras otro examen de recuperación en el último año.' },
+                    { codigo: 'condiciones_no_evaluadas', texto: 'No se comprobaron la cantidad de materias ni los plazos aplicables.' },
                 ],
             };
         }

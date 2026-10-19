@@ -16,6 +16,14 @@
         sin_conexion: 'No hay conexión',
     };
 
+    const OBLIGACIONES = {
+        obligatorio: { texto: 'Obligatorio', clase: 'cb-etq-vino' },
+        opcional: { texto: 'Opcional', clase: null },
+        condicional: { texto: 'Según tu caso', clase: null },
+        por_confirmar: { texto: 'Por confirmar', clase: 'cb-etq-pendiente' },
+    };
+    const POR_CONFIRMAR = 'Por confirmar';
+
     const ERROR_SUAVE = ['sesion_requerida', 'tiempo_agotado', 'sin_conexion'];
     const ICONO_ERROR = { sesion_requerida: 'i', tiempo_agotado: '↻', sin_conexion: '↻' };
 
@@ -26,6 +34,18 @@
     const formatearFecha = (f) => (f ? fechaLarga.format(new Date(`${f}T00:00:00Z`)) : null);
     const urlSegura = (u) => (typeof u === 'string' && (/^\/(?!\/)/.test(u) || /^https:\/\//i.test(u)) ? u : null);
     const errorSobre = (codigo, mensaje, reintentable) => ({ version: 2, error: { codigo, mensaje, reintentable, campos: {} } });
+
+    const obligacionDe = (d) => {
+        if (OBLIGACIONES[d.obligacion]) return d.obligacion;
+        return d.obligatorio === true ? 'obligatorio' : 'por_confirmar';
+    };
+
+    const estadoResultado = (resultado) => {
+        const codigos = (resultado.motivos || []).map((m) => (m && m.codigo) || '');
+        if (codigos.includes('evaluacion_no_disponible')) return 'sin_evaluacion';
+        if (resultado.estado === 'requiere_revision' && codigos.includes('condiciones_no_evaluadas')) return 'parcial';
+        return resultado.estado === 'requiere_revision' ? 'revision_manual' : resultado.estado;
+    };
 
     const memoria = {
         clave: 'cb-flotante-abierto',
@@ -244,7 +264,7 @@
 
         bienvenida() {
             this.agregarBot([
-                'Hola. Te ayudo con los trámites de la facultad: requisitos, documentos, costos, plazos y si puedes solicitarlos.',
+                'Hola. Te ayudo con los trámites de la facultad: requisitos, documentos, costos y plazos. En algunos trámites también reviso de forma orientativa si cumples las condiciones.',
                 'Elige una categoría o escribe tu pregunta.',
             ]);
             this.agregarSugerencias(this.opcionesCategorias(), (c) => this.elegirCategoria(c));
@@ -467,7 +487,7 @@
             items.hidden = !(resp.items || []).length;
 
             this.pintarDocumentos(nodo, resp.documentos || []);
-            this.pintarDatos(nodo, resp.costo, resp.plazo);
+            this.pintarDatos(nodo, resp.costo, resp.plazo, resp.tipo);
             this.pintarResultado(this.parte('resultado', nodo), resp.resultado, resp.meta);
             this.pintarSolicitudes(nodo, resp.solicitudes || []);
             this.llenar(nodo, 'aviso-texto', resp.aviso);
@@ -497,8 +517,10 @@
                 this.llenar(el, 'doc-formato', d.formato);
                 this.llenar(el, 'doc-descripcion', d.descripcion);
                 const etiqueta = this.parte('doc-obligatorio', el);
-                etiqueta.textContent = d.obligatorio ? 'Obligatorio' : 'Opcional';
-                etiqueta.classList.toggle('cb-etq-vino', !!d.obligatorio);
+                const obligacion = OBLIGACIONES[obligacionDe(d)];
+                etiqueta.textContent = obligacion.texto;
+                etiqueta.classList.remove('cb-etq-vino', 'cb-etq-pendiente');
+                if (obligacion.clase) etiqueta.classList.add(obligacion.clase);
                 const enlace = this.parte('doc-enlace', el);
                 const url = urlSegura(d.url);
                 enlace.hidden = !url;
@@ -508,28 +530,34 @@
             lista.hidden = !documentos.length;
         }
 
-        pintarDatos(nodo, costo, plazo) {
-            this.parte('datos', nodo).hidden = !costo && !plazo;
-            this.parte('dato-costo', nodo).hidden = !costo;
-            if (costo) {
-                this.llenar(nodo, 'costo-valor', dinero.format(costo.centavos / 100));
-                this.llenar(nodo, 'costo-moneda', costo.moneda);
+        pintarDatos(nodo, costo, plazo, tipo) {
+            const verCosto = !!costo || tipo === 'costo';
+            const verPlazo = !!plazo || tipo === 'plazo';
+            this.parte('datos', nodo).hidden = !verCosto && !verPlazo;
+
+            this.parte('dato-costo', nodo).hidden = !verCosto;
+            if (verCosto) {
+                this.llenar(nodo, 'costo-valor', costo ? dinero.format(costo.centavos / 100) : POR_CONFIRMAR);
+                this.llenar(nodo, 'costo-moneda', costo ? costo.moneda : null);
+                this.parte('costo-nota', nodo).hidden = !!costo;
             }
-            this.parte('dato-inicio', nodo).hidden = !(plazo && plazo.inicio);
-            this.parte('dato-fin', nodo).hidden = !plazo;
-            this.parte('dato-plazo', nodo).hidden = !(plazo && plazo.texto);
-            if (plazo) {
-                this.llenar(nodo, 'plazo-inicio', formatearFecha(plazo.inicio));
-                this.llenar(nodo, 'plazo-fin', formatearFecha(plazo.fin) || 'Sin fecha');
-                this.parte('plazo-fin-nota', nodo).hidden = !!plazo.fin;
-                this.llenar(nodo, 'plazo-texto', plazo.texto);
+
+            const p = plazo || {};
+            this.parte('dato-inicio', nodo).hidden = !p.inicio;
+            this.parte('dato-fin', nodo).hidden = !verPlazo;
+            this.parte('dato-plazo', nodo).hidden = !p.texto;
+            if (verPlazo) {
+                this.llenar(nodo, 'plazo-inicio', formatearFecha(p.inicio));
+                this.llenar(nodo, 'plazo-fin', formatearFecha(p.fin) || POR_CONFIRMAR);
+                this.parte('plazo-fin-nota', nodo).hidden = !!p.fin;
+                this.llenar(nodo, 'plazo-texto', p.texto);
             }
         }
 
         pintarResultado(caja, resultado, meta) {
             caja.hidden = !resultado;
             if (!resultado) return;
-            const estado = resultado.estado === 'requiere_revision' ? 'revision_manual' : resultado.estado;
+            const estado = estadoResultado(resultado);
 
             this.parte('resultado-caja', caja).className = `cb-resultado ${caja.getAttribute(`data-clase-${estado}`) || ''}`;
             this.parte('resultado-icono', caja).textContent = caja.getAttribute(`data-icono-${estado}`) || '';
@@ -543,7 +571,7 @@
                 motivos.append(li);
             });
 
-            this.parte('resultado-orientativo', caja).hidden = !!(meta && meta.verificacion === 'institucional');
+            this.parte('resultado-orientativo', caja).hidden = estado === 'sin_evaluacion' || !!(meta && meta.verificacion === 'institucional');
         }
 
         pintarSolicitudes(nodo, solicitudes) {

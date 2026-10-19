@@ -109,6 +109,7 @@ html:has(.cb-cuerpo),.cb-cuerpo{height:100%}
 .cb-doc p{font-size:12.5px;color:var(--cb-gris)}
 .cb-etq{font-size:10px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;border:1px solid var(--cb-linea);border-radius:5px;padding:2px 6px;color:var(--cb-gris);flex:none}
 .cb-etq-vino{background:var(--cb-vino-suave);border-color:var(--cb-vino-linea);color:var(--cb-vino)}
+.cb-etq-pendiente{border-style:dashed;border-color:var(--cb-linea-campo)}
 .cb-enlace{font-size:12.5px;font-weight:600;color:var(--cb-vino);text-decoration:none}
 .cb-enlace:hover{text-decoration:underline}
 
@@ -143,6 +144,8 @@ html:has(.cb-cuerpo),.cb-cuerpo{height:100%}
 .cb-no-cumple .cb-res-icono{background:var(--cb-rojo)}
 .cb-revision{background:var(--cb-ambar-suave)}
 .cb-revision .cb-res-icono{background:var(--cb-ambar)}
+.cb-sin-evaluacion{background:var(--cb-fondo);border:1px solid var(--cb-linea)}
+.cb-sin-evaluacion .cb-res-icono{background:var(--cb-gris)}
 .cb-orientativo{display:inline-block;font-size:10.5px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:var(--cb-gris);border:1px dashed var(--cb-linea-campo);border-radius:5px;padding:2px 6px;margin-top:10px}
 .cb-nota{font-size:12px;color:var(--cb-gris);margin-top:6px}
 

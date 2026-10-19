@@ -19,7 +19,7 @@
         @endforeach
     </ul>
     <x-chat.documentos :documentos="$r['documentos'] ?? []" />
-    <x-chat.datos-clave :costo="$r['costo'] ?? null" :plazo="$r['plazo'] ?? null" />
+    <x-chat.datos-clave :costo="$r['costo'] ?? null" :plazo="$r['plazo'] ?? null" :tipo="$r['tipo'] ?? null" />
     <x-resultado-elegibilidad :evaluacion="$evaluacion" />
     <ul class="cb-solicitudes" data-cb="solicitudes" @if (empty($r['solicitudes'])) hidden @endif>
         @foreach ($r['solicitudes'] ?? [] as $solicitud)
