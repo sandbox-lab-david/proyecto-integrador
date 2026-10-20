@@ -22,6 +22,20 @@ evaluacion_unica(T, Perfil, Estado, Motivos) :-
 con_motivo(Motivos, Codigo) :-
     member(M, Motivos), get_dict(codigo, M, Codigo), !.
 
+% Mismo orden que reglas.pl. pendiente_validacion/2 y observacion_conocimiento/2
+% hoy no tienen hechos, asi que el aviso esperado es null.
+aviso_esperado(T, Aviso) :-
+    (   pendiente_validacion(T, Aviso) -> true
+    ;   observacion_conocimiento(T, Aviso) -> true
+    ;   Aviso = null
+    ).
+
+orientacion_esperada(T, Texto) :-
+    (   pendiente_validacion(T, Texto) -> true
+    ;   observacion_conocimiento(T, Texto) -> true
+    ;   descripcion(T, Texto)
+    ).
+
 test(promedios_inferiores_al_minimo,
      [forall(member(P, [0, 60, 74.99]))]) :-
     evaluacion_unica(examen_recuperacion, _{promedio:P}, "no_cumple", Ms),
@@ -97,7 +111,7 @@ test(otros_tramites_explican_limitacion_y_conservan_orientacion,
     forall(member(P, [_{}, _{promedio:100}]), (
         evaluacion_unica(T, P, "requiere_revision", Ms),
         con_motivo(Ms, "evaluacion_no_disponible"),
-        pendiente_validacion(T, Orientacion),
+        orientacion_esperada(T, Orientacion),
         assertion(member(_{codigo:"orientacion_tramite", texto:Orientacion}, Ms))
     )).
 
@@ -107,7 +121,7 @@ test(consultas_informativas_para_cada_tramite,
         consultar_plazo])))]) :-
     findall(S, consultar(I, T, S), [Salida]),
     get_dict(resultado, Salida, null),
-    get_dict(aviso, Salida, Aviso), pendiente_validacion(T, Aviso),
+    get_dict(aviso, Salida, Aviso), aviso_esperado(T, Aviso),
     comprobar_consulta(I, T, Salida).
 
 comprobar_consulta(consultar_descripcion, T, S) :-

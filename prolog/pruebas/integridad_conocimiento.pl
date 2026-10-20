@@ -81,9 +81,11 @@ test(campos_unicos_y_tipados) :-
 test(correspondencias_agenda_no_ambiguas) :-
     findall(A, identificador_agenda(_, A), As), unicos(As).
 
-test(contenido_incompleto_con_pendiente_explicito) :-
+% Desde la revision 004 lo pendiente se explica en nota_interna/2;
+% pendiente_validacion/2 sigue declarado pero sin hechos.
+test(contenido_incompleto_con_nota_interna) :-
     forall((estado_conocimiento(T, E), memberchk(E, [parcial, pendiente])),
-        assertion((pendiente_validacion(T, Texto), texto(Texto)))).
+        assertion((nota_interna(T, Texto), texto(Texto)))).
 
 test(costos_tipados_si_existen) :-
     forall(costo(_, Centavos, Moneda),
