@@ -18,5 +18,6 @@
             >
                 Catálogo de trámites
             </a>
+            <x-campana-notificaciones />
         </div>
     </header>

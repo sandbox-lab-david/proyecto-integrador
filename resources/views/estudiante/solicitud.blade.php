@@ -118,5 +118,6 @@
             </section>
         </div>
     </main>
+    @include('estudiante.partials.chatbot-flotante')
 </body>
 </html>
