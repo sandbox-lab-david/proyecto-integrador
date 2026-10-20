@@ -28,8 +28,8 @@ class RevisionController extends Controller
             return $item;
         });
 
-        $tramitesDisponibles = DB::table('solicitudes')->distinct()->pluck('tramite');
-        $estadosDisponibles = DB::table('solicitudes')->distinct()->pluck('estado');
+        $tramitesDisponibles = DB::table('solicitudes')->distinct()->pluck('tipo_tramite_id');
+        $estadosDisponibles = DB::table('solicitudes')->distinct()->pluck('estado_solicitud_id');
 
         return view('revision.asistente', compact('solicitudes', 'filtroEstado', 'filtroTramite', 'tramitesDisponibles', 'estadosDisponibles'));
     }

@@ -1,55 +1,102 @@
-<!DOCTYPE html>
-<html lang="es">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Periodos Académicos</title>
-   
-    @vite(['resources/css/app.css', 'resources/js/app.js'])
-</head>
-<body class="bg-gray-100 p-8">
-    <div class="max-w-6xl mx-auto">
-        <h1 class="text-3xl font-bold text-gray-800 mb-6">Gestión de Periodos Académicos</h1>
+@extends('layouts.app')
 
-        <!-- Formulario -->
-        <div class="bg-white p-6 rounded-lg shadow-md mb-8 border-t-4 border-blue-600">
-            <h2 class="text-xl font-semibold mb-4 text-gray-700">Crear Nuevo Periodo</h2>
-            <form action="#" method="POST" class="grid grid-cols-1 md:grid-cols-4 gap-4">
-                
-                <div>
-                    <label class="block text-sm font-medium text-gray-700">Nombre del Periodo</label>
-                    <input type="text"  class="mt-1 block w-full rounded-md border border-gray-300 p-2 shadow-sm focus:border-blue-500 focus:outline-none">
+@section('titulo', 'Periodos académicos')
+
+@section('content')
+    <p class="ui-antetitulo">Estructura académica</p>
+    <h1 class="ui-titulo">Periodos académicos</h1>
+    <p class="ui-texto-gris mt-chico">Solo puede haber un periodo activo a la vez: al marcar uno nuevo como activo, el anterior se desactiva.</p>
+
+    <div class="grid gap-amplio mt-amplio lg:grid-cols-[340px_minmax(0,1fr)] items-start">
+        <section class="ui-tarjeta">
+            <h2 class="ui-subtitulo">Nuevo periodo</h2>
+            <form method="POST" action="{{ route('administracion.periodos.store') }}" class="ui-form">
+                @csrf
+                <div class="ui-campo @error('codigo') ui-campo-error @enderror">
+                    <label for="codigo">Código</label>
+                    <input id="codigo" name="codigo" class="ui-control" value="{{ old('codigo') }}" placeholder="ORD-2-2026" maxlength="30">
+                    @error('codigo')<p class="ui-error-campo">{{ $message }}</p>@enderror
                 </div>
-
-                <div>
-                    <label class="block text-sm font-medium text-gray-700">Fecha de Inicio</label>
-                    <input type="date" class="mt-1 block w-full rounded-md border border-gray-300 p-2 shadow-sm focus:border-blue-500 focus:outline-none">
+                <div class="ui-campo @error('nombre') ui-campo-error @enderror">
+                    <label for="nombre">Nombre</label>
+                    <input id="nombre" name="nombre" class="ui-control" value="{{ old('nombre') }}" placeholder="Ordinario II 2026">
+                    @error('nombre')<p class="ui-error-campo">{{ $message }}</p>@enderror
                 </div>
-
-                <div>
-                    <label class="block text-sm font-medium text-gray-700">Fecha de Fin</label>
-                    <input type="date" class="mt-1 block w-full rounded-md border border-gray-300 p-2 shadow-sm focus:border-blue-500 focus:outline-none">
+                <div class="ui-campo @error('tipo') ui-campo-error @enderror">
+                    <label for="tipo">Tipo</label>
+                    <select id="tipo" name="tipo" class="ui-control">
+                        @foreach (['ordinario' => 'Ordinario', 'extraordinario' => 'Extraordinario', 'intensivo' => 'Intensivo'] as $valor => $texto)
+                            <option value="{{ $valor }}" @selected(old('tipo', 'ordinario') === $valor)>{{ $texto }}</option>
+                        @endforeach
+                    </select>
+                    @error('tipo')<p class="ui-error-campo">{{ $message }}</p>@enderror
                 </div>
-
-                <div class="flex items-center mt-6">
-                    <input type="checkbox" class="w-4 h-4 text-blue-600 border-gray-300 rounded">
-                    <label class="ml-2 text-sm font-medium text-gray-700">¿Está activo?</label>
+                <div class="grid grid-cols-2 gap-medio">
+                    <div class="ui-campo @error('fecha_inicio') ui-campo-error @enderror">
+                        <label for="fecha_inicio">Inicio</label>
+                        <input id="fecha_inicio" name="fecha_inicio" type="date" class="ui-control" value="{{ old('fecha_inicio') }}">
+                        @error('fecha_inicio')<p class="ui-error-campo">{{ $message }}</p>@enderror
+                    </div>
+                    <div class="ui-campo @error('fecha_fin') ui-campo-error @enderror">
+                        <label for="fecha_fin">Fin</label>
+                        <input id="fecha_fin" name="fecha_fin" type="date" class="ui-control" value="{{ old('fecha_fin') }}">
+                        @error('fecha_fin')<p class="ui-error-campo">{{ $message }}</p>@enderror
+                    </div>
                 </div>
-
-                <div class="md:col-span-4 mt-2">
-                    <button type="submit" class="bg-blue-600 text-white px-5 py-2 rounded-md shadow hover:bg-blue-700 transition">
-                        Guardar Periodo
-                    </button>
+                <div class="ui-campo @error('semana_primer_parcial') ui-campo-error @enderror">
+                    <label for="semana_primer_parcial">Semana del primer parcial</label>
+                    <input id="semana_primer_parcial" name="semana_primer_parcial" type="number" min="1" max="20" class="ui-control" value="{{ old('semana_primer_parcial', 8) }}">
+                    <p class="ui-ayuda">Se usa para calcular el costo del retiro de materia.</p>
+                    @error('semana_primer_parcial')<p class="ui-error-campo">{{ $message }}</p>@enderror
+                </div>
+                <label class="ui-casilla">
+                    <input type="checkbox" name="activo" value="1" @checked(old('activo'))>
+                    <span>Marcar como periodo activo</span>
+                </label>
+                <div class="ui-acciones">
+                    <button type="submit" class="ui-btn ui-btn-primario">Guardar periodo</button>
                 </div>
             </form>
-        </div>
+        </section>
 
-        <!-- Lista/Tabla -->
-        <div class="bg-white p-6 rounded-lg shadow-md">
-            <h2 class="text-xl font-semibold mb-4 text-gray-700">Lista de Periodos</h2>
-            <p class="text-gray-500 text-sm italic"></p>
-        </div>
-        
+        <section>
+            <h2 class="ui-subtitulo mb-medio">Periodos registrados</h2>
+            @if ($periodos->isEmpty())
+                <div class="ui-vacio">Todavía no hay periodos registrados.</div>
+            @else
+                <div class="ui-tabla-caja">
+                    <table class="ui-tabla">
+                        <thead>
+                            <tr>
+                                <th>Código</th>
+                                <th>Nombre</th>
+                                <th>Tipo</th>
+                                <th>Fechas</th>
+                                <th>1.er parcial</th>
+                                <th>Estado</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach ($periodos as $periodo)
+                                <tr>
+                                    <td class="font-semibold">{{ $periodo->codigo }}</td>
+                                    <td>{{ $periodo->nombre }}</td>
+                                    <td>{{ ucfirst($periodo->tipo) }}</td>
+                                    <td class="whitespace-nowrap">{{ \Illuminate\Support\Carbon::parse($periodo->fecha_inicio)->format('d/m/Y') }} – {{ \Illuminate\Support\Carbon::parse($periodo->fecha_fin)->format('d/m/Y') }}</td>
+                                    <td>Semana {{ $periodo->semana_primer_parcial }}</td>
+                                    <td>
+                                        @if ($periodo->activo)
+                                            <span class="ui-badge ui-badge-exito">Activo</span>
+                                        @else
+                                            <span class="ui-badge">Inactivo</span>
+                                        @endif
+                                    </td>
+                                </tr>
+                            @endforeach
+                        </tbody>
+                    </table>
+                </div>
+            @endif
+        </section>
     </div>
-</body>
-</html>
+@endsection

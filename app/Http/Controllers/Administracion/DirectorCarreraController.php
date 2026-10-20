@@ -26,7 +26,7 @@ class DirectorCarreraController extends Controller
      */
     public function create()
     {
-        $carrera = Carreras::where('activo', true)->get();
+        $carrera = Carrera::where('activo', true)->get();
         $trabajador = Trabajador::where('activo', true)->get();
 
         return view('directores_carrera.create', compact('carrera', 'trabajador'));

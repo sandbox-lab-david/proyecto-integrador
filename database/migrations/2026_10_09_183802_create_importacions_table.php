@@ -11,7 +11,7 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::create('importacions', function (Blueprint $table) {
+        Schema::create('importaciones', function (Blueprint $table) {
             $table->id();
             $table->string('entidad', 50);
             $table->string('archivo_ruta', 255);

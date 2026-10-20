@@ -3,8 +3,8 @@
 namespace App\Http\Controllers\Administracion;
 
 use App\Http\Controllers\Controller;
-
 use Illuminate\Http\Request;
+use App\Models\Importaciones;
 
 class ImportacionesController extends Controller
 {
@@ -13,7 +13,9 @@ class ImportacionesController extends Controller
      */
     public function index()
     {
+        $importaciones = Importaciones::with('user')->orderBy('created_at', 'desc')->paginate(10);
         
+        return view('importaciones.index', compact('importaciones'));
     }
 
     /**
@@ -35,9 +37,10 @@ class ImportacionesController extends Controller
     /**
      * Display the specified resource.
      */
-    public function show(string $id)
+    public function show(Importaciones $importacion)
     {
-        //
+        
+        return view('importaciones.show', compact('importacion'));
     }
 
     /**
@@ -59,8 +62,12 @@ class ImportacionesController extends Controller
     /**
      * Remove the specified resource from storage.
      */
-    public function destroy(string $id)
+    public function destroy(Importaciones $importacion)
     {
-        //
+
+        
+        $importacion->delete();
+
+        return redirect()->route('importaciones.index')->with('success', 'Registro del historial eliminado');
     }
 }
