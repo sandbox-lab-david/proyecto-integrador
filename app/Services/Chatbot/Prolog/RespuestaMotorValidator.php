@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Modules\Chatbot\Services\Prolog;
+namespace App\Services\Chatbot\Prolog;
 
 /**
  * Valida que el JSON recibido de Prolog cumpla el contrato v2.

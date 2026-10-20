@@ -15,4 +15,13 @@ return [
         'connect_timeout' => (float) env('PROLOG_CONNECT_TIMEOUT', 1.0),
         'intentos' => (int) env('PROLOG_INTENTOS', 2),
     ],
+
+    /*
+    |--------------------------------------------------------------------------
+    | URL del portal G2 (Agenda Anny)
+    |--------------------------------------------------------------------------
+    | Base URL del portal donde los estudiantes inician las solicitudes.
+    | Se usa para construir las acciones de tipo 'url' en las respuestas del chatbot.
+    */
+    'g2_url' => env('G2_PORTAL_URL', 'https://agenda.uisek.edu.ec'),
 ];

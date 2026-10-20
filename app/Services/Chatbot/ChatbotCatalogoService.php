@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Modules\Chatbot\Services;
+namespace App\Services\Chatbot;
 
 class ChatbotCatalogoService
 {
@@ -120,6 +120,103 @@ class ChatbotCatalogoService
         return $campos[$tramiteId] ?? [];
     }
 
+    /**
+     * Busca una pregunta por su identificador en el catálogo.
+     */
+    public function obtenerPregunta(string $preguntaId): ?array
+    {
+        $catalogo = $this->obtenerCatalogo();
+        foreach ($catalogo['preguntas'] as $p) {
+            if ($p['id'] === $preguntaId) {
+                return $p;
+            }
+        }
+        return null;
+    }
+
+    /**
+     * API-04: Devuelve los nombres de campos permitidos para un trámite, incluyendo
+     * los nombres base de hechos.pl y sus alias aceptados por el sistema.
+     *
+     * @return array<int, string>
+     */
+    public function obtenerNombresCamposValidosPorTramite(string $tramiteId): array
+    {
+        $campos = $this->obtenerCamposDeTramite($tramiteId);
+        $permitidos = [];
+
+        $mapaAlias = [
+            'subjects'             => ['materia_id', 'subjects'],
+            'period_gpa'           => ['promedio', 'gpa', 'period_gpa', 'nota', 'grade'],
+            'gpa_general'          => ['promedio', 'gpa', 'gpa_general', 'nota', 'grade'],
+            'subject_grade'        => ['promedio', 'nota', 'subject_grade', 'grade'],
+            'current_grade'        => ['promedio', 'nota', 'current_grade', 'grade'],
+            'attendance'           => ['asistencia', 'attendance'],
+            'attended_as_listener' => ['listener', 'attended_as_listener'],
+            'new_code'             => ['new_code'],
+            'last_recovery_date'   => ['fecha_ultima_recuperacion', 'last_recovery_date'],
+            'reason'               => ['reason', 'motivo'],
+        ];
+
+        foreach ($campos as $c) {
+            $nom = $c['nombre'];
+            $permitidos[] = $nom;
+            if (isset($mapaAlias[$nom])) {
+                $permitidos = array_merge($permitidos, $mapaAlias[$nom]);
+            }
+        }
+
+        return array_values(array_unique($permitidos));
+    }
+
+    /**
+     * Devuelve el slug del portal Agenda Anny para un trámite (ej. "examen-recuperacion").
+     * Se usa para construir la URL de acción hacia el G2.
+     * Retorna null si el trámite no tiene identificador definido en hechos.pl.
+     */
+    public function obtenerIdentificadorAgenda(string $tramiteId): ?string
+    {
+        if (!file_exists($this->kbPath)) {
+            return null;
+        }
+        $contenido = file_get_contents($this->kbPath);
+        // Coincide con identificador_agenda(tramite_id, "slug-del-portal").
+        if (preg_match('/identificador_agenda\(' . preg_quote($tramiteId, '/') . ',\s*"([^"]+)"\)\./u', $contenido, $m)) {
+            return $m[1];
+        }
+        return null;
+    }
+
+    /**
+     * Devuelve el texto informativo de costo registrado en hechos.pl para un trámite.
+     */
+    public function obtenerCostoTexto(string $tramiteId): ?string
+    {
+        if (!file_exists($this->kbPath)) {
+            return null;
+        }
+        $contenido = file_get_contents($this->kbPath);
+        if (preg_match('/costo_texto\(' . preg_quote($tramiteId, '/') . ',\s*"([^"]+)"\)\./u', $contenido, $m)) {
+            return $m[1];
+        }
+        return null;
+    }
+
+    /**
+     * Devuelve el texto informativo de plazo registrado en hechos.pl para un trámite.
+     */
+    public function obtenerPlazoTexto(string $tramiteId): ?string
+    {
+        if (!file_exists($this->kbPath)) {
+            return null;
+        }
+        $contenido = file_get_contents($this->kbPath);
+        if (preg_match('/plazo_texto\(' . preg_quote($tramiteId, '/') . ',\s*"([^"]+)"\)\./u', $contenido, $m)) {
+            return $m[1];
+        }
+        return null;
+    }
+
     protected function parsearTramites(): array
     {
         if (!file_exists($this->kbPath)) {
@@ -156,11 +253,6 @@ class ChatbotCatalogoService
         // Coincide con campo_formulario(tramite, nombre_campo, "Etiqueta", obligatoriedad).
         preg_match_all('/campo_formulario\(([a-z0-9_]+),\s*([a-z0-9_]+),\s*"([^"]+)",\s*([a-z0-9_]+)\)\./u', $contenido, $matches, PREG_SET_ORDER);
 
-        $materiasDemo = [
-            ['valor' => 'UFIS101', 'etiqueta' => 'Física I'],
-            ['valor' => 'UMAT102', 'etiqueta' => 'Cálculo I'],
-            ['valor' => 'UCOM253', 'etiqueta' => 'Comunicación oral'],
-        ];
 
         $camposPorTramite = [];
         foreach ($matches as $m) {
@@ -194,7 +286,7 @@ class ChatbotCatalogoService
                 $tipo = 'booleano';
             } elseif ($nombreCampo === 'subjects' || $nombreCampo === 'materia_id') {
                 $tipo = 'seleccion';
-                $opciones = $materiasDemo;
+                $opciones = $this->obtenerOpcionesMaterias();
             }
 
             $camposPorTramite[$tramiteId][] = [
@@ -209,5 +301,40 @@ class ChatbotCatalogoService
         }
 
         return $camposPorTramite;
+    }
+
+    protected function obtenerOpcionesMaterias(): array
+    {
+        $opciones = [];
+
+        if (class_exists(\App\Models\Materia::class)) {
+            try {
+                $materiasBd = \App\Models\Materia::select('codigo', 'nombre')->get();
+                foreach ($materiasBd as $m) {
+                    $opciones[] = [
+                        'valor'    => $m->codigo,
+                        'etiqueta' => "{$m->codigo} - {$m->nombre}",
+                    ];
+                }
+            } catch (\Throwable) {
+            }
+        }
+
+        if (empty($opciones) && class_exists(\App\Services\Solicitudes\TramitesSimulados::class)) {
+            try {
+                $simulados = app(\App\Services\Solicitudes\TramitesSimulados::class)->materias();
+                foreach ($simulados as $m) {
+                    $codigo = $m['codigo'] ?? $m['id'];
+                    $nombre = $m['nombre'] ?? $codigo;
+                    $opciones[] = [
+                        'valor'    => $codigo,
+                        'etiqueta' => "{$codigo} - {$nombre}",
+                    ];
+                }
+            } catch (\Throwable) {
+            }
+        }
+
+        return $opciones;
     }
 }
