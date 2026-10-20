@@ -13,7 +13,7 @@ return new class extends Migration
             if (Schema::hasColumn('rol_trabajador', 'id')) {
                 $table->dropColumn('id');
             }
-            if (Schema::hasColumn('rol', 'rol_trabajador')) {
+            if (Schema::hasColumn('rol_trabajador', 'rol')) {
                 $table->dropColumn('rol');
             }
             if (!Schema::hasColumn('rol_trabajador', 'rol_id')) {

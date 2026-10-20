@@ -63,8 +63,8 @@ class AutorizacionService
     // ==== C20: Puede ver carrera
     public function puedeVerCarrera($user, $carreraId)
     {
-        // Verificar si el usuario es administrador global o director de esta carrera específica
-        if ($user->hasRole && $user->hasRole('Administrador')) {
+        // C20: se usa tieneRol (C15) en lugar de hasRole, que no existe en User
+        if ($this->tieneRol($user, 'admin')) {
             return true;
         }
 

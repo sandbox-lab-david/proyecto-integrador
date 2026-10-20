@@ -13,7 +13,7 @@ class ImportacionesController extends Controller
      */
     public function index()
     {
-        $importaciones = Importacion::with('user')->orderBy('created_at', 'desc')->paginate(10);
+        $importaciones = Importaciones::with('user')->orderBy('created_at', 'desc')->paginate(10);
         
         return view('importaciones.index', compact('importaciones'));
     }
@@ -37,7 +37,7 @@ class ImportacionesController extends Controller
     /**
      * Display the specified resource.
      */
-    public function show(Importacion $importacion)
+    public function show(Importaciones $importacion)
     {
         
         return view('importaciones.show', compact('importacion'));
@@ -62,7 +62,7 @@ class ImportacionesController extends Controller
     /**
      * Remove the specified resource from storage.
      */
-    public function destroy(Importacion $importacion)
+    public function destroy(Importaciones $importacion)
     {
 
         

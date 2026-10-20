@@ -7,7 +7,7 @@ use Illuminate\Database\Eloquent\Collection;
 use App\Models\Periodo;
 use Illuminate\Support\Carbon;
 use App\Models\Carrera;
-use App\Modules\Chatbot\Services\Prolog\PrologClient;
+use App\Models\Facultad;
 
 class CatalogoAcademicoService
 {
@@ -140,21 +140,10 @@ class CatalogoAcademicoService
     }
     
     // ===C31: Carreras sin tercer registro
-    public function carrerasSinTercerRegistro($estudianteId)
+    public function carrerasSinTercerRegistro(): Collection
     {
-        // Lógica de integración con Prolog según el motor del proyecto
-        // Ejemplo base utilizando el cliente Prolog disponible en el módulo chatbot o servicios
-        try {
-            $prologClient = new PrologClient();
-            $query = "carrera_sin_tercer_registro({$estudianteId}, CarreraID)";
-            $resultados = $prologClient->consultar($query);
-            
-            $carreraIds = collect($resultados)->pluck('CarreraID')->toArray();
-            return Carrera::whereIn('id', $carreraIds)->get();
-        } catch (\Exception $e) {
-            // Fallback en caso de que Prolog no esté activo en el entorno local inmediato
-            return collect([]);
-        }
+        // C31: según el Excel, sin parámetros; devuelve las carreras que no admiten tercer registro
+        return Carrera::where('admite_tercer_registro', false)->get();
     }
 }
 

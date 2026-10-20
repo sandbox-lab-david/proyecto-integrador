@@ -6,6 +6,8 @@ use Illuminate\Database\Eloquent\Model;
 
 class Importaciones extends Model
 {
+    protected $table = 'importaciones';
+
     protected $fillable = [
         'entidad',
         'archivo_ruta',
@@ -20,6 +22,6 @@ class Importaciones extends Model
 
     public function user()
     {
-        return $this->belongsTo(User::class);
+        return $this->belongsTo(User::class, 'useri_id');
     }
 }
