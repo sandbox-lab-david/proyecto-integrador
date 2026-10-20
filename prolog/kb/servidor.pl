@@ -17,8 +17,10 @@
 % Configuracion por variables de entorno (todas opcionales):
 %   PROLOG_HOST             interfaz a escuchar            (127.0.0.1)
 %   PROLOG_PORT             puerto                         (8081)
-%   PROLOG_API_KEY          credencial compartida con Laravel (sin valor = sin
-%                           autenticacion; SOLO para desarrollo)
+%   PROLOG_ENTORNO          produccion (defecto) | desarrollo
+%   PROLOG_API_KEY          credencial compartida con Laravel. OBLIGATORIA (min.
+%                           16 caracteres) salvo PROLOG_ENTORNO=desarrollo con
+%                           PROLOG_HOST en loopback. Sin ella el motor NO arranca.
 %   PROLOG_WORKERS          hilos = peticiones simultaneas (8)
 %   PROLOG_LIMITE           segundos max. por regla        (2.5)
 %   PROLOG_MAX_BODY         bytes max. del cuerpo          (16384)
@@ -68,6 +70,7 @@ cfg(rate_max,         V) :- env_num('PROLOG_RATE_MAX', 600, V).
 cfg(rate_ventana,     V) :- env_num('PROLOG_RATE_VENTANA', 60, V).
 cfg(timeout_conexion, V) :- env_num('PROLOG_TIMEOUT_CONEXION', 15, V).
 cfg(drenaje,          V) :- env_num('PROLOG_DRENAJE', 10, V).
+cfg(entorno,          V) :- env_texto('PROLOG_ENTORNO', produccion, V0), downcase_atom(V0, V).
 cfg(api_key,          V) :- getenv('PROLOG_API_KEY', V0), V0 \== '', V = V0.   % falla si no hay
 
 puerto(Port) :-
@@ -82,15 +85,40 @@ puerto(8081).
 
 arrancar :-
     puerto(Port), cfg(host, Host), cfg(workers, W), cfg(timeout_conexion, TC),
+    arrancar :-
+    puerto(Port), cfg(host, Host), cfg(workers, W), cfg(timeout_conexion, TC),
+    verificar_seguridad,
     cargar_conocimiento,
     instalar_senales,
     http_server(http_dispatch, [port(Host:Port), workers(W), timeout(TC)]),
     (   cfg(api_key, _) -> Auth = activada
-    ;   Auth = 'DESACTIVADA (definir PROLOG_API_KEY en produccion)' ),
+    ;   Auth = 'DESACTIVADA (solo desarrollo en loopback)' ),
     format(user_error, "Puente Prolog escuchando en http://~w:~w (workers=~w, auth=~w)~n",
            [Host, Port, W, Auth]),
-    thread_get_message(_).               % mantiene vivo el proceso
+    thread_get_message(_).
 
+% HTTP-01: el motor no arranca sin credencial valida, salvo desarrollo local.
+verificar_seguridad :-
+    cfg(entorno, Ent), cfg(host, Host),
+    (   Ent \== desarrollo, Ent \== produccion
+    ->  fallo_arranque("PROLOG_ENTORNO debe ser 'produccion' o 'desarrollo' (recibido: ~w).", [Ent])
+    ;   cfg(api_key, K)
+    ->  (   Ent == produccion, atom_length(K, L), L < 16
+        ->  fallo_arranque("PROLOG_API_KEY demasiado corta (~w); minimo 16 caracteres.", [L])
+        ;   true )
+    ;   Ent == produccion
+    ->  fallo_arranque("PROLOG_API_KEY es obligatoria en produccion.", [])
+    ;   \+ host_loopback(Host)
+    ->  fallo_arranque("Sin PROLOG_API_KEY solo se permite escuchar en loopback (PROLOG_HOST=~w).", [Host])
+    ;   format(user_error, "AVISO: entorno=desarrollo sin credencial (solo loopback).~n", [])
+    ).
+
+host_loopback(H) :- memberchk(H, ['127.0.0.1', localhost, '::1']).
+
+fallo_arranque(Fmt, Args) :-
+    format(string(M), Fmt, Args),
+    format(user_error, "ERROR DE ARRANQUE: ~s~n", [M]),
+    halt(1).
 instalar_senales :-
     forall(member(S, [term, int]), catch(on_signal(S, _, apagar), _, true)).
 
@@ -245,9 +273,8 @@ autorizado(R) :-
     ->  memberchk(x_api_key(Enviada), R),
         format(atom(E), "~w", [Esperada]), format(atom(S), "~w", [Enviada]),
         iguales(E, S)
-    ;   true
+    ;   cfg(entorno, desarrollo)          % sin clave solo pasa en desarrollo
     ).
-
 iguales(A, B) :-
     atom_codes(A, Ca), atom_codes(B, Cb),
     length(Ca, N), length(Cb, N),
