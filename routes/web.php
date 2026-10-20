@@ -6,6 +6,11 @@ use App\Http\Controllers\Administracion\CursoController;
 use App\Http\Controllers\Administracion\DirectorCarreraController;
 use App\Http\Controllers\Administracion\UserController;
 use App\Http\Controllers\Administracion\ImportacionesController;
+use App\Http\Controllers\Administracion\InicioController;
+use App\Http\Controllers\Administracion\PeriodoController;
+use App\Http\Controllers\Administracion\MateriaController;
+use App\Http\Controllers\Administracion\ParaleloController;
+use App\Http\Controllers\Administracion\CargaController;
 
 Route::get('/', function () {
     return view('welcome');
@@ -29,17 +34,26 @@ Route::get('/app', function () {
     return view('layouts.app');
 });
 
-Route::get('/periodos', function () {
-    return view('administracion.periodos');
-})->name('administracion.periodos');
+// ===== Grupo 1: Administración académica =====
+Route::get('/administracion', [InicioController::class, 'index'])->name('administracion.inicio');
 
-Route::get('/materias', function () {
-    return view('administracion.materias');
-})->name('administracion.materias');
+Route::get('/periodos', [PeriodoController::class, 'index'])->name('administracion.periodos');
+Route::post('/periodos', [PeriodoController::class, 'store'])->name('administracion.periodos.store');
 
-Route::get('/paralelos', function () {
-    return view('administracion.paralelos');
-})->name('administracion.paralelos');
+Route::get('/materias', [MateriaController::class, 'index'])->name('administracion.materias');
+Route::post('/materias', [MateriaController::class, 'store'])->name('administracion.materias.store');
+
+Route::get('/paralelos', [ParaleloController::class, 'index'])->name('administracion.paralelos');
+Route::post('/paralelos', [ParaleloController::class, 'store'])->name('administracion.paralelos.store');
+
+Route::prefix('administracion/cargas')->name('cargas.')->controller(CargaController::class)->group(function () {
+    Route::get('/', 'index')->name('index');
+    Route::post('/vista-previa', 'preview')->name('preview');
+    Route::post('/procesar', 'procesar')->name('procesar');
+    Route::get('/historial', 'historial')->name('historial');
+    Route::get('/plantilla/{tipo}', 'descargarPlantilla')->name('plantilla');
+    Route::get('/reporte-errores/{id}', 'descargarReporteErrores')->name('reporte-errores');
+});
 
 Route::resource('cursos', CursoController::class);
 

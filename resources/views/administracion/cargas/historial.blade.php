@@ -1,51 +1,53 @@
 @extends('layouts.app')
 
+@section('titulo', 'Historial de importaciones')
+
 @section('content')
-<div class="container mx-auto px-4 py-6">
-    <div class="flex justify-between items-center mb-6">
-        <h1 class="text-2xl font-bold text-gray-800">Historial de Importaciones SIAC</h1>
-        <a href="{{ route('cargas.index') }}" class="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 text-sm">+ Nueva Carga</a>
+    <div class="flex flex-wrap items-end justify-between gap-normal">
+        <div>
+            <p class="ui-antetitulo">Importaciones SIAC</p>
+            <h1 class="ui-titulo">Historial de importaciones</h1>
+            <p class="ui-texto-gris mt-chico">Cada carga queda registrada con su archivo, usuario, fecha y resultado.</p>
+        </div>
+        <a href="{{ route('cargas.index') }}" class="ui-btn ui-btn-primario">Nueva carga</a>
     </div>
 
-    <div class="bg-white rounded-lg shadow-md overflow-x-auto">
-        <table class="min-w-full divide-y divide-gray-200 text-sm">
-            <thead class="bg-gray-50">
-                <tr>
-                    <th class="px-4 py-3 text-left font-medium text-gray-500">ID</th>
-                    <th class="px-4 py-3 text-left font-medium text-gray-500">Archivo</th>
-                    <th class="px-4 py-3 text-left font-medium text-gray-500">Tipo de Carga</th>
-                    <th class="px-4 py-3 text-left font-medium text-gray-500">Fecha y Hora</th>
-                    <th class="px-4 py-3 text-left font-medium text-gray-500">Usuario</th>
-                    <th class="px-4 py-3 text-center font-medium text-gray-500">Filas Creadas</th>
-                    <th class="px-4 py-3 text-center font-medium text-gray-500">Reporte de Errores</th>
-                </tr>
-            </thead>
-            <tbody class="divide-y divide-gray-200">
-                @forelse($historial as $item)
-                    <tr class="hover:bg-gray-50">
-                        <td class="px-4 py-3 font-semibold text-gray-700">#{{ $item->id }}</td>
-                        <td class="px-4 py-3 font-medium text-gray-900">{{ $item->nombre_archivo }}</td>
-                        <td class="px-4 py-3 capitalize">{{ $item->tipo_carga }}</td>
-                        <td class="px-4 py-3 text-gray-500">{{ $item->created_at->format('d/m/Y H:i') }}</td>
-                        <td class="px-4 py-3 text-gray-600">{{ $item->user->name ?? 'Sistema' }}</td>
-                        <td class="px-4 py-3 text-center font-bold text-green-600">{{ $item->filas_creadas }}</td>
-                        <td class="px-4 py-3 text-center">
-                            @if($item->filas_errores > 0)
-                                <a href="{{ route('cargas.reporte-errores', $item->id) }}" class="px-3 py-1 bg-red-100 text-red-700 rounded-full hover:bg-red-200 text-xs font-semibold inline-flex items-center gap-1">
-                                    📥 Descargar Errores ({{ $item->filas_errores }})
-                                </a>
-                            @else
-                                <span class="text-xs text-gray-400">Sin errores</span>
-                            @endif
-                        </td>
-                    </tr>
-                @empty
+    @if (empty($historial) || count($historial) === 0)
+        <div class="ui-vacio mt-amplio">Todavía no hay cargas registradas.</div>
+    @else
+        <div class="ui-tabla-caja mt-amplio">
+            <table class="ui-tabla">
+                <thead>
                     <tr>
-                        <td colspan="7" class="px-4 py-8 text-center text-gray-500">No hay registros de cargas realizadas anteriormente.</td>
+                        <th>N.º</th>
+                        <th>Archivo</th>
+                        <th>Tipo</th>
+                        <th>Fecha</th>
+                        <th>Usuario</th>
+                        <th>Creadas</th>
+                        <th>Errores</th>
                     </tr>
-                @endforelse
-            </tbody>
-        </table>
-    </div>
-</div>
+                </thead>
+                <tbody>
+                    @foreach ($historial as $item)
+                        <tr>
+                            <td class="font-semibold">#{{ $item->id }}</td>
+                            <td>{{ $item->nombre_archivo }}</td>
+                            <td>{{ ucfirst($item->tipo_carga) }}</td>
+                            <td class="whitespace-nowrap">{{ $item->created_at->format('d/m/Y H:i') }}</td>
+                            <td>{{ $item->user->name ?? 'Sistema' }}</td>
+                            <td><span class="ui-badge ui-badge-exito">{{ $item->filas_creadas }}</span></td>
+                            <td>
+                                @if ($item->filas_errores > 0)
+                                    <a href="{{ route('cargas.reporte-errores', $item->id) }}" class="ui-btn ui-btn-secundario ui-btn-chico">Descargar errores ({{ $item->filas_errores }})</a>
+                                @else
+                                    <span class="text-chico text-gris">Sin errores</span>
+                                @endif
+                            </td>
+                        </tr>
+                    @endforeach
+                </tbody>
+            </table>
+        </div>
+    @endif
 @endsection

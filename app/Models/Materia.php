@@ -11,4 +11,9 @@ class Materia extends Model
 
     protected $table = 'materias';
     protected $fillable = ['codigo', 'nombre', 'creditos', 'semestre', 'malla_id', 'categoria_materia_id', 'activo'];
+
+    public function categoria()
+    {
+        return $this->belongsTo(CategoriaMateria::class, 'categoria_materia_id');
+    }
 }

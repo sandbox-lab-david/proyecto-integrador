@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
 class Curso extends Model
@@ -28,7 +29,7 @@ class Curso extends Model
 
     public function profesor()
     {
-        return $this->belongsTo(Trabajador::class);
+        return $this->belongsTo(Trabajador::class, 'profesor_id');
     }
 
     public function soliciudMaterias()
