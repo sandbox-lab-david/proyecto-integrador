@@ -141,5 +141,6 @@
             });
         });
     </script>
+    @include('estudiante.partials.chatbot-flotante')
 </body>
 </html>
