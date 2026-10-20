@@ -1182,5 +1182,6 @@
         actualizarSelector();
         pintarArchivos();
     </script>
+    @include('estudiante.partials.chatbot-flotante')
 </body>
 </html>

@@ -440,7 +440,7 @@
         </p>
 
         <div class="aviso">
-            Vista de demostración con un perfil y materias ficticias.
+            Vista de demostración con materias ficticias y datos personales ingresados manualmente.
             Usa datos de prueba. La solicitud todavía no se envía; lo que
             escribas queda como borrador en este navegador mientras tu
             sesión siga abierta.
@@ -483,10 +483,7 @@
                     <h2 id="titulo-datos" tabindex="-1">Primero, tus datos</h2>
 
                     <p class="introduccion">
-                        Revisa tu información personal y de carrera.
-                        Si encuentras un error, solicita su actualización
-                        a la unidad académica correspondiente.
-                        Puedes completar tu celular de contacto.
+                        Escribe tu información personal, de carrera y de contacto. Revisa que sea correcta antes de continuar.
                     </p>
 
                     <form id="formulario-datos">
@@ -494,50 +491,49 @@
                             <div class="campo completo">
                                 <label for="nombre">Nombres y apellidos</label>
                                 <input id="nombre" type="text"
-                                    value="Estudiante de demostración" readonly>
+                                    name="nombre" placeholder="Escribe tus nombres y apellidos" required maxlength="150">
                             </div>
 
                             <div class="campo">
                                 <label for="codigo">Código estudiantil</label>
                                 <input id="codigo" type="text"
-                                    value="2026000001" readonly>
+                                    name="codigo" placeholder="Escribe tu código estudiantil" required maxlength="30">
                             </div>
 
                             <div class="campo">
                                 <label for="cedula">Cédula o pasaporte</label>
                                 <input id="cedula" type="text"
-                                    placeholder="No disponible en el perfil de prueba"
-                                    readonly>
+                                    name="cedula" placeholder="Escribe tu cédula o pasaporte" required maxlength="30">
                             </div>
 
                             <div class="campo">
                                 <label for="facultad">Facultad</label>
                                 <input id="facultad" type="text"
-                                    value="Ingeniería" readonly>
+                                    name="facultad" placeholder="Escribe tu facultad" required maxlength="150">
                             </div>
 
                             <div class="campo">
                                 <label for="carrera">Carrera actual</label>
                                 <input id="carrera" type="text"
-                                    value="Ingeniería en Computación" readonly>
+                                    name="carrera" placeholder="Escribe tu carrera" required maxlength="150">
                             </div>
 
                             <div class="campo">
                                 <label for="modalidad">Modalidad</label>
                                 <input id="modalidad" type="text"
-                                    value="Presencial" readonly>
+                                    name="modalidad" placeholder="Escribe tu modalidad" required maxlength="100">
                             </div>
 
                             <div class="campo">
                                 <label for="periodo">Periodo actual</label>
                                 <input id="periodo" type="text"
-                                    value="Periodo de demostración" readonly>
+                                    name="periodo" placeholder="Escribe tu periodo actual" required maxlength="100">
                             </div>
 
                             <div class="campo">
                                 <label for="correo">Correo institucional</label>
                                 <input id="correo" type="email"
-                                    value="estudiante.demo@uees.edu.ec" readonly>
+                                    name="correo" placeholder="Escribe tu correo institucional" required maxlength="150">
                             </div>
 
                             <div class="campo">
@@ -555,7 +551,7 @@
 
                         <label class="confirmacion" for="confirmar-datos">
                             <input id="confirmar-datos" type="checkbox" required>
-                            <span>Confirmo que he revisado los datos mostrados.</span>
+                            <span>Confirmo que los datos que ingresé son correctos.</span>
                         </label>
 
                         <div class="acciones">
@@ -1490,7 +1486,11 @@
             pintarLista('lista-datos', [
                 ['Nombres y apellidos', textoDe('nombre')],
                 ['Código estudiantil', textoDe('codigo')],
+                ['Cédula o pasaporte', textoDe('cedula')],
+                ['Facultad', textoDe('facultad')],
                 ['Carrera', textoDe('carrera')],
+                ['Modalidad', textoDe('modalidad')],
+                ['Periodo actual', textoDe('periodo')],
                 ['Correo institucional', textoDe('correo')],
                 ['Celular', textoDe('celular')]
             ]);
@@ -1733,6 +1733,7 @@
 
             return {
                 paso: pasoActual,
+                ...Object.fromEntries(['nombre', 'codigo', 'cedula', 'facultad', 'carrera', 'modalidad', 'periodo', 'correo'].map(id => [id, textoDe(id)])),
                 celular: document.getElementById('celular').value,
                 materias: elegidas.map(materia => ({ id: materia.id, datos: materia.datos })),
                 campos,
@@ -1860,6 +1861,9 @@
         });
 
         if (borrador) {
+            ['nombre', 'codigo', 'cedula', 'facultad', 'carrera', 'modalidad', 'periodo', 'correo'].forEach(id => {
+                document.getElementById(id).value = borrador[id] ?? '';
+            });
             document.getElementById('celular').value = borrador.celular ?? '';
             document.getElementById('confirmar-datos').checked = borrador.paso > 1;
 
@@ -1901,5 +1905,6 @@
 
         pintarArchivos();
     </script>
+    @include('estudiante.partials.chatbot-flotante')
 </body>
 </html>

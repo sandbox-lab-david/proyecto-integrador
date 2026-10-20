@@ -150,25 +150,13 @@
                 <a class="boton boton-iniciar" href="{{ route('solicitudes.create', ['tramite' => 'supletorio']) }}">Iniciar solicitud <span aria-hidden="true">→</span>
                 </a>
 
-                <button class="boton boton-chatbot" type="button" disabled>
-<svg
-                            viewBox="0 0 24 24"
-                            fill="none"
-                            stroke="currentColor"
-                            stroke-width="1.7"
-                            stroke-linecap="round"
-                            stroke-linejoin="round"
-                            aria-hidden="true"
-                            focusable="false"
-                        >
-                            <path d="M21 11.5a8.5 8.5 0 0 1-8.5 8.5 9 9 0 0 1-4-.9L3 21l1.9-5.5a9 9 0 0 1-.9-4A8.5 8.5 0 0 1 12.5 3 8.5 8.5 0 0 1 21 11.5z"/>
-                        </svg> Consultar chatbot
-                </button>
+
             </div>
 
-            <p class="nota">El formulario está disponible con datos de demostración. La conexión con el chatbot estará disponible en una siguiente entrega.</p>
+            <p class="nota">El formulario está disponible con datos de demostración.</p>
         </aside>
 </div>
     </main>
+    @include('estudiante.partials.chatbot-flotante')
 </body>
 </html>

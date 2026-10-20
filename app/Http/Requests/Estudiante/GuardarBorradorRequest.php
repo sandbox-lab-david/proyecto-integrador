@@ -24,6 +24,14 @@ class GuardarBorradorRequest extends FormRequest
 
         $reglas = [
             'paso' => ['required', 'integer', 'between:1,4'],
+            'nombre' => ['nullable', 'string', 'max:150'],
+            'codigo' => ['nullable', 'string', 'max:30'],
+            'cedula' => ['nullable', 'string', 'max:30'],
+            'facultad' => ['nullable', 'string', 'max:150'],
+            'carrera' => ['nullable', 'string', 'max:150'],
+            'modalidad' => ['nullable', 'string', 'max:100'],
+            'periodo' => ['nullable', 'string', 'max:100'],
+            'correo' => ['nullable', 'string', 'max:150'],
 
             // Puede estar vacío porque todavía es un borrador.
             'celular' => [
