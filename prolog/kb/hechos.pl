@@ -1,5 +1,25 @@
 :- encoding(utf8).
 
+% Contrato de conocimiento - revision 004 (2026-10-20).
+% PUBLICO:
+%   descripcion/2: finalidad del tramite.
+%   requisito/3: condiciones informativas, no campos ni reglas ejecutables.
+%   campo_formulario/4: datos de captura y obligatoriedad SOLO en el portal.
+%   documento_def/5 y tramite_documento/4: respaldos sugeridos.
+%   costo/3: exclusivamente montos confirmados en centavos (hoy sin hechos).
+%   costo_texto/2: disponibilidad de tarifa/efectos economicos; no fija montos.
+%   plazo_texto/2: plazos de solicitud o ejecucion, con incertidumbre explicita.
+% INTERNO: estado, fuente, equivalencias, nota_interna/2, resumen_interno/2
+%   y archivos *_original_interno. No contienen datos personales reales.
+% El estado parcial/pendiente NO equivale a cumplimiento del estudiante.
+% Compatibilidad: pendiente_validacion/2 y observacion_conocimiento/2
+% permanecen declarados SIN hechos: reglas.pl devuelve aviso:null.
+% Nunca cargar simultaneamente otra copia de hechos.pl.
+% No se validan institucionalmente criterios por cambiar su redaccion.
+% costo_texto/2 y campo_formulario/4 son datos disponibles para integrar:
+% las reglas actuales no los incorporan a su respuesta HTTP por si solos.
+
+
 :- multifile tramite/2.
 :- discontiguous tramite/2.
 :- multifile descripcion/2.
@@ -10,6 +30,8 @@
 :- discontiguous documento_def/5.
 :- multifile tramite_documento/4.
 :- discontiguous tramite_documento/4.
+:- multifile costo_texto/2.
+:- discontiguous costo_texto/2.
 :- multifile costo/3.
 :- discontiguous costo/3.
 :- multifile plazo_texto/2.
@@ -41,7 +63,7 @@
 :- multifile plazo_original_interno/2.
 :- discontiguous plazo_original_interno/2.
 
-version_conocimiento("revision-publica-003").
+version_conocimiento("revision-publica-004").
 kb_version(Version) :- version_conocimiento(Version).
 
 % ==================================================================
@@ -50,7 +72,7 @@ kb_version(Version) :- version_conocimiento(Version).
 tramite(alcance_homologacion, "Alcance de homologación").
 descripcion(alcance_homologacion, "Añadir una materia a una homologación que ya fue aprobada, cuando faltó un documento de respaldo.").
 requisito(alcance_homologacion, 1, "Tener una homologación previamente aprobada.").
-requisito(alcance_homologacion, 2, "Identificar la materia que no fue considerada y explicar qué documento faltó.").
+requisito(alcance_homologacion, 2, "Solicitar la revisión de una materia no considerada por falta de un respaldo en esa homologación.").
 
 % Datos de captura (obligatorios u opcionales en el portal).
 campo_formulario(alcance_homologacion, subjects, "Materia(s)", obligatorio).
@@ -61,6 +83,7 @@ documento_def(alcance_homologacion_respaldo_1, "Resolución o antecedente de la 
 documento_def(alcance_homologacion_respaldo_2, "Documento que faltó o evidencia que sustenta el alcance.", "Consulta con la facultad si debes adjuntar este respaldo y en qué formato.", "Por confirmar", sin_url).
 tramite_documento(alcance_homologacion, 1, alcance_homologacion_respaldo_1, opcional).
 tramite_documento(alcance_homologacion, 2, alcance_homologacion_respaldo_2, opcional).
+costo_texto(alcance_homologacion, "No hay un monto confirmado para este trámite en la información disponible. Consulta el arancel con la facultad; no se puede afirmar que sea gratuito.").
 plazo_texto(alcance_homologacion, "Consulta con la facultad la fecha límite para tu período académico; no hay un plazo confirmado en la información disponible.").
 
 % Metadatos de revision; no son mensajes para el estudiante.
@@ -75,9 +98,8 @@ resumen_interno(alcance_homologacion, "Requiere una homologación previa aprobad
 % ==================================================================
 tramite(ayudante_catedra, "Ayudante de cátedra").
 descripcion(ayudante_catedra, "Solicitar la participación como ayudante de una asignatura durante un periodo académico.").
-requisito(ayudante_catedra, 1, "Identificar la materia y el período en que deseas participar.").
-requisito(ayudante_catedra, 2, "Proporcionar tu promedio general y la calificación obtenida en la materia.").
-requisito(ayudante_catedra, 3, "Aceptar las responsabilidades de la ayudantía. La selección corresponde a la facultad.").
+requisito(ayudante_catedra, 1, "Aceptar las responsabilidades académicas de la ayudantía.").
+requisito(ayudante_catedra, 2, "La selección depende de la evaluación y autorización de la facultad; los criterios académicos de selección deben confirmarse.").
 
 % Datos de captura (obligatorios u opcionales en el portal).
 campo_formulario(ayudante_catedra, subjects, "Materia(s)", obligatorio).
@@ -89,6 +111,7 @@ campo_formulario(ayudante_catedra, reason, "Motivación", opcional).
 % Respaldos sugeridos; no son plantillas adjuntas ni archivos personales.
 documento_def(ayudante_catedra_respaldo_1, "Información académica o calificaciones, si la Facultad las solicita.", "Consulta con la facultad si debes adjuntar este respaldo y en qué formato.", "Por confirmar", sin_url).
 tramite_documento(ayudante_catedra, 1, ayudante_catedra_respaldo_1, opcional).
+costo_texto(ayudante_catedra, "No hay tarifa confirmada. La posible retribución académica indicada por el proyecto no es un costo monetario.").
 plazo_texto(ayudante_catedra, "Consulta con la facultad la fecha límite para tu período académico; no hay un plazo confirmado en la información disponible.").
 
 % Metadatos de revision; no son mensajes para el estudiante.
@@ -103,9 +126,8 @@ resumen_interno(ayudante_catedra, "La plantilla menciona una retribución de 5 p
 % ==================================================================
 tramite(cambio_carrera, "Cambio de carrera").
 descripcion(cambio_carrera, "Cambiar de la carrera actual a otra carrera y, cuando corresponda, solicitar un nuevo código.").
-requisito(cambio_carrera, 1, "Indicar tu carrera actual y la carrera a la que deseas cambiarte.").
-requisito(cambio_carrera, 2, "Explicar el motivo del cambio.").
-requisito(cambio_carrera, 3, "Indicar si también solicitas un nuevo código estudiantil.").
+requisito(cambio_carrera, 1, "Ser estudiante de una carrera de la universidad y solicitar el traslado a otra.").
+requisito(cambio_carrera, 2, "El cambio requiere revisión de la carrera de destino y puede afectar las equivalencias de materias.").
 
 % Datos de captura (obligatorios u opcionales en el portal).
 campo_formulario(cambio_carrera, target_career, "Carrera de destino", obligatorio).
@@ -117,6 +139,7 @@ documento_def(cambio_carrera_respaldo_1, "Justificación del cambio.", "Consulta
 documento_def(cambio_carrera_respaldo_2, "Documentación adicional que solicite la carrera de destino.", "Consulta con la facultad si debes adjuntar este respaldo y en qué formato.", "Por confirmar", sin_url).
 tramite_documento(cambio_carrera, 1, cambio_carrera_respaldo_1, opcional).
 tramite_documento(cambio_carrera, 2, cambio_carrera_respaldo_2, opcional).
+costo_texto(cambio_carrera, "No hay un monto confirmado para este trámite en la información disponible. Consulta el arancel con la facultad; no se puede afirmar que sea gratuito.").
 plazo_texto(cambio_carrera, "Consulta con la facultad la fecha límite para tu período académico; no hay un plazo confirmado en la información disponible.").
 
 % Metadatos de revision; no son mensajes para el estudiante.
@@ -131,8 +154,8 @@ resumen_interno(cambio_carrera, "Puede implicar homologación de materias y crea
 % ==================================================================
 tramite(cambio_malla, "Cambio de malla / pénsum").
 descripcion(cambio_malla, "Pasar del pénsum anterior a la malla curricular vigente para continuar el registro de materias.").
-requisito(cambio_malla, 1, "Identificar el año o versión de tu pénsum actual y de la malla solicitada.").
-requisito(cambio_malla, 2, "Consultar qué materias se reconocerán y cuáles quedarán pendientes.").
+requisito(cambio_malla, 1, "Solicitar continuar los estudios bajo una versión distinta de la malla curricular.").
+requisito(cambio_malla, 2, "El reconocimiento de materias y las asignaturas pendientes dependen de la revisión académica.").
 
 % Datos de captura (obligatorios u opcionales en el portal).
 campo_formulario(cambio_malla, old_pensum, "Año o versión del pénsum actual", obligatorio).
@@ -142,6 +165,7 @@ campo_formulario(cambio_malla, reason, "Motivo", opcional).
 % Respaldos sugeridos; no son plantillas adjuntas ni archivos personales.
 documento_def(cambio_malla_respaldo_1, "Detalle de la malla o pénsum actual, si lo solicita la Facultad.", "Consulta con la facultad si debes adjuntar este respaldo y en qué formato.", "Por confirmar", sin_url).
 tramite_documento(cambio_malla, 1, cambio_malla_respaldo_1, opcional).
+costo_texto(cambio_malla, "No hay un monto confirmado para este trámite en la información disponible. Consulta el arancel con la facultad; no se puede afirmar que sea gratuito.").
 plazo_texto(cambio_malla, "Consulta con la facultad la fecha límite para tu período académico; no hay un plazo confirmado en la información disponible.").
 
 % Metadatos de revision; no son mensajes para el estudiante.
@@ -156,9 +180,8 @@ resumen_interno(cambio_malla, "Falta validar las condiciones y efectos académic
 % ==================================================================
 tramite(cambio_modalidad, "Cambio de modalidad").
 descripcion(cambio_modalidad, "Solicitar el cambio a otra modalidad o a una carrera ofrecida en otra modalidad.").
-requisito(cambio_modalidad, 1, "Indicar tu modalidad actual y la solicitada.").
-requisito(cambio_modalidad, 2, "Explicar el motivo e indicar la carrera de destino cuando corresponda.").
-requisito(cambio_modalidad, 3, "La carrera debe estar disponible en la modalidad de destino; el cambio requiere aprobación.").
+requisito(cambio_modalidad, 1, "Que la carrera esté disponible en la modalidad de destino.").
+requisito(cambio_modalidad, 2, "Obtener la aprobación correspondiente para aplicar el cambio.").
 
 % Datos de captura (obligatorios u opcionales en el portal).
 campo_formulario(cambio_modalidad, current_mode, "Modalidad actual", obligatorio).
@@ -169,6 +192,7 @@ campo_formulario(cambio_modalidad, reason, "Motivo del cambio", obligatorio).
 % Respaldos sugeridos; no son plantillas adjuntas ni archivos personales.
 documento_def(cambio_modalidad_respaldo_1, "Respaldo del motivo, si corresponde.", "Consulta con la facultad si debes adjuntar este respaldo y en qué formato.", "Por confirmar", sin_url).
 tramite_documento(cambio_modalidad, 1, cambio_modalidad_respaldo_1, opcional).
+costo_texto(cambio_modalidad, "No hay un monto confirmado para este trámite en la información disponible. Consulta el arancel con la facultad; no se puede afirmar que sea gratuito.").
 plazo_texto(cambio_modalidad, "Consulta con la facultad la fecha límite para tu período académico; no hay un plazo confirmado en la información disponible.").
 
 % Metadatos de revision; no son mensajes para el estudiante.
@@ -184,8 +208,7 @@ resumen_interno(cambio_modalidad, "Requiere justificación y resolución del Con
 tramite(examen_gracia, "Examen de gracia").
 descripcion(examen_gracia, "Solicitar una oportunidad excepcional de evaluación asociada a una pérdida por faltas.").
 requisito(examen_gracia, 1, "Solicitarlo para una materia perdida por faltas.").
-requisito(examen_gracia, 2, "Según la información disponible: asistencia mínima del 70 % y calificación previa mínima de 80; la facultad verificará estos datos.").
-requisito(examen_gracia, 3, "Identificar la materia y explicar tu solicitud.").
+requisito(examen_gracia, 2, "El material revisado indica al menos 70 % de asistencia y calificación previa mínima de 80; la facultad debe verificar su aplicación al caso.").
 
 % Datos de captura (obligatorios u opcionales en el portal).
 campo_formulario(examen_gracia, subjects, "Materia(s)", obligatorio).
@@ -200,6 +223,7 @@ documento_def(examen_gracia_respaldo_3, "Justificación y respaldos del caso.", 
 tramite_documento(examen_gracia, 1, examen_gracia_respaldo_1, opcional).
 tramite_documento(examen_gracia, 2, examen_gracia_respaldo_2, opcional).
 tramite_documento(examen_gracia, 3, examen_gracia_respaldo_3, opcional).
+costo_texto(examen_gracia, "No hay un monto confirmado para este trámite en la información disponible. Consulta el arancel con la facultad; no se puede afirmar que sea gratuito.").
 plazo_texto(examen_gracia, "Consulta con la facultad la fecha límite para tu período académico; no hay un plazo confirmado en la información disponible.").
 
 % Metadatos de revision; no son mensajes para el estudiante.
@@ -214,10 +238,9 @@ resumen_interno(examen_gracia, "Debe confirmarse que corresponde a la dispensa d
 % ==================================================================
 tramite(examen_recuperacion, "Examen de recuperación").
 descripcion(examen_recuperacion, "Solicitar un examen de recuperación para una asignatura reprobada.").
-requisito(examen_recuperacion, 1, "Haber reprobado la asignatura sin fraude o deshonestidad académica.").
-requisito(examen_recuperacion, 2, "La información disponible establece un promedio aplicable mínimo de 75; la facultad debe confirmar qué período corresponde utilizar.").
-requisito(examen_recuperacion, 3, "Indicar materia, período y recuperaciones anteriores, si existen.").
-requisito(examen_recuperacion, 4, "Consultar con la facultad el límite de recuperaciones y el plazo aplicable antes de presentar la solicitud.").
+requisito(examen_recuperacion, 1, "Haber reprobado una asignatura sin fraude o deshonestidad académica.").
+requisito(examen_recuperacion, 2, "El material revisado indica promedio aplicable mínimo de 75; la facultad debe confirmar qué período corresponde utilizar.").
+requisito(examen_recuperacion, 3, "Cumplir el límite de recuperaciones aplicable. El período de cómputo requiere confirmación antes de evaluar el caso.").
 
 % Datos de captura (obligatorios u opcionales en el portal).
 campo_formulario(examen_recuperacion, subjects, "Materia(s)", obligatorio).
@@ -228,6 +251,7 @@ campo_formulario(examen_recuperacion, reason, "Observación", opcional).
 % Respaldos sugeridos; no son plantillas adjuntas ni archivos personales.
 documento_def(examen_recuperacion_respaldo_1, "Registro de calificaciones o evidencia de la materia reprobada.", "Consulta con la facultad si debes adjuntar este respaldo y en qué formato.", "Por confirmar", sin_url).
 tramite_documento(examen_recuperacion, 1, examen_recuperacion_respaldo_1, opcional).
+costo_texto(examen_recuperacion, "No hay un monto confirmado para este trámite en la información disponible. Consulta el arancel con la facultad; no se puede afirmar que sea gratuito.").
 plazo_texto(examen_recuperacion, "Consulta con la facultad la fecha para presentar la solicitud y rendir el examen. El límite de recuperaciones y el período que se cuenta deben verificarse para tu caso.").
 
 % Metadatos de revision; no son mensajes para el estudiante.
@@ -242,9 +266,8 @@ resumen_interno(examen_recuperacion, "Presencial; una materia y un examen cada 3
 % ==================================================================
 tramite(examen_suficiencia, "Examen de suficiencia").
 descripcion(examen_suficiencia, "Demostrar conocimientos previos para aprobar una asignatura mediante evaluación.").
-requisito(examen_suficiencia, 1, "Identificar la asignatura y explicar los conocimientos que deseas acreditar.").
-requisito(examen_suficiencia, 2, "Indicar si los adquiriste mediante estudios previos, experiencia laboral u otro mecanismo aceptado.").
-requisito(examen_suficiencia, 3, "La facultad determinará si puedes rendir la evaluación y qué respaldos necesitas.").
+requisito(examen_suficiencia, 1, "Contar con conocimientos de la asignatura demostrables mediante estudios previos, experiencia u otro mecanismo aceptado.").
+requisito(examen_suficiencia, 2, "La facultad debe autorizar la evaluación y determinar los respaldos y condiciones aplicables.").
 
 % Datos de captura (obligatorios u opcionales en el portal).
 campo_formulario(examen_suficiencia, subjects, "Materia(s)", obligatorio).
@@ -254,6 +277,7 @@ campo_formulario(examen_suficiencia, reason, "Fundamento de la solicitud", oblig
 % Respaldos sugeridos; no son plantillas adjuntas ni archivos personales.
 documento_def(examen_suficiencia_respaldo_1, "Certificados, sílabos o calificaciones de otra institución; o respaldo de experiencia laboral.", "Consulta con la facultad si debes adjuntar este respaldo y en qué formato.", "Por confirmar", sin_url).
 tramite_documento(examen_suficiencia, 1, examen_suficiencia_respaldo_1, opcional).
+costo_texto(examen_suficiencia, "No hay un monto confirmado para este trámite en la información disponible. Consulta el arancel con la facultad; no se puede afirmar que sea gratuito.").
 plazo_texto(examen_suficiencia, "Consulta con la facultad la fecha límite para tu período académico; no hay un plazo confirmado en la información disponible.").
 
 % Metadatos de revision; no son mensajes para el estudiante.
@@ -268,9 +292,8 @@ resumen_interno(examen_suficiencia, "Puede respaldarse con una materia aprobada 
 % ==================================================================
 tramite(examen_supletorio, "Examen supletorio").
 descripcion(examen_supletorio, "Solicitar un examen acumulativo cuando no fue posible rendir un examen parcial.").
-requisito(examen_supletorio, 1, "Identificar el examen parcial que no pudiste rendir.").
-requisito(examen_supletorio, 2, "Explicar la circunstancia y proporcionar evidencias del impedimento.").
-requisito(examen_supletorio, 3, "Obtener autorización para rendir el examen.").
+requisito(examen_supletorio, 1, "No haber podido rendir un examen parcial por una circunstancia que debe someterse a revisión.").
+requisito(examen_supletorio, 2, "Obtener autorización académica para rendir el examen. La valoración de la causa y sus respaldos corresponde a la facultad.").
 
 % Datos de captura (obligatorios u opcionales en el portal).
 campo_formulario(examen_supletorio, subjects, "Materia(s)", obligatorio).
@@ -280,6 +303,7 @@ campo_formulario(examen_supletorio, reason, "Circunstancia que impidió rendir e
 % Respaldos sugeridos; no son plantillas adjuntas ni archivos personales.
 documento_def(examen_supletorio_respaldo_1, "Evidencia médica, laboral, familiar o del hecho que impidió asistir.", "Consulta con la facultad si debes adjuntar este respaldo y en qué formato.", "Por confirmar", sin_url).
 tramite_documento(examen_supletorio, 1, examen_supletorio_respaldo_1, opcional).
+costo_texto(examen_supletorio, "No hay un monto confirmado para este trámite en la información disponible. Consulta el arancel con la facultad; no se puede afirmar que sea gratuito.").
 plazo_texto(examen_supletorio, "El material disponible indica rendir dentro de 30 días desde la autorización. Consulta por separado el plazo para presentar la solicitud.").
 
 % Metadatos de revision; no son mensajes para el estudiante.
@@ -294,9 +318,8 @@ resumen_interno(examen_supletorio, "Debe enviarse con evidencias y rendirse dent
 % ==================================================================
 tramite(homologacion, "Homologación").
 descripcion(homologacion, "Reconocer materias aprobadas previamente en otra institución o dentro de la universidad.").
-requisito(homologacion, 1, "Haber aprobado previamente las materias que deseas reconocer.").
-requisito(homologacion, 2, "Identificar la institución de origen y la carrera de destino.").
-requisito(homologacion, 3, "La facultad comparará contenidos, antigüedad y equivalencias para resolver la solicitud.").
+requisito(homologacion, 1, "Haber aprobado previamente las materias que se desean reconocer.").
+requisito(homologacion, 2, "La facultad debe determinar la equivalencia de contenidos y la antigüedad admisible para el programa de destino.").
 
 % Datos de captura (obligatorios u opcionales en el portal).
 campo_formulario(homologacion, origin_university, "Universidad o institución de procedencia", obligatorio).
@@ -313,6 +336,7 @@ tramite_documento(homologacion, 1, homologacion_respaldo_1, opcional).
 tramite_documento(homologacion, 2, homologacion_respaldo_2, opcional).
 tramite_documento(homologacion, 3, homologacion_respaldo_3, opcional).
 tramite_documento(homologacion, 4, homologacion_respaldo_4, opcional).
+costo_texto(homologacion, "No hay un monto confirmado para este trámite en la información disponible. Consulta el arancel con la facultad; no se puede afirmar que sea gratuito.").
 plazo_texto(homologacion, "Consulta con la facultad la fecha límite para tu período académico; no hay un plazo confirmado en la información disponible.").
 
 % Metadatos de revision; no son mensajes para el estudiante.
@@ -327,9 +351,8 @@ resumen_interno(homologacion, "Se comparan contenidos con equivalencia mínima d
 % ==================================================================
 tramite(incompleto, "Incompleto").
 descripcion(incompleto, "Solicitar la condición de incompleto por enfermedad o calamidad que impide continuar temporalmente.").
-requisito(incompleto, 1, "Identificar las materias afectadas.").
-requisito(incompleto, 2, "Explicar la situación verificable que impide completar temporalmente los estudios.").
-requisito(incompleto, 3, "Indicar la causa y presentar evidencia; la facultad determinará las materias comprendidas y las condiciones para retomarlas.").
+requisito(incompleto, 1, "Tener una situación grave y verificable que impida completar temporalmente los estudios.").
+requisito(incompleto, 2, "Obtener resolución sobre las materias afectadas y las condiciones para retomarlas.").
 
 % Datos de captura (obligatorios u opcionales en el portal).
 campo_formulario(incompleto, subjects, "Materia(s)", obligatorio).
@@ -341,6 +364,7 @@ documento_def(incompleto_respaldo_1, "Certificado o evidencia verificable de la 
 documento_def(incompleto_respaldo_2, "Detalle de las materias afectadas.", "Consulta con la facultad si debes adjuntar este respaldo y en qué formato.", "Por confirmar", sin_url).
 tramite_documento(incompleto, 1, incompleto_respaldo_1, opcional).
 tramite_documento(incompleto, 2, incompleto_respaldo_2, opcional).
+costo_texto(incompleto, "No hay un monto confirmado para este trámite en la información disponible. Consulta el arancel con la facultad; no se puede afirmar que sea gratuito.").
 plazo_texto(incompleto, "Consulta el plazo de tu período académico. El material disponible menciona hasta un mes después de terminar el semestre o ciclo; confirma su aplicación a tu caso.").
 
 % Metadatos de revision; no son mensajes para el estudiante.
@@ -355,8 +379,7 @@ resumen_interno(incompleto, "Requiere respaldo verificable y se aplican plazos d
 % ==================================================================
 tramite(person_to_person, "Person to Person").
 descripcion(person_to_person, "Solicitar una modalidad individual para cursar una materia específica.").
-requisito(person_to_person, 1, "Identificar la materia que deseas cursar de forma individual.").
-requisito(person_to_person, 2, "Consultar previamente con la facultad la disponibilidad, los requisitos y las condiciones de esta modalidad.").
+requisito(person_to_person, 1, "La disponibilidad y las condiciones para cursar la materia de forma individual deben ser determinadas por la facultad antes de continuar.").
 
 % Datos de captura (obligatorios u opcionales en el portal).
 campo_formulario(person_to_person, subjects, "Materia(s)", obligatorio).
@@ -365,6 +388,7 @@ campo_formulario(person_to_person, reason, "Motivo", opcional).
 % Respaldos sugeridos; no son plantillas adjuntas ni archivos personales.
 documento_def(person_to_person_respaldo_1, "Documentación que la facultad indique después de revisar tu caso.", "Consulta con la facultad si debes adjuntar este respaldo y en qué formato.", "Por confirmar", sin_url).
 tramite_documento(person_to_person, 1, person_to_person_respaldo_1, opcional).
+costo_texto(person_to_person, "No hay un monto confirmado para este trámite en la información disponible. Consulta el arancel con la facultad; no se puede afirmar que sea gratuito.").
 plazo_texto(person_to_person, "Consulta con la facultad la fecha límite para tu período académico; no hay un plazo confirmado en la información disponible.").
 
 % Metadatos de revision; no son mensajes para el estudiante.
@@ -379,10 +403,8 @@ resumen_interno(person_to_person, "La plantilla identifica la materia, pero toda
 % ==================================================================
 tramite(recalificacion, "Recalificación de examen").
 descripcion(recalificacion, "Solicitar la revisión formal de la calificación de un examen de una materia activa.").
-requisito(recalificacion, 1, "Identificar la materia y el examen cuya calificación solicitas revisar.").
-requisito(recalificacion, 2, "Registrar cuándo se entregó o publicó la nota.").
-requisito(recalificacion, 3, "Explicar los puntos concretos de tu reclamo y aportar evidencia del examen.").
-requisito(recalificacion, 4, "Confirmar que la evaluación admite revisión y presentar el reclamo cuanto antes; la revisión no garantiza un cambio de nota.").
+requisito(recalificacion, 1, "Solicitar la revisión de una evaluación que admita recalificación y fundamentar el desacuerdo en puntos concretos.").
+requisito(recalificacion, 2, "La revisión no garantiza un cambio de calificación.").
 
 % Datos de captura (obligatorios u opcionales en el portal).
 campo_formulario(recalificacion, subjects, "Materia(s)", obligatorio).
@@ -395,6 +417,7 @@ documento_def(recalificacion_respaldo_1, "Copia o evidencia del examen y su cali
 documento_def(recalificacion_respaldo_2, "Detalle de los puntos que solicitas revisar.", "Consulta con la facultad si debes adjuntar este respaldo y en qué formato.", "Por confirmar", sin_url).
 tramite_documento(recalificacion, 1, recalificacion_respaldo_1, opcional).
 tramite_documento(recalificacion, 2, recalificacion_respaldo_2, opcional).
+costo_texto(recalificacion, "No hay un monto confirmado para este trámite en la información disponible. Consulta el arancel con la facultad; no se puede afirmar que sea gratuito.").
 plazo_texto(recalificacion, "Presenta el reclamo cuanto antes. La información disponible menciona 48 horas desde la entrega o publicación; confirma el plazo y su forma de cómputo con la facultad.").
 
 % Metadatos de revision; no son mensajes para el estudiante.
@@ -409,10 +432,8 @@ resumen_interno(recalificacion, "Debe presentarse idealmente dentro de 48 horas;
 % ==================================================================
 tramite(registro_extemporaneo, "Registro extemporáneo").
 descripcion(registro_extemporaneo, "Solicitar el registro tardío de materias a las que el estudiante ha asistido como oyente.").
-requisito(registro_extemporaneo, 1, "Identificar las materias que no registraste dentro del plazo ordinario.").
-requisito(registro_extemporaneo, 2, "Explicar por qué no realizaste el registro a tiempo.").
-requisito(registro_extemporaneo, 3, "Indicar si asististe como oyente y aportar evidencia cuando esté disponible.").
-requisito(registro_extemporaneo, 4, "La asistencia como oyente no equivale a matrícula ni garantiza la autorización del registro.").
+requisito(registro_extemporaneo, 1, "Solicitar el registro de materias una vez terminado el plazo ordinario.").
+requisito(registro_extemporaneo, 2, "La asistencia como oyente está contemplada por el proyecto, pero su exigencia debe confirmarse; no equivale a matrícula ni garantiza autorización.").
 
 % Datos de captura (obligatorios u opcionales en el portal).
 campo_formulario(registro_extemporaneo, subjects, "Materia(s)", obligatorio).
@@ -422,6 +443,7 @@ campo_formulario(registro_extemporaneo, reason, "Motivo por el que no se realiz�
 % Respaldos sugeridos; no son plantillas adjuntas ni archivos personales.
 documento_def(registro_extemporaneo_respaldo_1, "Evidencia de asistencia o autorización del docente, si está disponible.", "Consulta con la facultad si debes adjuntar este respaldo y en qué formato.", "Por confirmar", sin_url).
 tramite_documento(registro_extemporaneo, 1, registro_extemporaneo_respaldo_1, opcional).
+costo_texto(registro_extemporaneo, "No hay un monto confirmado para este trámite en la información disponible. Consulta el arancel con la facultad; no se puede afirmar que sea gratuito.").
 plazo_texto(registro_extemporaneo, "Consulta con la facultad la fecha límite para tu período académico; no hay un plazo confirmado en la información disponible.").
 
 % Metadatos de revision; no son mensajes para el estudiante.
@@ -436,9 +458,8 @@ resumen_interno(registro_extemporaneo, "La plantilla confirma que se refiere a r
 % ==================================================================
 tramite(reincorporacion_carrera, "Reincorporación a carrera").
 descripcion(reincorporacion_carrera, "Retomar una carrera después de un periodo de inactividad para completar los estudios.").
-requisito(reincorporacion_carrera, 1, "Haber sido estudiante de la carrera y solicitar el retorno después de un período de inactividad.").
-requisito(reincorporacion_carrera, 2, "Indicar el último período cursado y explicar el motivo de interrupción y reincorporación.").
-requisito(reincorporacion_carrera, 3, "Consultar las condiciones académicas y financieras de tu retorno.").
+requisito(reincorporacion_carrera, 1, "Haber cursado la carrera y solicitar el retorno después de un período de inactividad.").
+requisito(reincorporacion_carrera, 2, "El retorno depende de la revisión de la malla aplicable y las condiciones académicas y financieras.").
 
 % Datos de captura (obligatorios u opcionales en el portal).
 campo_formulario(reincorporacion_carrera, last_active_period, "Último periodo cursado", opcional).
@@ -447,6 +468,7 @@ campo_formulario(reincorporacion_carrera, reason, "Motivo de la interrupción y 
 % Respaldos sugeridos; no son plantillas adjuntas ni archivos personales.
 documento_def(reincorporacion_carrera_respaldo_1, "Respaldos del motivo de interrupción, si corresponde.", "Consulta con la facultad si debes adjuntar este respaldo y en qué formato.", "Por confirmar", sin_url).
 tramite_documento(reincorporacion_carrera, 1, reincorporacion_carrera_respaldo_1, opcional).
+costo_texto(reincorporacion_carrera, "No hay tarifa de solicitud confirmada. El proyecto menciona revisión de la tabla de pagos; consultar la liquidación aplicable.").
 plazo_texto(reincorporacion_carrera, "Consulta con la facultad la fecha límite para tu período académico; no hay un plazo confirmado en la información disponible.").
 
 % Metadatos de revision; no son mensajes para el estudiante.
@@ -461,9 +483,8 @@ resumen_interno(reincorporacion_carrera, "La agenda de ejemplo incluye además e
 % ==================================================================
 tramite(retiro_carrera, "Retiro de carrera").
 descripcion(retiro_carrera, "Permite solicitar dejar la carrera actual y revisar tus obligaciones academicas y financieras.").
-requisito(retiro_carrera, 1, "Identificar la carrera de la que solicitas retirarte.").
-requisito(retiro_carrera, 2, "Explicar el motivo y aportar respaldo cuando corresponda.").
-requisito(retiro_carrera, 3, "Solicitar la revisión de tus materias y obligaciones; el retiro no elimina pagos automáticamente.").
+requisito(retiro_carrera, 1, "Solicitar dejar la carrera actual y formalizar el retiro ante la facultad.").
+requisito(retiro_carrera, 2, "El retiro no elimina automáticamente las obligaciones académicas o financieras pendientes.").
 
 % Datos de captura (obligatorios u opcionales en el portal).
 campo_formulario(retiro_carrera, reason, "Motivo del retiro", obligatorio).
@@ -471,6 +492,7 @@ campo_formulario(retiro_carrera, reason, "Motivo del retiro", obligatorio).
 % Respaldos sugeridos; no son plantillas adjuntas ni archivos personales.
 documento_def(retiro_carrera_respaldo_1, "Respaldo del motivo, si corresponde.", "Consulta con la facultad si debes adjuntar este respaldo y en qué formato.", "Por confirmar", sin_url).
 tramite_documento(retiro_carrera, 1, retiro_carrera_respaldo_1, opcional).
+costo_texto(retiro_carrera, "No hay tarifa de solicitud confirmada. El ajuste de la tabla de pagos requiere revisión y no equivale a eliminación automática de deudas.").
 plazo_texto(retiro_carrera, "Consulta con la facultad la fecha límite para tu período académico; no hay un plazo confirmado en la información disponible.").
 
 % Metadatos de revision; no son mensajes para el estudiante.
@@ -485,10 +507,8 @@ resumen_interno(retiro_carrera, "En la agenda suele estar asociado a un cambio d
 % ==================================================================
 tramite(retiro_materia, "Retiro de materia").
 descripcion(retiro_materia, "Solicitar el retiro de una materia antes del límite correspondiente.").
-requisito(retiro_materia, 1, "Identificar las materias y el período.").
-requisito(retiro_materia, 2, "Indicar la fecha o semana en que solicitas el retiro y explicar el motivo cuando corresponda.").
-requisito(retiro_materia, 3, "Confirmar el plazo del calendario académico y las consecuencias académicas y económicas.").
-requisito(retiro_materia, 4, "Formalizar la solicitud; dejar de asistir no equivale a retirarte.").
+requisito(retiro_materia, 1, "Solicitar y formalizar el retiro de una materia dentro del plazo aplicable.").
+requisito(retiro_materia, 2, "Dejar de asistir no equivale a retiro. La facultad debe revisar las consecuencias académicas y económicas.").
 
 % Datos de captura (obligatorios u opcionales en el portal).
 campo_formulario(retiro_materia, subjects, "Materia(s)", obligatorio).
@@ -498,6 +518,7 @@ campo_formulario(retiro_materia, reason, "Motivo", opcional).
 % Respaldos sugeridos; no son plantillas adjuntas ni archivos personales.
 documento_def(retiro_materia_respaldo_1, "Respaldo del motivo, si corresponde.", "Consulta con la facultad si debes adjuntar este respaldo y en qué formato.", "Por confirmar", sin_url).
 tramite_documento(retiro_materia, 1, retiro_materia_respaldo_1, opcional).
+costo_texto(retiro_materia, "Valor por confirmar con la facultad. Los cargos y reintegros dependen del momento del retiro y presentan diferencias en las fuentes; no hay una tarifa fija validada.").
 plazo_texto(retiro_materia, "Consulta el calendario antes de solicitarlo. La información disponible lo relaciona con el primer parcial; la facultad confirmará el límite aplicable.").
 
 % Metadatos de revision; no son mensajes para el estudiante.
@@ -512,9 +533,8 @@ resumen_interno(retiro_materia, "Antes de exámenes del primer parcial. El costo
 % ==================================================================
 tramite(retiro_universidad, "Retiro de universidad").
 descripcion(retiro_universidad, "Permite solicitar la salida completa de la universidad y la revision de tus materias y obligaciones pendientes.").
-requisito(retiro_universidad, 1, "Solicitar la salida completa de la universidad, no solo de una carrera.").
-requisito(retiro_universidad, 2, "Explicar el motivo y aportar respaldo cuando corresponda.").
-requisito(retiro_universidad, 3, "Consultar cómo formalizar la salida y qué obligaciones permanecen pendientes.").
+requisito(retiro_universidad, 1, "Solicitar y formalizar la salida completa de la universidad, no solo de una carrera.").
+requisito(retiro_universidad, 2, "La facultad debe determinar las obligaciones que permanecen después del retiro.").
 
 % Datos de captura (obligatorios u opcionales en el portal).
 campo_formulario(retiro_universidad, reason, "Motivo del retiro", obligatorio).
@@ -522,6 +542,7 @@ campo_formulario(retiro_universidad, reason, "Motivo del retiro", obligatorio).
 % Respaldos sugeridos; no son plantillas adjuntas ni archivos personales.
 documento_def(retiro_universidad_respaldo_1, "Respaldo del motivo, si corresponde.", "Consulta con la facultad si debes adjuntar este respaldo y en qué formato.", "Por confirmar", sin_url).
 tramite_documento(retiro_universidad, 1, retiro_universidad_respaldo_1, opcional).
+costo_texto(retiro_universidad, "No hay tarifa de solicitud confirmada. La salida no elimina automáticamente obligaciones pendientes.").
 plazo_texto(retiro_universidad, "Consulta con la facultad la fecha límite para tu período académico; no hay un plazo confirmado en la información disponible.").
 
 % Metadatos de revision; no son mensajes para el estudiante.
@@ -536,9 +557,8 @@ resumen_interno(retiro_universidad, "Debe diferenciarse formalmente del retiro d
 % ==================================================================
 tramite(retiro_extemporaneo, "Retiro extemporáneo").
 descripcion(retiro_extemporaneo, "Solicitar fuera del plazo ordinario el retiro de una o varias materias.").
-requisito(retiro_extemporaneo, 1, "Identificar las materias cuyo retiro solicitas fuera del plazo ordinario.").
-requisito(retiro_extemporaneo, 2, "Explicar la circunstancia excepcional y proporcionar evidencias.").
-requisito(retiro_extemporaneo, 3, "Solicitar revisión académica y financiera; puede mantenerse el cobro total de la asignatura.").
+requisito(retiro_extemporaneo, 1, "Solicitar el retiro una vez terminado el plazo ordinario y someter la circunstancia excepcional a revisión académica.").
+requisito(retiro_extemporaneo, 2, "La autorización y las consecuencias académicas y financieras dependen de la revisión del caso.").
 
 % Datos de captura (obligatorios u opcionales en el portal).
 campo_formulario(retiro_extemporaneo, subjects, "Materia(s)", obligatorio).
@@ -547,6 +567,7 @@ campo_formulario(retiro_extemporaneo, reason, "Motivo excepcional del retiro", o
 % Respaldos sugeridos; no son plantillas adjuntas ni archivos personales.
 documento_def(retiro_extemporaneo_respaldo_1, "Evidencias de la circunstancia excepcional.", "Consulta con la facultad si debes adjuntar este respaldo y en qué formato.", "Por confirmar", sin_url).
 tramite_documento(retiro_extemporaneo, 1, retiro_extemporaneo_respaldo_1, opcional).
+costo_texto(retiro_extemporaneo, "El material revisado menciona cobro del valor total de la asignatura; el monto y las excepciones requieren liquidación de la facultad. No es una tarifa fija del trámite.").
 plazo_texto(retiro_extemporaneo, "Se solicita una vez terminado el plazo ordinario. Consulta con la facultad la fecha máxima para revisar tu caso.").
 
 % Metadatos de revision; no son mensajes para el estudiante.
@@ -562,9 +583,8 @@ resumen_interno(retiro_extemporaneo, "Implica cobro del 100 % y pérdida de cré
 tramite(tercer_registro, "Tercer registro").
 descripcion(tercer_registro, "Solicitar autorización para cursar por tercera vez una materia reprobada dos veces.").
 requisito(tercer_registro, 1, "Haber reprobado la misma materia en dos registros anteriores.").
-requisito(tercer_registro, 2, "No pertenecer a Medicina ni Enfermería y respetar el límite de terceros registros durante la carrera, según la información disponible.").
-requisito(tercer_registro, 3, "Registrar año, sesión y nota de los dos intentos anteriores.").
-requisito(tercer_registro, 4, "Solicitar autorización académica y confirmar la condición de cursar la materia en exclusividad.").
+requisito(tercer_registro, 2, "El material revisado excluye Medicina y Enfermería y limita los terceros registros durante la carrera; confirmar su aplicación al caso.").
+requisito(tercer_registro, 3, "Obtener autorización académica y confirmar la condición de cursar la materia en exclusividad.").
 
 % Datos de captura (obligatorios u opcionales en el portal).
 campo_formulario(tercer_registro, subjects, "Materia(s)", obligatorio).
@@ -573,6 +593,7 @@ campo_formulario(tercer_registro, attempts, "Registros anteriores", obligatorio)
 % Respaldos sugeridos; no son plantillas adjuntas ni archivos personales.
 documento_def(tercer_registro_respaldo_1, "Calificaciones y periodos de los dos registros anteriores.", "Consulta con la facultad si debes adjuntar este respaldo y en qué formato.", "Por confirmar", sin_url).
 tramite_documento(tercer_registro, 1, tercer_registro_respaldo_1, opcional).
+costo_texto(tercer_registro, "No hay un monto confirmado para este trámite en la información disponible. Consulta el arancel con la facultad; no se puede afirmar que sea gratuito.").
 plazo_texto(tercer_registro, "Consulta con la facultad la fecha límite para tu período académico; no hay un plazo confirmado en la información disponible.").
 
 % Metadatos de revision; no son mensajes para el estudiante.
