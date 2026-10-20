@@ -8,8 +8,13 @@ use App\Http\Controllers\Estudiante\RespaldoTemporalController;
 use App\Http\Controllers\Estudiante\SolicitudController;
 use Illuminate\Support\Facades\Route;
 
+require __DIR__.'/notificaciones.php';
+
 Route::post('/estudiante/solicitudes/documento', [SolicitudController::class, 'documento'])
-    ->middleware('throttle:10,1')->name('solicitudes.documento');
+    ->middleware('throttle:10,1,documentos-estudiante:')->name('solicitudes.documento');
+
+Route::post('/estudiante/solicitudes/enviar', [SolicitudController::class, 'enviar'])
+    ->middleware('throttle:10,1,envios-estudiante:')->block(30, 30)->name('solicitudes.enviar');
 
 Route::get('/estudiante/tramites', [CatalogoController::class, 'index'])
     ->name('estudiante.catalogo');
@@ -55,10 +60,10 @@ Route::get(
     [SolicitudController::class, 'create']
 )->defaults('tramite', 'recuperacion')->name('estudiante.solicitudes.recuperacion.crear');
 
-Route::view(
+Route::get(
     '/estudiante/solicitudes/gracia/nueva',
-    'estudiante.formulario-gracia'
-)->name('estudiante.solicitudes.gracia.crear');
+    [SolicitudController::class, 'create']
+)->defaults('tramite', 'gracia')->name('estudiante.solicitudes.gracia.crear');
 
 Route::get(
     '/estudiante/solicitudes/supletorio/nueva',
@@ -149,7 +154,7 @@ Route::get('/estudiante/solicitudes/{solicitud}', [SolicitudController::class, '
 
 // Respaldos del paso 3 mientras la solicitud todavía no existe: carpeta temporal de la sesión.
 Route::post('/estudiante/respaldos-temporales', [RespaldoTemporalController::class, 'store'])
-    ->middleware('throttle:60,1')->name('respaldos-temporales.store');
+    ->middleware('throttle:60,1,respaldos-estudiante:')->name('respaldos-temporales.store');
 
 Route::get('/estudiante/respaldos-temporales/{id}', [RespaldoTemporalController::class, 'show'])
     ->whereUuid('id')->name('respaldos-temporales.show');
@@ -159,14 +164,14 @@ Route::delete('/estudiante/respaldos-temporales/{id}', [RespaldoTemporalControll
 
 // Borrador del formulario mientras la solicitud todavía no existe: uno por trámite, en la sesión.
 Route::put('/estudiante/borradores-temporales/{tramite}', [BorradorTemporalController::class, 'update'])
-    ->where('tramite', '[a-z0-9_-]+')->middleware('throttle:60,1')->name('borradores-temporales.update');
+    ->where('tramite', '[a-z0-9_-]+')->middleware('throttle:60,1,borradores-estudiante:')->name('borradores-temporales.update');
 
 Route::delete('/estudiante/borradores-temporales/{tramite}', [BorradorTemporalController::class, 'destroy'])
     ->where('tramite', '[a-z0-9_-]+')->name('borradores-temporales.destroy');
 
 // PDF firmado del paso 4 mientras la solicitud todavía no existe: uno por trámite, en la sesión.
 Route::post('/estudiante/firmados-temporales/{tramite}', [FirmadoTemporalController::class, 'store'])
-    ->where('tramite', '[a-z0-9_-]+')->middleware('throttle:20,1')->name('firmados-temporales.store');
+    ->where('tramite', '[a-z0-9_-]+')->middleware('throttle:20,1,firmados-estudiante:')->name('firmados-temporales.store');
 
 Route::get('/estudiante/firmados-temporales/{tramite}', [FirmadoTemporalController::class, 'show'])
     ->where('tramite', '[a-z0-9_-]+')->name('firmados-temporales.show');

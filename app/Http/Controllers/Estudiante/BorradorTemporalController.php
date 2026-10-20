@@ -7,6 +7,8 @@ use App\Services\Archivos\FirmadosTemporales;
 use App\Services\Archivos\RespaldosTemporales;
 use App\Services\Solicitudes\BorradoresTemporales;
 use App\Services\Solicitudes\TramitesSimulados;
+use App\Services\Solicitudes\DocumentosTemporales;
+use App\Services\Solicitudes\DatosFormularioSolicitud;
 use Illuminate\Http\JsonResponse;
 use App\Http\Requests\Estudiante\GuardarBorradorRequest;
 use Illuminate\Http\Response;
@@ -23,6 +25,7 @@ class BorradorTemporalController extends Controller
         private readonly TramitesSimulados $tramites,
         private readonly RespaldosTemporales $respaldos,
         private readonly FirmadosTemporales $firmados,
+        private readonly DocumentosTemporales $documentos,
     ) {}
 
     public function update(GuardarBorradorRequest $request, string $tramite): JsonResponse
@@ -35,10 +38,10 @@ class BorradorTemporalController extends Controller
 
         $camposMateria = array_column($definicion['campos_materia'], 'nombre');
 
-        $borrador = $this->borradores->guardar($tramite, [
+        $borrador = $this->borradores->guardar($tramite, Arr::only($datos, array_keys(DatosFormularioSolicitud::PERSONALES)) + [
             'paso' => (int) $datos['paso'],
             'celular' => $datos['celular'] ?? null,
-            'materias' => array_map(fn (array $materia) => [
+            'materias' => array_map(fn (array $materia) => Arr::only($materia, array_keys(DatosFormularioSolicitud::MATERIA)) + [
                 'id' => $materia['id'],
                 'datos' => Arr::only($materia['datos'] ?? [], $camposMateria),
             ], array_values($datos['materias'] ?? [])),
@@ -63,6 +66,7 @@ class BorradorTemporalController extends Controller
         }
 
         $this->firmados->quitar($tramite);
+        $this->documentos->quitar($tramite);
 
         return response()->noContent();
     }

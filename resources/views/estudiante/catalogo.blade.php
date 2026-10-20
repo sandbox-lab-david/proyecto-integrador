@@ -253,7 +253,7 @@
 
             @media (max-width: 600px) {
 
-               
+
 
                 .marca-portal strong {
                     font-size: 16px;
@@ -693,6 +693,64 @@
                 }
 
 
+        .categorias-catalogo { margin: 28px 0; }
+        .categorias-catalogo h2 { font-size: 22px; margin-bottom: 8px; }
+        .opciones-categoria {
+            display: grid;
+            grid-template-columns: repeat(3, minmax(0, 1fr));
+            gap: 20px;
+            margin-top: 20px;
+        }
+        .opcion-categoria {
+            display: flex;
+            flex-direction: column;
+            align-items: flex-start;
+            gap: 12px;
+            padding: 24px;
+            border: 1px solid #e2e5ec;
+            border-radius: 16px;
+            background: white;
+            color: #202939;
+            font: inherit;
+            text-align: left;
+            cursor: pointer;
+            box-shadow: 0 4px 14px rgba(32, 41, 57, 0.04);
+        }
+        .opcion-categoria:hover,
+        .opcion-categoria[aria-pressed="true"] {
+            border-color: #781c35;
+            background: #faf5f7;
+        }
+        .opcion-categoria .icono-tramite {
+            display: grid;
+            place-items: center;
+            width: 48px;
+            height: 48px;
+            border-radius: 50%;
+            background: #f6e8ed;
+            color: #781c35;
+        }
+        .opcion-categoria svg { width: 26px; height: 26px; }
+        .opcion-categoria strong { font-size: 18px; }
+        .opcion-categoria small { color: #596579; font-size: 14px; line-height: 1.6; }
+        .ver-todos {
+            border: 1px solid #781c35;
+            border-radius: 9px;
+            padding: 13px 20px;
+            background: white;
+            color: #781c35;
+            font: inherit;
+            font-weight: bold;
+            cursor: pointer;
+        }
+        .opcion-categoria:focus-visible,
+        .ver-todos:focus-visible { outline: 3px solid #d9b2bd; outline-offset: 3px; }
+        @media (max-width: 850px) {
+            .opciones-categoria { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+        }
+        @media (max-width: 600px) {
+            .opciones-categoria { grid-template-columns: 1fr; }
+        }
     </style>
 </head>
 <body>
@@ -712,6 +770,7 @@
         <a class="enlace-solicitudes" href="{{ route('solicitudes.index') }}">
             Mis solicitudes
         </a>
+        <x-campana-notificaciones />
     </div>
 </header>
 
@@ -761,6 +820,12 @@
             </section>
         @endif
 
+        <section class="categorias-catalogo" aria-labelledby="titulo-categorias">
+            <h2 id="titulo-categorias">Elige una categoría</h2>
+            <p class="introduccion">Selecciona el tipo de gestión para consultar sus trámites.</p>
+            <div id="opciones-categoria" class="opciones-categoria"></div>
+        </section>
+
         <section class="filtros-catalogo" aria-label="Buscar y filtrar trámites">
             <div class="controles">
                 <div>
@@ -787,6 +852,7 @@
                     </select>
                 </div>
             </div>
+            <button id="ver-todos" class="ver-todos" type="button">Ver todos los trámites</button>
         </section>
 
         <p id="resultado" class="resultado" role="status"></p>
@@ -795,6 +861,7 @@
             id="tarjetas"
             class="tarjetas"
             aria-label="Trámites disponibles"
+            hidden
         ></section>
 
         <div id="vacio" hidden>
@@ -889,6 +956,37 @@
         const tarjetas = document.getElementById('tarjetas');
         const resultado = document.getElementById('resultado');
         const vacio = document.getElementById('vacio');
+        let verTodos = false;
+        const categorias = [
+            ['Evaluaciones', 'Exámenes y recalificaciones'],
+            ['Cambios académicos', 'Carrera, modalidad o malla'],
+            ['Retiros y continuidad', 'Retiros y reincorporación a tus estudios'],
+            ['Homologación', 'Reconocimiento de materias y alcances'],
+            ['Registro', 'Registro extemporáneo y tercer registro'],
+            ['Apoyo académico', 'Ayudantía y Person to Person'],
+        ];
+
+        categorias.forEach(([nombre, descripcion]) => {
+            const boton = document.createElement('button');
+            boton.type = 'button';
+            boton.className = 'opcion-categoria';
+            boton.dataset.categoria = nombre;
+            boton.setAttribute('aria-pressed', 'false');
+            boton.setAttribute('aria-controls', 'tarjetas');
+            const titulo = document.createElement('strong');
+            titulo.textContent = nombre;
+            const detalle = document.createElement('small');
+            detalle.textContent = descripcion;
+            boton.append(crearIcono(nombre), titulo, detalle);
+            boton.addEventListener('click', () => {
+                categoria.value = nombre;
+                busqueda.value = '';
+                verTodos = false;
+                mostrarTramites();
+                resultado.scrollIntoView({ block: 'nearest' });
+            });
+            document.getElementById('opciones-categoria').append(boton);
+        });
 
         function normalizar(texto) {
             return texto
@@ -951,6 +1049,17 @@
 
         function mostrarTramites() {
             const texto = normalizar(busqueda.value);
+            const explorando = Boolean(texto || categoria.value || verTodos);
+            tarjetas.hidden = !explorando;
+            document.querySelectorAll('.opcion-categoria').forEach(boton => {
+                boton.setAttribute('aria-pressed', String(boton.dataset.categoria === categoria.value));
+            });
+            if (!explorando) {
+                tarjetas.replaceChildren();
+                resultado.textContent = 'Elige una categoría, busca un trámite o consulta todos.';
+                vacio.hidden = true;
+                return;
+            }
 
             const filtrados = tramites.filter(tramite =>
                 normalizar(tramite.nombre).includes(texto) &&
@@ -1030,8 +1139,15 @@
 
         busqueda.addEventListener('input', mostrarTramites);
         categoria.addEventListener('change', mostrarTramites);
+        document.getElementById('ver-todos').addEventListener('click', () => {
+            categoria.value = '';
+            busqueda.value = '';
+            verTodos = true;
+            mostrarTramites();
+        });
 
         mostrarTramites();
     </script>
+    @include('estudiante.partials.chatbot-flotante')
 </body>
 </html>

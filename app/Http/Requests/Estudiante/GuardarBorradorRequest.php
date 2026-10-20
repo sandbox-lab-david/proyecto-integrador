@@ -3,8 +3,12 @@
 namespace App\Http\Requests\Estudiante;
 
 use App\Services\Solicitudes\TramitesSimulados;
+use App\Services\Solicitudes\ReglasCampoSolicitud;
+use App\Services\Solicitudes\DatosFormularioSolicitud;
+use App\Services\Solicitudes\CatalogoFacultades;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\Validator;
 
 class GuardarBorradorRequest extends FormRequest
 {
@@ -23,6 +27,14 @@ class GuardarBorradorRequest extends FormRequest
 
         $reglas = [
             'paso' => ['required', 'integer', 'between:1,4'],
+            'nombre' => ['nullable', 'string', 'max:150'],
+            'codigo' => ['nullable', 'string', 'max:30'],
+            'cedula' => ['nullable', 'string', 'max:30'],
+            'facultad' => ['nullable', 'string', 'max:150'],
+            'carrera' => ['nullable', 'string', 'max:150'],
+            'modalidad' => ['nullable', 'string', 'max:100'],
+            'periodo' => ['nullable', 'string', 'max:100'],
+            'correo' => ['nullable', 'string', 'max:150'],
 
             // Puede estar vacío porque todavía es un borrador.
             'celular' => [
@@ -37,17 +49,12 @@ class GuardarBorradorRequest extends FormRequest
                 'max:'.$definicion['max_materias'],
             ],
 
-            'materias.*.id' => [
-                'required',
-                'distinct',
-                Rule::in(array_column($tramites->materias(), 'id')),
-            ],
 
             'materias.*.datos' => ['array'],
-            'materias.*.datos.*' => ['nullable', 'string', 'max:2000'],
+            'materias.*.datos.*' => ['nullable', 'string', ReglasCampoSolicitud::limiteTexto(2000)],
 
             'campos' => ['array'],
-            'campos.*' => ['nullable', 'string', 'max:2000'],
+            'campos.*' => ['nullable', 'string', ReglasCampoSolicitud::limiteTexto(2000)],
 
             'requisitos' => ['array'],
             'requisitos.*' => [
@@ -55,6 +62,10 @@ class GuardarBorradorRequest extends FormRequest
                 Rule::in(array_column($definicion['documentos'], 'id')),
             ],
         ];
+        $reglas = array_replace($reglas, DatosFormularioSolicitud::reglas(true));
+        foreach (CatalogoFacultades::restricciones($this->input('facultad')) as $campo => $regla) {
+            $reglas[$campo][] = $regla;
+        }
 
         // Valida los campos según la definición de cada trámite.
         // No exige completarlos mientras sea un borrador.
@@ -65,39 +76,44 @@ class GuardarBorradorRequest extends FormRequest
             foreach ($definicion[$grupo] as $campo) {
                 $rutaCampo = $prefijo.'.'.$campo['nombre'];
 
-                $reglas[$rutaCampo] = match ($campo['tipo']) {
-                    'numero' => [
-                        'nullable',
-                        'string',
-                        'numeric',
-                        'min:'.$campo['min'],
-                        'max:'.$campo['max'],
-                    ],
-                    'lista' => [
-                        'nullable',
-                        'string',
-                        Rule::in(array_keys($campo['opciones'])),
-                    ],
-                    'fecha' => [
-                        'nullable',
-                        'string',
-                        'date_format:Y-m-d',
-                        'before_or_equal:today',
-                    ],
-                    default => ['nullable', 'string', 'max:2000'],
-                };
+                $reglas[$rutaCampo] = array_merge(['nullable', 'string'], ReglasCampoSolicitud::tipo($campo));
             }
         }
 
         return $reglas;
     }
 
+    protected function prepareForValidation(): void
+    {
+        $this->merge(DatosFormularioSolicitud::limpiarEntrada($this->all()));
+        $this->merge(CatalogoFacultades::normalizar($this->all()));
+        $this->merge(DatosFormularioSolicitud::cuenta($this->user()));
+    }
+
+    public function withValidator(Validator $validador): void
+    {
+        $validador->after(function (Validator $resultado): void {
+            DatosFormularioSolicitud::validarMateriasUnicas($resultado);
+            DatosFormularioSolicitud::validarCambio($resultado, (string) $this->route('tramite'));
+            ReglasCampoSolicitud::validarCronologia($resultado, (string) $this->route('tramite'));
+        });
+    }
+
     public function messages(): array
     {
-        return [
-            'celular.string' => 'El celular debe enviarse como texto.',
-            'celular.max' => 'El celular admite como máximo 20 dígitos.',
-            'celular.regex' => 'El celular solo debe contener números.',
-        ];
+        return DatosFormularioSolicitud::mensajes();
+    }
+
+    public function attributes(): array
+    {
+        $atributos = [];
+        foreach (DatosFormularioSolicitud::PERSONALES as $campo => [$etiqueta]) {
+            $atributos[$campo] = mb_strtolower($etiqueta);
+        }
+        foreach (DatosFormularioSolicitud::MATERIA as $campo => [$etiqueta]) {
+            $atributos['materias.*.'.$campo] = mb_strtolower($etiqueta);
+        }
+        return $atributos + ReglasCampoSolicitud::atributos(
+            app(TramitesSimulados::class)->buscar((string) $this->route('tramite')) ?? []);
     }
 }

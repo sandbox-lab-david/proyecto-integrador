@@ -4,6 +4,7 @@ namespace App\Services\Archivos;
 
 use Illuminate\Contracts\Session\Session;
 use Illuminate\Http\UploadedFile;
+use App\Services\Solicitudes\DocumentosTemporales;
 
 /**
  * PDF firmado que el estudiante sube después de confirmar (RF-2.11) mientras
@@ -19,6 +20,7 @@ class FirmadosTemporales
         private readonly ArchivoService $archivos,
         private readonly RespaldosTemporales $respaldos,
         private readonly Session $sesion,
+        private readonly DocumentosTemporales $documentos,
     ) {}
 
     /**
@@ -34,7 +36,10 @@ class FirmadosTemporales
 
         // El anterior se borra solo cuando el nuevo ya quedó guardado.
         $this->quitar($tramite);
-        $this->sesion->put(self::SESION.'.'.$tramite, $guardado);
+        $this->sesion->put(self::SESION.'.'.$tramite, $guardado + [
+            'documento_hash' => $this->documentos->buscar($tramite)['hash_datos'] ?? null,
+            'documento_version' => $this->documentos->buscar($tramite)['version'] ?? null,
+        ]);
 
         return $this->publico($guardado);
     }
