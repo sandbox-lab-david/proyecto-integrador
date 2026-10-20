@@ -9,9 +9,12 @@ use Illuminate\Validation\Validator;
 /** Restricciones comunes al borrador, a la descarga y al envío. */
 class ReglasCampoSolicitud
 {
+    // Hora institucional utilizada únicamente por las validaciones del módulo 2.
+    private const ZONA_HORARIA = 'America/Guayaquil';
+
     public static function zonaHoraria(): string
     {
-        return config('solicitudes.zona_horaria', 'America/Guayaquil');
+        return self::ZONA_HORARIA;
     }
 
     /** El máximo genérico del borrador es de caracteres, incluso en campos numéricos. */
