@@ -395,4 +395,238 @@ class ChatbotMensajeValidationTest extends TestCase
             ->assertJsonPath('resultado.motivos.0.texto', 'Falta confirmar materias excluidas por la Facultad.');
         $this->assertStringContainsString('La Facultad debe confirmar excepciones', (string) $response->json('aviso'));
     }
+
+    public function test_evaluacion_con_datos_declarados_no_presenta_resultado_como_definitivo(): void
+    {
+        $estudiante = new User(['name' => 'Carlos Estudiante', 'email' => 'carlos@uees.edu.ec']);
+
+        $mockClient = $this->createMock(PrologClient::class);
+        $mockClient->expects($this->once())
+            ->method('evaluar')
+            ->willReturn([
+                'version'    => 2,
+                'tramite_id' => 'examen_recuperacion',
+                'intencion'  => 'evaluar_elegibilidad',
+                'resultado'  => [
+                    'estado'  => 'cumple',
+                    'motivos' => [['codigo' => 'promedio_ok', 'texto' => 'Promedio suficiente']],
+                ],
+            ]);
+        $this->app->instance(PrologClient::class, $mockClient);
+
+        $response = $this->actingAs($estudiante)->postJson('/chatbot/mensaje', [
+            'version'       => 2,
+            'pregunta_id'   => 'examen_recuperacion__elegibilidad',
+            'tramite_id'    => 'examen_recuperacion',
+            'intencion'     => 'evaluar_elegibilidad',
+            'origen_datos'  => 'manual',
+            'datos_usuario' => ['promedio' => 85],
+        ]);
+
+        $response->assertOk();
+        $this->assertStringContainsString('orientativo y no definitivo', $response->json('mensaje'));
+        $this->assertStringContainsString('Facultad', $response->json('mensaje'));
+    }
+
+    public function test_evaluacion_parcial_aclara_condiciones_restantes_por_confirmar(): void
+    {
+        $estudiante = new User(['name' => 'Carlos Estudiante', 'email' => 'carlos@uees.edu.ec']);
+
+        $mockClient = $this->createMock(PrologClient::class);
+        $mockClient->expects($this->once())
+            ->method('evaluar')
+            ->willReturn([
+                'version'    => 2,
+                'tramite_id' => 'examen_recuperacion',
+                'intencion'  => 'evaluar_elegibilidad',
+                'resultado'  => [
+                    'estado'  => 'requiere_revision',
+                    'motivos' => [
+                        ['codigo' => 'promedio_ok', 'texto' => 'El promedio declarado (80) alcanza el mínimo de 75.'],
+                        ['codigo' => 'condiciones_no_evaluadas', 'texto' => 'No se han comprobado plazos.'],
+                    ],
+                ],
+            ]);
+        $this->app->instance(PrologClient::class, $mockClient);
+
+        $response = $this->actingAs($estudiante)->postJson('/chatbot/mensaje', [
+            'version'       => 2,
+            'pregunta_id'   => 'examen_recuperacion__elegibilidad',
+            'tramite_id'    => 'examen_recuperacion',
+            'intencion'     => 'evaluar_elegibilidad',
+            'origen_datos'  => 'manual',
+            'datos_usuario' => ['promedio' => 80],
+        ]);
+
+        $response->assertOk();
+        $this->assertStringContainsString('Solo se evaluó una parte de los requisitos', $response->json('mensaje'));
+    }
+
+    public function test_acciones_hacia_portal_y_ficha_del_tramite(): void
+    {
+        $mockClient = $this->createMock(PrologClient::class);
+        $mockClient->expects($this->once())
+            ->method('consultar')
+            ->willReturn([
+                'version'    => 2,
+                'tramite_id' => 'examen_recuperacion',
+                'intencion'  => 'consultar_descripcion',
+                'items'      => ['Descripción de prueba'],
+            ]);
+        $this->app->instance(PrologClient::class, $mockClient);
+
+        $response = $this->postJson('/chatbot/mensaje', [
+            'version'       => 2,
+            'pregunta_id'   => 'examen_recuperacion__descripcion',
+            'tramite_id'    => 'examen_recuperacion',
+            'intencion'     => 'consultar_descripcion',
+            'origen_datos'  => 'ninguno',
+            'datos_usuario' => [],
+        ]);
+
+        $response->assertOk();
+        $acciones = $response->json('acciones');
+        $this->assertNotEmpty($acciones);
+        $this->assertEquals('iniciar_solicitud', $acciones[0]['tipo']);
+        $this->assertEquals('/estudiante/solicitudes/recuperacion/nueva', $acciones[0]['url']);
+        $this->assertEquals('url', $acciones[1]['tipo']);
+        $this->assertEquals('/estudiante/tramites/examen-recuperacion', $acciones[1]['url']);
+    }
+
+    public function test_transformacion_documentos_con_obligacion(): void
+    {
+        $mockClient = $this->createMock(PrologClient::class);
+        $mockClient->expects($this->once())
+            ->method('consultar')
+            ->willReturn([
+                'version'    => 2,
+                'tramite_id' => 'examen_recuperacion',
+                'intencion'  => 'consultar_documentos',
+                'documentos' => [
+                    [
+                        'id' => 'doc1',
+                        'nombre' => 'Solicitud',
+                        'descripcion' => 'Desc',
+                        'obligatorio' => true,
+                        'formato' => 'PDF',
+                        'url' => null,
+                    ],
+                    [
+                        'id' => 'doc2',
+                        'nombre' => 'Respaldo',
+                        'descripcion' => 'Desc',
+                        'obligatorio' => false,
+                        'formato' => 'PDF',
+                        'url' => null,
+                    ],
+                ],
+            ]);
+        $this->app->instance(PrologClient::class, $mockClient);
+
+        $response = $this->postJson('/chatbot/mensaje', [
+            'version'       => 2,
+            'pregunta_id'   => 'examen_recuperacion__documentos',
+            'tramite_id'    => 'examen_recuperacion',
+            'intencion'     => 'consultar_documentos',
+            'origen_datos'  => 'ninguno',
+            'datos_usuario' => [],
+        ]);
+
+        $response->assertOk();
+        $docs = $response->json('documentos');
+        $this->assertEquals('obligatorio', $docs[0]['obligacion']);
+        $this->assertEquals('por_confirmar', $docs[1]['obligacion']);
+    }
+
+    public function test_acciones_hacia_portal_para_ayudante_suficiencia_y_supletorio(): void
+    {
+        $mockClient = $this->createMock(PrologClient::class);
+        $mockClient->method('consultar')
+            ->willReturnCallback(function (array $payload) {
+                return [
+                    'version'    => 2,
+                    'tramite_id' => $payload['tramite_id'],
+                    'intencion'  => $payload['intencion'],
+                    'items'      => ['Detalle de prueba'],
+                ];
+            });
+        $this->app->instance(PrologClient::class, $mockClient);
+
+        // 1. Ayudante de cátedra
+        $respAyudante = $this->postJson('/chatbot/mensaje', [
+            'version'       => 2,
+            'pregunta_id'   => 'ayudante_catedra__descripcion',
+            'tramite_id'    => 'ayudante_catedra',
+            'intencion'     => 'consultar_descripcion',
+            'origen_datos'  => 'ninguno',
+            'datos_usuario' => [],
+        ])->assertOk();
+        $accionesAyudante = $respAyudante->json('acciones');
+        $this->assertEquals('/estudiante/solicitudes/nueva?tramite=ayudante', $accionesAyudante[0]['url']);
+        $this->get('/estudiante/solicitudes/nueva?tramite=ayudante')->assertOk();
+        // Fallback/alias también debe responder 200 sin 404
+        $this->get('/estudiante/solicitudes/nueva?tramite=ayudante-catedra')->assertOk();
+
+        // 2. Examen de suficiencia
+        $respSuficiencia = $this->postJson('/chatbot/mensaje', [
+            'version'       => 2,
+            'pregunta_id'   => 'examen_suficiencia__descripcion',
+            'tramite_id'    => 'examen_suficiencia',
+            'intencion'     => 'consultar_descripcion',
+            'origen_datos'  => 'ninguno',
+            'datos_usuario' => [],
+        ])->assertOk();
+        $accionesSuficiencia = $respSuficiencia->json('acciones');
+        $this->assertEquals('/estudiante/solicitudes/nueva?tramite=suficiencia', $accionesSuficiencia[0]['url']);
+        $this->get('/estudiante/solicitudes/nueva?tramite=suficiencia')->assertOk();
+        $this->get('/estudiante/solicitudes/nueva?tramite=examen-suficiencia')->assertOk();
+
+        // 3. Examen supletorio
+        $respSupletorio = $this->postJson('/chatbot/mensaje', [
+            'version'       => 2,
+            'pregunta_id'   => 'examen_supletorio__descripcion',
+            'tramite_id'    => 'examen_supletorio',
+            'intencion'     => 'consultar_descripcion',
+            'origen_datos'  => 'ninguno',
+            'datos_usuario' => [],
+        ])->assertOk();
+        $accionesSupletorio = $respSupletorio->json('acciones');
+        $this->assertEquals('/estudiante/solicitudes/supletorio/nueva', $accionesSupletorio[0]['url']);
+        $this->get('/estudiante/solicitudes/supletorio/nueva')->assertOk();
+        $this->get('/estudiante/solicitudes/nueva?tramite=supletorio')->assertOk();
+        $this->get('/estudiante/solicitudes/nueva?tramite=examen-supletorio')->assertOk();
+    }
+
+    public function test_con_datos_verificados_es_false_cuando_el_origen_es_sesion(): void
+    {
+        $mockClient = $this->createMock(PrologClient::class);
+        $mockClient->expects($this->once())
+            ->method('evaluar')
+            ->willReturn([
+                'version'    => 2,
+                'tramite_id' => 'examen_recuperacion',
+                'intencion'  => 'evaluar_elegibilidad',
+                'resultado'  => [
+                    'estado'  => 'cumple',
+                    'motivos' => [['codigo' => 'promedio_ok', 'texto' => 'Cumple promedio']],
+                ],
+            ]);
+        $this->app->instance(PrologClient::class, $mockClient);
+
+        $estudiante = new User(['name' => 'Ana', 'email' => 'ana@uees.edu.ec']);
+
+        // Se envía solicitud autenticada con origen sesion
+        $response = $this->actingAs($estudiante)->postJson('/chatbot/mensaje', [
+            'version'       => 2,
+            'pregunta_id'   => 'examen_recuperacion__elegibilidad',
+            'tramite_id'    => 'examen_recuperacion',
+            'intencion'     => 'evaluar_elegibilidad',
+            'origen_datos'  => 'sesion',
+            'datos_usuario' => ['promedio' => 88],
+        ]);
+
+        $response->assertOk();
+        $this->assertFalse($response->json('resultado.con_datos_verificados'));
+        $this->assertEquals('declarada', $response->json('meta.verificacion'));
+    }
 }

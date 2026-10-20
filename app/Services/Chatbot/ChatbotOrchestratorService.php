@@ -141,9 +141,14 @@ class ChatbotOrchestratorService
                 ? ['Plazos y fechas límite', 'Fechas y plazos reglamentarios para solicitar el trámite.']
                 : ['Plazos por confirmar', 'Las fechas límite y plazos reglamentarios de este trámite se encuentran por confirmar con la Facultad.'],
             'evaluar_elegibilidad' => match ($resultado['estado'] ?? null) {
-                'cumple' => ['Cumples los requisitos', 'Según la información evaluada, cumples con las condiciones reglamentarias para este trámite.'],
+                'cumple' => [
+                    'Cumples los requisitos',
+                    $verificacion === 'institucional'
+                        ? 'Según los registros institucionales verificados, cumples con las condiciones reglamentarias para este trámite.'
+                        : 'Con los datos declarados ingresados cumples preliminarmente las condiciones reglamentarias evaluadas. Este resultado es de carácter orientativo y no definitivo; la Facultad validará los registros oficiales al procesar tu solicitud.'
+                ],
                 'no_cumple' => ['No cumples los requisitos', 'Según la información evaluada, no alcanzas las condiciones reglamentarias para este trámite.'],
-                'requiere_revision' => ['Revisión por la Facultad requerida', 'Tu caso requiere revisión y autorización individual por parte de la Facultad según la normativa vigente.'],
+                'requiere_revision' => ['Revisión por la Facultad requerida', $this->determinarMensajeRevision($resultado)],
                 default => ['Resultado de elegibilidad', 'Hemos evaluado tu información contra la normativa reglamentaria.'],
             },
             default => ['Información de la consulta', 'Aquí tienes la información solicitada.'],
@@ -151,9 +156,11 @@ class ChatbotOrchestratorService
 
         // API-05: Si el costo o plazo fue consultado pero no está definido, asegurar un aviso explícito
         if ($intencion === 'consultar_costo' && $costo === null && empty($aviso)) {
-            $aviso = 'El valor o arancel no está definido en el reglamento actual y debe ser confirmado directamente con la Facultad.';
+            $costoTexto = $this->catalogoService->obtenerCostoTexto($tramiteId);
+            $aviso = $costoTexto ?? 'El valor o arancel no está definido en el reglamento actual y debe ser confirmado directamente con la Facultad.';
         } elseif ($intencion === 'consultar_plazo' && $plazo === null && empty($aviso)) {
-            $aviso = 'Las fechas están sujetas al calendario académico y deben ser confirmadas con la Facultad.';
+            $plazoTexto = $this->catalogoService->obtenerPlazoTexto($tramiteId);
+            $aviso = $plazoTexto ?? 'Las fechas están sujetas al calendario académico y deben ser confirmadas con la Facultad.';
         }
 
         // Generar sugerencias de preguntas siguientes para el mismo trámite
@@ -166,15 +173,63 @@ class ChatbotOrchestratorService
             "{$tramiteId}__elegibilidad",
         ], fn ($pId) => $pId !== ($peticionOriginal['pregunta_id'] ?? '')));
 
-        // Construir acciones hacia el portal G2 si el trámite tiene identificador
+        // Construir acciones contextuales hacia el portal del estudiante
         $acciones = [];
         $slugAgenda = $this->catalogoService->obtenerIdentificadorAgenda($tramiteId);
         if ($slugAgenda !== null) {
+            // Tabla de equivalencias entre hechos.pl y el formulario del estudiante (G2)
+            $mapaCodigoFormulario = [
+                'ayudante_catedra'    => 'ayudante',
+                'examen_suficiencia'  => 'suficiencia',
+                'examen_supletorio'   => 'supletorio',
+                'examen_recuperacion' => 'recuperacion',
+                'examen_gracia'       => 'gracia',
+            ];
+            $codigoFormulario = $mapaCodigoFormulario[$tramiteId] ?? $slugAgenda;
+
+            $urlInicio = match ($codigoFormulario) {
+                'recuperacion' => '/estudiante/solicitudes/recuperacion/nueva',
+                'gracia'       => '/estudiante/solicitudes/gracia/nueva',
+                'supletorio'   => '/estudiante/solicitudes/supletorio/nueva',
+                default        => '/estudiante/solicitudes/nueva?tramite=' . $codigoFormulario,
+            };
+            $slugFicha = ($slugAgenda === 'recalificacion') ? 'recalificacion-examen' : $slugAgenda;
+
+            $acciones[] = [
+                'tipo'     => 'iniciar_solicitud',
+                'etiqueta' => 'Iniciar solicitud en el portal',
+                'url'      => $urlInicio,
+            ];
+
             $acciones[] = [
                 'tipo'     => 'url',
-                'etiqueta' => 'Iniciar solicitud en el portal',
-                'url'      => rtrim((string) config('chatbot.g2_url', 'https://agenda.uisek.edu.ec'), '/') . '/' . $slugAgenda,
+                'etiqueta' => 'Ver ficha informativa del trámite',
+                'url'      => '/estudiante/tramites/' . $slugFicha,
             ];
+        }
+
+        $documentos = array_map(function ($d) {
+            if (!is_array($d)) {
+                return $d;
+            }
+            if (!isset($d['obligacion'])) {
+                $d['obligacion'] = ($d['obligatorio'] ?? false) ? 'obligatorio' : 'por_confirmar';
+            }
+            return $d;
+        }, $respuestaProlog['documentos'] ?? []);
+
+        if (is_array($resultado)) {
+            // El atributo con_datos_verificados debe ser false también cuando el origen sea 'sesion' o 'manual'.
+            // Hoy los datos no provienen del SIAC institucional y no están verificados.
+            $resultado['con_datos_verificados'] = ($origen === 'institucional' && $verificacion === 'institucional');
+            if (isset($resultado['motivos']) && is_array($resultado['motivos'])) {
+                $resultado['motivos'] = array_map(function ($m) {
+                    if (is_string($m)) {
+                        return ['codigo' => 'general', 'texto' => $m];
+                    }
+                    return $m;
+                }, $resultado['motivos']);
+            }
         }
 
         return [
@@ -188,7 +243,7 @@ class ChatbotOrchestratorService
             'titulo'           => $titulo,
             'mensaje'          => $mensaje,
             'items'            => $respuestaProlog['items'] ?? [],
-            'documentos'       => $respuestaProlog['documentos'] ?? [],
+            'documentos'       => $documentos,
             'costo'            => $costo,
             'plazo'            => $plazo,
             'resultado'        => $resultado,
@@ -202,6 +257,18 @@ class ChatbotOrchestratorService
                 'verificacion' => $verificacion,
             ],
         ];
+    }
+
+    protected function determinarMensajeRevision(?array $resultado): string
+    {
+        $codigos = array_column($resultado['motivos'] ?? [], 'codigo');
+        if (in_array('condiciones_no_evaluadas', $codigos, true)) {
+            return 'Solo se evaluó una parte de los requisitos con los datos declarados. Las condiciones restantes y la resolución definitiva deben ser confirmadas por la Facultad.';
+        }
+        if (in_array('evaluacion_no_disponible', $codigos, true)) {
+            return 'Este trámite no cuenta con evaluación automática. Esta respuesta no determina cumplimiento definitivo ni rechazo; tu caso será revisado directamente por la Facultad.';
+        }
+        return 'Tu caso requiere revisión y autorización individual por parte de la Facultad según la normativa vigente.';
     }
 
     /**
@@ -374,7 +441,15 @@ class ChatbotOrchestratorService
         $normalizado = [];
 
         // Mapeo de alias de calificaciones/promedio al campo 'promedio' esperado por servidor.pl
-        $promedio = $perfil['promedio'] ?? $perfil['gpa'] ?? $perfil['period_gpa'] ?? $perfil['nota'] ?? null;
+        $promedio = $perfil['promedio']
+            ?? $perfil['gpa']
+            ?? $perfil['period_gpa']
+            ?? $perfil['subject_grade']
+            ?? $perfil['gpa_general']
+            ?? $perfil['current_grade']
+            ?? $perfil['nota']
+            ?? $perfil['grade']
+            ?? null;
         if ($promedio !== null && is_numeric($promedio)) {
             $normalizado['promedio'] = (float) $promedio;
         }
@@ -496,7 +571,7 @@ class ChatbotOrchestratorService
             'meta'              => [
                 'kb_version'   => null,
                 'origen_datos' => $usuario ? 'sesion' : 'ninguno',
-                'verificacion' => $usuario ? 'institucional' : 'declarada',
+                'verificacion' => 'declarada',
             ],
         ];
     }

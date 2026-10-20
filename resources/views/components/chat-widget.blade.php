@@ -3,11 +3,13 @@
     'modo' => 'pagina',
     'simulado' => true,
     'urlMensaje' => null,
+    'facultad' => null,
 ])
 
 @php
     $flotante = $modo === 'flotante';
     $id = 'cb-chat-' . $modo;
+    $nombreFacultad = $facultad ?? 'Facultad de Ingeniería';
 @endphp
 
 @if ($flotante)
@@ -22,6 +24,7 @@
          id="{{ $id }}"
          data-chatbot
          data-tramite="{{ $tramite }}"
+         data-facultad="{{ $nombreFacultad }}"
          data-simulado="{{ $simulado ? '1' : '0' }}"
          data-url-catalogo="{{ url('/chatbot/catalogo') }}"
          data-url-mensaje="{{ $urlMensaje ?? url('/chatbot/mensaje') }}"
@@ -46,7 +49,7 @@
         <div class="cb-chat-cab">
             <div class="cb-chat-cab-txt">
                 <strong>Asistente de trámites</strong>
-                <span data-cb="cab-tramite">Facultad de Ingeniería</span>
+                <span data-cb="cab-tramite">{{ $nombreFacultad }}</span>
             </div>
             <button type="button" class="cb-btn-quieto" data-cb="nueva">Nueva consulta</button>
             @if ($flotante)

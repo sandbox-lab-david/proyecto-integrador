@@ -38,6 +38,7 @@ Route::view(
     '/estudiante/tramites/recalificacion-examen',
     'estudiante.recalificacion'
 )->name('estudiante.tramites.recalificacion');
+Route::redirect('/estudiante/tramites/recalificacion', '/estudiante/tramites/recalificacion-examen');
 
 Route::view(
     '/estudiante/tramites/examen-supletorio',
@@ -58,6 +59,11 @@ Route::view(
     '/estudiante/solicitudes/gracia/nueva',
     'estudiante.formulario-gracia'
 )->name('estudiante.solicitudes.gracia.crear');
+
+Route::get(
+    '/estudiante/solicitudes/supletorio/nueva',
+    [SolicitudController::class, 'create']
+)->defaults('tramite', 'supletorio')->name('estudiante.solicitudes.supletorio.crear');
 
 Route::view(
     '/estudiante/acceso',

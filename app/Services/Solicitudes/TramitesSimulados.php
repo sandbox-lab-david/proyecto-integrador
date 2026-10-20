@@ -20,7 +20,17 @@ class TramitesSimulados
 
     public function buscar(string $codigo): ?array
     {
-        return $this->tramites()[$codigo] ?? $this->otrosTramites()[$codigo] ?? null;
+        $alias = [
+            'ayudante-catedra'      => 'ayudante',
+            'examen-suficiencia'    => 'suficiencia',
+            'examen-supletorio'     => 'supletorio',
+            'examen-recuperacion'   => 'recuperacion',
+            'examen-gracia'         => 'gracia',
+            'recalificacion-examen' => 'recalificacion',
+        ];
+        $codigoNormalizado = $alias[$codigo] ?? $codigo;
+
+        return $this->tramites()[$codigoNormalizado] ?? $this->otrosTramites()[$codigoNormalizado] ?? null;
     }
 
     private function otrosTramites(): array

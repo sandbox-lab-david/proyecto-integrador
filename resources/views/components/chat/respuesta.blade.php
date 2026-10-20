@@ -6,7 +6,7 @@
     $evaluacion = isset($r['resultado']) ? [
         'resultado' => $r['resultado']['estado'] ?? null,
         'motivos' => $r['resultado']['motivos'] ?? [],
-        'con_datos_verificados' => ($r['meta']['verificacion'] ?? null) === 'institucional',
+        'con_datos_verificados' => (bool) ($r['resultado']['con_datos_verificados'] ?? (($r['meta']['verificacion'] ?? null) === 'institucional')),
     ] : null;
 @endphp
 

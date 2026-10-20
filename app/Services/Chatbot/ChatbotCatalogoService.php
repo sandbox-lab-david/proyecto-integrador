@@ -187,6 +187,36 @@ class ChatbotCatalogoService
         return null;
     }
 
+    /**
+     * Devuelve el texto informativo de costo registrado en hechos.pl para un trámite.
+     */
+    public function obtenerCostoTexto(string $tramiteId): ?string
+    {
+        if (!file_exists($this->kbPath)) {
+            return null;
+        }
+        $contenido = file_get_contents($this->kbPath);
+        if (preg_match('/costo_texto\(' . preg_quote($tramiteId, '/') . ',\s*"([^"]+)"\)\./u', $contenido, $m)) {
+            return $m[1];
+        }
+        return null;
+    }
+
+    /**
+     * Devuelve el texto informativo de plazo registrado en hechos.pl para un trámite.
+     */
+    public function obtenerPlazoTexto(string $tramiteId): ?string
+    {
+        if (!file_exists($this->kbPath)) {
+            return null;
+        }
+        $contenido = file_get_contents($this->kbPath);
+        if (preg_match('/plazo_texto\(' . preg_quote($tramiteId, '/') . ',\s*"([^"]+)"\)\./u', $contenido, $m)) {
+            return $m[1];
+        }
+        return null;
+    }
+
     protected function parsearTramites(): array
     {
         if (!file_exists($this->kbPath)) {
@@ -256,8 +286,7 @@ class ChatbotCatalogoService
                 $tipo = 'booleano';
             } elseif ($nombreCampo === 'subjects' || $nombreCampo === 'materia_id') {
                 $tipo = 'seleccion';
-                // TODO: cargar desde la fuente de datos real (BD o servicio de materias).
-                $opciones = [];
+                $opciones = $this->obtenerOpcionesMaterias();
             }
 
             $camposPorTramite[$tramiteId][] = [
@@ -272,5 +301,40 @@ class ChatbotCatalogoService
         }
 
         return $camposPorTramite;
+    }
+
+    protected function obtenerOpcionesMaterias(): array
+    {
+        $opciones = [];
+
+        if (class_exists(\App\Models\Materia::class)) {
+            try {
+                $materiasBd = \App\Models\Materia::select('codigo', 'nombre')->get();
+                foreach ($materiasBd as $m) {
+                    $opciones[] = [
+                        'valor'    => $m->codigo,
+                        'etiqueta' => "{$m->codigo} - {$m->nombre}",
+                    ];
+                }
+            } catch (\Throwable) {
+            }
+        }
+
+        if (empty($opciones) && class_exists(\App\Services\Solicitudes\TramitesSimulados::class)) {
+            try {
+                $simulados = app(\App\Services\Solicitudes\TramitesSimulados::class)->materias();
+                foreach ($simulados as $m) {
+                    $codigo = $m['codigo'] ?? $m['id'];
+                    $nombre = $m['nombre'] ?? $codigo;
+                    $opciones[] = [
+                        'valor'    => $codigo,
+                        'etiqueta' => "{$codigo} - {$nombre}",
+                    ];
+                }
+            } catch (\Throwable) {
+            }
+        }
+
+        return $opciones;
     }
 }

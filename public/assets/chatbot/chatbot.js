@@ -295,7 +295,7 @@
         fijarTramite(id) {
             this.tramite = this.porId.tramites[id] || null;
             this.parte('chip-texto').textContent = this.tramite ? this.tramite.nombre : 'Elegir trámite';
-            this.parte('cab-tramite').textContent = this.tramite ? this.tramite.nombre : 'Facultad de Ingeniería';
+            this.parte('cab-tramite').textContent = this.tramite ? this.tramite.nombre : (this.raiz.dataset.facultad || 'Facultad de Ingeniería');
             this.raiz.querySelectorAll('[data-tramite-id]').forEach((b) => {
                 b.setAttribute('aria-current', this.tramite && b.dataset.tramiteId === this.tramite.id ? 'true' : 'false');
             });
