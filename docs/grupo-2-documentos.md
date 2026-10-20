@@ -55,12 +55,19 @@ y el formulario explica la integración pendiente sin anunciar un envío exitoso
 - Las 20 plantillas oficiales vacías en `storage/app/private/plantillas` están
   incluidas en el repositorio. Sus originales no se modifican al descargar.
 - `WordService::convertirAPdf` utiliza LibreOffice en el servidor. El formulario
-  permite seleccionar Word o PDF. Se espera LibreOffice en
-  `C:/Program Files/LibreOffice/program/soffice.com` en Windows o
-  `/usr/bin/libreoffice` en Linux. Cada conversión tiene su propio directorio temporal del sistema y
+  permite seleccionar Word o PDF. Detecta LibreOffice en Program Files,
+  Program Files (x86), `%LOCALAPPDATA%/Programs/LibreOffice` o el PATH de Windows;
+  en Linux busca `libreoffice`/`soffice` en el PATH y `/usr/bin/libreoffice`.
+  Cada conversión tiene su propio directorio temporal del sistema y
   perfil; el controlador elimina las copias al terminar. La instalación del
   conversor no se distribuye con Git. Validar visualmente las 20 plantillas
   antes de la entrega; LibreOffice puede tener diferencias respecto a Word.
+- En Windows se transmiten explícitamente las rutas del sistema y las carpetas
+  temporales al proceso de conversión: el entorno de una petición HTTP puede
+  omitirlas aunque la conversión desde la terminal funcione. Los errores técnicos
+  quedan encadenados para el registro; el estudiante recibe un mensaje que permite
+  seguir descargando Word. La firma/contacto se mantienen juntos con un espaciado
+  compacto y el correo se alinea a la izquierda después de resolver los marcadores.
 - Conectar el perfil autenticado y los catálogos reales, persistencia del expediente,
   identificador SOL, versiones, permisos y vinculación definitiva del PDF firmado.
 
@@ -81,3 +88,5 @@ Los identificadores del adaptador de prueba existen solo en las pruebas.
 
 No modificar `config`, `app/Providers`, los manifiestos compartidos ni el layout
 principal sin la coordinación indicada por la guía oficial.
+
+Configuración local y comprobación de subidas de 10 MB: [Archivos y PDF](grupo-2-archivos-pdf.md).

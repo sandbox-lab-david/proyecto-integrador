@@ -33,7 +33,7 @@ class DocumentosTemporales
 
     public function huella(array $datos): string
     {
-        $contenido = array_intersect_key($datos, array_flip(['tramite', 'nombre', 'codigo', 'carrera', 'correo', 'celular', 'materias', 'campos']));
+        $contenido = array_intersect_key($datos, array_flip(['tramite', ...array_keys(DatosFormularioSolicitud::PERSONALES), 'materias', 'campos']));
         $ordenar = function (array $valor) use (&$ordenar): array {
             if (! array_is_list($valor)) ksort($valor);
             foreach ($valor as &$item) {

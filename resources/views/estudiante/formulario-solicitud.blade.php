@@ -440,9 +440,9 @@
         </p>
 
         <div class="aviso">
-            Vista de demostración con materias ficticias y datos personales ingresados manualmente.
-            Usa datos de prueba. La solicitud todavía no se envía; lo que
-            escribas queda como borrador en este navegador mientras tu
+            Completa tus datos personales y los de tus materias.
+            La solicitud todavía no se envía; lo que
+            escribas queda guardado temporalmente como borrador mientras tu
             sesión siga abierta.
         </div>
 
@@ -483,75 +483,55 @@
                     <h2 id="titulo-datos" tabindex="-1">Primero, tus datos</h2>
 
                     <p class="introduccion">
-                        Escribe tu información personal, de carrera y de contacto. Revisa que sea correcta antes de continuar.
+                        Completa tus datos personales y académicos.
+                        @if ($datosCuenta)
+                            El nombre y el correo disponibles en tu cuenta se completan automáticamente.
+                        @endif
+                        Revisa que la información sea correcta antes de continuar.
                     </p>
 
                     <form id="formulario-datos">
                         <div class="campos">
-                            <div class="campo completo">
-                                <label for="nombre">Nombres y apellidos</label>
-                                <input id="nombre" type="text"
-                                    name="nombre" placeholder="Escribe tus nombres y apellidos" required maxlength="150">
-                            </div>
-
-                            <div class="campo">
-                                <label for="codigo">Código estudiantil</label>
-                                <input id="codigo" type="text"
-                                    name="codigo" placeholder="Escribe tu código estudiantil" required maxlength="30">
-                            </div>
-
-                            <div class="campo">
-                                <label for="cedula">Cédula o pasaporte</label>
-                                <input id="cedula" type="text"
-                                    name="cedula" placeholder="Escribe tu cédula o pasaporte" required maxlength="30">
-                            </div>
-
-                            <div class="campo">
-                                <label for="facultad">Facultad</label>
-                                <input id="facultad" type="text"
-                                    name="facultad" placeholder="Escribe tu facultad" required maxlength="150">
-                            </div>
-
-                            <div class="campo">
-                                <label for="carrera">Carrera actual</label>
-                                <input id="carrera" type="text"
-                                    name="carrera" placeholder="Escribe tu carrera" required maxlength="150">
-                            </div>
-
-                            <div class="campo">
-                                <label for="modalidad">Modalidad</label>
-                                <input id="modalidad" type="text"
-                                    name="modalidad" placeholder="Escribe tu modalidad" required maxlength="100">
-                            </div>
-
-                            <div class="campo">
-                                <label for="periodo">Periodo actual</label>
-                                <input id="periodo" type="text"
-                                    name="periodo" placeholder="Escribe tu periodo actual" required maxlength="100">
-                            </div>
-
-                            <div class="campo">
-                                <label for="correo">Correo institucional</label>
-                                <input id="correo" type="email"
-                                    name="correo" placeholder="Escribe tu correo institucional" required maxlength="150">
-                            </div>
-
-                            <div class="campo">
-                                <label for="celular">Celular</label>
-                                <input id="celular" name="celular" type="tel"
-                                    autocomplete="tel"
-                                    inputmode="numeric"
-                                    pattern="[0-9]+"
-                                    title="Ingresa únicamente números."
-                                    placeholder="Ingresa tu número de contacto"
-                                    required maxlength="20"
-                                    oninput="this.value = this.value.replace(/[^0-9]/g, '')">
-                            </div>
+                            @foreach ($camposPersonales as $campoPersonal => [$etiquetaPersonal, $limitePersonal])
+                                <div @class(['campo', 'completo' => $campoPersonal === 'nombre'])>
+                                    <label for="{{ $campoPersonal }}">{{ $etiquetaPersonal }}</label>
+                                    @if ($campoPersonal === 'facultad')
+                                        <select id="facultad" name="facultad" required>
+                                            <option value="">Selecciona tu facultad</option>
+                                            @foreach ($catalogoFacultades as $nombreFacultad => $carrerasFacultad)
+                                                <option value="{{ $nombreFacultad }}">{{ $nombreFacultad }}</option>
+                                            @endforeach
+                                        </select>
+                                    @elseif ($campoPersonal === 'carrera')
+                                        <select id="carrera" name="carrera" required disabled aria-describedby="ayuda-carrera">
+                                            <option value="">Primero selecciona tu facultad</option>
+                                        </select>
+                                        <p id="ayuda-carrera" class="ayuda">Solo se muestran las carreras de la facultad elegida.</p>
+                                    @else
+                                    <input id="{{ $campoPersonal }}" name="{{ $campoPersonal }}"
+                                        type="{{ $campoPersonal === 'correo' ? 'email' : ($campoPersonal === 'celular' ? 'tel' : 'text') }}"
+                                        value="{{ $datosCuenta[$campoPersonal] ?? '' }}"
+                                        required maxlength="{{ $limitePersonal }}"
+                                        @readonly(array_key_exists($campoPersonal, $datosCuenta))
+                                        @if (in_array($campoPersonal, \App\Services\Solicitudes\DatosFormularioSolicitud::SOLO_DIGITOS, true))
+                                            @if ($campoPersonal === 'celular') autocomplete="tel" @endif
+                                            inputmode="numeric" pattern="[0-9]+"
+                                            title="Ingresa únicamente dígitos del 0 al 9."
+                                            oninput="this.value = this.value.replace(/[^0-9]/g, '')"
+                                        @elseif ($campoPersonal === 'correo')
+                                            autocomplete="email"
+                                        @elseif ($campoPersonal === 'nombre')
+                                            autocomplete="name"
+                                        @endif
+                                    >
+                                    @endif
+                                </div>
+                            @endforeach
                         </div>
 
                         <label class="confirmacion" for="confirmar-datos">
                             <input id="confirmar-datos" type="checkbox" required>
-                            <span>Confirmo que los datos que ingresé son correctos.</span>
+                            <span>Confirmo que mis datos son correctos.</span>
                         </label>
 
                         <div class="acciones">
@@ -580,24 +560,14 @@
                     @if ($tramite['max_materias'] > 0)
                         <div class="campos">
                             <div class="campo completo">
-                                <label for="materia">
+                                <p>
                                     {{ $tramite['max_materias'] === 1 ? 'Materia de la solicitud' : 'Materias de la solicitud' }}
-                                </label>
+                                </p>
 
                                 <div class="agregar-materia">
-                                    <select id="materia" aria-describedby="ayuda-materia">
-                                        <option value="">Selecciona una materia</option>
-                                        @foreach ($materias as $materia)
-                                            <option value="{{ $materia['id'] }}">
-                                                {{ $materia['codigo'] }} — {{ $materia['nombre'] }}
-                                                ({{ $materia['periodo'] }}, paralelo {{ $materia['paralelo'] }})
-                                            </option>
-                                        @endforeach
-                                    </select>
-
                                     <button id="agregar-materia" class="secundario"
-                                        type="button">
-                                        Agregar
+                                        type="button" aria-describedby="ayuda-materia">
+                                        Agregar materia
                                     </button>
                                 </div>
 
@@ -605,7 +575,7 @@
                                     {{ $tramite['max_materias'] === 1
                                         ? 'Este trámite admite una sola materia.'
                                         : 'Puedes agregar hasta '.$tramite['max_materias'].' materias.' }}
-                                    Lista ficticia para probar el selector.
+                                    Escribe el código, nombre, periodo, paralelo y docente de cada materia.
                                 </p>
                             </div>
                         </div>
@@ -657,7 +627,7 @@
 
                                     @case('fecha')
                                         <input id="{{ $id }}" name="{{ $campo['nombre'] }}"
-                                            type="date" data-hasta-hoy
+                                            type="date" data-hasta-hoy max="{{ now(\App\Services\Solicitudes\ReglasCampoSolicitud::zonaHoraria())->toDateString() }}"
                                             @required($campo['obligatorio'])>
                                         @break
 
@@ -820,7 +790,7 @@
                         <label for="formato-documento">Formato de descarga</label>
                         <select id="formato-documento">
                             <option value="docx">Word (.docx)</option>
-                            <option value="pdf">PDF (requiere LibreOffice en el servidor)</option>
+                            <option value="pdf">PDF (.pdf)</option>
                         </select>
                     </div>
 
@@ -875,7 +845,7 @@
                         </button>
                         @unless ($envioDisponible)
                             <p class="ayuda">El envío estará disponible cuando se integre
-                                el acceso del estudiante, los catálogos reales y los estados
+                                el acceso del estudiante, el guardado del expediente y los estados
                                 de revisión. Por ahora se conservan datos y archivos temporales.</p>
                         @endunless
                         <p id="mensaje-envio" class="seleccion" role="status"></p>
@@ -916,9 +886,127 @@
     </main>
 
     <script>
-        // Definición del trámite y materias de prueba (TramitesSimulados).
+        // Los datos personales y de las materias son declarados en este formulario.
         const tramite = @json($tramite);
-        const materias = @json($materias);
+        const camposPersonales = @json($camposPersonales);
+        const camposMateriaManual = @json($camposMateriaManual);
+        const catalogoFacultades = @json($catalogoFacultades);
+
+        function actualizarCarreras(valorGuardado = '') {
+            const facultad = document.getElementById('facultad');
+            const carrera = document.getElementById('carrera');
+            const opciones = catalogoFacultades[facultad.value] ?? [];
+            carrera.replaceChildren(new Option(opciones.length ? 'Selecciona tu carrera' : 'Primero selecciona tu facultad', ''));
+            opciones.forEach(nombre => carrera.append(new Option(nombre, nombre)));
+            carrera.disabled = opciones.length === 0;
+            if (valorGuardado && !opciones.includes(valorGuardado)) {
+                const anterior = new Option(`Revisa la carrera guardada: ${valorGuardado}`, valorGuardado);
+                anterior.disabled = true;
+                carrera.append(anterior);
+            }
+            carrera.value = valorGuardado;
+            validarFacultadYCarrera();
+        }
+
+        function validarFacultadYCarrera() {
+            const facultad = document.getElementById('facultad');
+            const carrera = document.getElementById('carrera');
+            facultad.setCustomValidity(facultad.value && !Object.hasOwn(catalogoFacultades, facultad.value)
+                ? 'Selecciona una facultad de la lista.' : '');
+            carrera.setCustomValidity(carrera.value && !(catalogoFacultades[facultad.value] ?? []).includes(carrera.value)
+                ? 'Selecciona una carrera que pertenezca a la facultad elegida.' : '');
+        }
+
+        document.getElementById('facultad').addEventListener('change', () => actualizarCarreras());
+        document.getElementById('carrera').addEventListener('change', validarFacultadYCarrera);
+        actualizarCarreras();
+        const cambioSolicitado = @json(\App\Services\Solicitudes\DatosFormularioSolicitud::CAMBIOS[$codigoTramite] ?? null);
+        const tramiteActual = @json($codigoTramite);
+        const relojFormulario = {
+            instante: @json(now()->getTimestampMs()), cargado: Date.now(),
+            zona: @json(\App\Services\Solicitudes\ReglasCampoSolicitud::zonaHoraria())
+        };
+
+        function fechaHoraActual() {
+            // La misma zona horaria que valida el servidor, incluso si el navegador usa otra.
+            const partes = new Intl.DateTimeFormat('en-CA', {
+                timeZone: relojFormulario.zona, year: 'numeric', month: '2-digit', day: '2-digit',
+                hour: '2-digit', minute: '2-digit', hourCycle: 'h23'
+            }).formatToParts(new Date(relojFormulario.instante + Date.now() - relojFormulario.cargado));
+            const valor = Object.fromEntries(partes.map(parte => [parte.type, parte.value]));
+            return { fecha: `${valor.year}-${valor.month}-${valor.day}`, hora: `${valor.hour}:${valor.minute}` };
+        }
+
+        function validarRangosYFechas() {
+            const ahora = fechaHoraActual();
+            document.querySelectorAll('[data-hasta-hoy]').forEach(control => { control.max = ahora.fecha; });
+            if (tramiteActual === 'recalificacion') {
+                const fecha = document.getElementById('campo-publicacion_fecha');
+                document.getElementById('campo-publicacion_hora').max = fecha.value === ahora.fecha ? ahora.hora : '';
+            }
+
+            document.querySelectorAll('#paso-2 input[type="number"], #paso-2 input[type="date"], #paso-2 input[type="time"]')
+                .forEach(control => {
+                    control.setCustomValidity('');
+                    if (control.disabled) return;
+                    if (control.validity.badInput) {
+                        control.setCustomValidity(control.type === 'number' ? 'Ingresa un número válido.' : 'Ingresa una fecha u hora válida.');
+                    } else if (control.validity.rangeUnderflow || control.validity.rangeOverflow) {
+                        if (control.type === 'number') {
+                            control.setCustomValidity(control.min !== '' && control.max !== ''
+                                ? `Ingresa un valor entre ${control.min} y ${control.max}.`
+                                : `Ingresa un valor ${control.min !== '' ? `mayor o igual que ${control.min}` : `menor o igual que ${control.max}`}.`);
+                        } else {
+                            control.setCustomValidity(control.type === 'time'
+                                ? 'La hora de publicación no puede estar en el futuro.'
+                                : 'La fecha no puede estar en el futuro.');
+                        }
+                    }
+                });
+
+            if (tramiteActual === 'tercer-registro') {
+                elegidas.forEach((materia, indice) => {
+                    const primero = document.getElementById(`materia-${indice}-registro_1_anio`);
+                    const segundo = document.getElementById(`materia-${indice}-registro_2_anio`);
+                    if (primero.value !== '' && segundo.value !== '' && primero.checkValidity() && segundo.checkValidity()
+                        && Number(segundo.value) < Number(primero.value)) {
+                        segundo.setCustomValidity('El año del segundo registro no puede ser anterior al del primero.');
+                    }
+                });
+            }
+        }
+
+        function limpiarControl(control) {
+            if (!(control instanceof HTMLTextAreaElement ||
+                (control instanceof HTMLInputElement && ['text', 'email', 'tel'].includes(control.type))) ||
+                control.disabled || control.readOnly) return;
+
+            const limpio = control.value.trim();
+            if (limpio !== control.value) {
+                control.value = limpio;
+                // Mantiene también actualizados los datos de las materias y el borrador.
+                control.dispatchEvent(new Event('input', { bubbles: true }));
+            }
+        }
+
+        function limpiarTextos() {
+            document.querySelectorAll('#paso-1 input, #paso-2 input, #paso-2 textarea')
+                .forEach(limpiarControl);
+        }
+
+        function validarCambioSolicitado() {
+            if (!cambioSolicitado) return;
+            const controlDe = ruta => document.getElementById(
+                ruta.startsWith('campos.') ? `campo-${ruta.slice(7)}` : ruta);
+            const comparar = valor => valor.trim().replace(/\s+/gu, ' ').toLowerCase();
+            const destino = controlDe(cambioSolicitado.destino);
+            const valorDestino = comparar(destino.value);
+            const repetido = valorDestino !== '' && cambioSolicitado.actuales.some(ruta => {
+                const valorActual = comparar(controlDe(ruta).value);
+                return valorActual !== '' && valorActual === valorDestino;
+            });
+            destino.setCustomValidity(repetido ? cambioSolicitado.mensaje : '');
+        }
 
         // Borrador (RF-2.12): lo escrito se guarda en la sesión, uno por trámite.
         const borrador = @json($borrador);
@@ -941,16 +1029,6 @@
 
         const formularioDatos = document.getElementById('formulario-datos');
         const pasos = document.querySelectorAll('.pasos li');
-
-        // Fecha local: evita permitir fechas en el futuro.
-        const hoy = new Date();
-        document.querySelectorAll('[data-hasta-hoy]').forEach(campo => {
-            campo.max = [
-                hoy.getFullYear(),
-                String(hoy.getMonth() + 1).padStart(2, '0'),
-                String(hoy.getDate()).padStart(2, '0')
-            ].join('-');
-        });
 
         const titulosPaso = [
             'titulo-datos', 'titulo-tramite', 'titulo-respaldos', 'titulo-revisar'
@@ -983,8 +1061,9 @@
         formularioDatos.addEventListener('submit', evento => {
             evento.preventDefault();
 
-            const celular = document.getElementById('celular');
-            celular.value = celular.value.trim();
+            limpiarTextos();
+            validarCambioSolicitado();
+            validarFacultadYCarrera();
 
             if (formularioDatos.reportValidity()) {
                 mostrarPaso(2);
@@ -1063,17 +1142,28 @@
                     elegidas.splice(indice, 1);
                     pintarMaterias();
                     programarGuardado();
-                    document.getElementById('materia').focus();
+                    document.getElementById('agregar-materia').focus();
                 });
 
                 encabezado.append(titulo, quitar);
 
-                const datos = document.createElement('p');
-                datos.className = 'ayuda';
-                datos.textContent =
-                    `${materia.periodo} · Paralelo ${materia.paralelo} · ${materia.docente}`;
-
-                tarjeta.append(encabezado, datos);
+                tarjeta.append(encabezado);
+                titulo.textContent = materia.nombre ? `${materia.codigo} — ${materia.nombre}` : `Materia ${indice + 1}`;
+                const manuales = document.createElement('div');
+                manuales.className = 'campos';
+                Object.entries(camposMateriaManual).forEach(([clave, [etiqueta, limite]]) => {
+                    const campo = crearCampo({ etiqueta, tipo: 'texto', obligatorio: true, max_length: limite },
+                        `materia-${indice}-manual-${clave}`, `materias[${indice}][${clave}]`);
+                    const control = campo.querySelector('input');
+                    control.value = materia[clave] ?? '';
+                    control.addEventListener('input', () => {
+                        materia[clave] = control.value;
+                        titulo.textContent = materia.nombre ? `${materia.codigo} — ${materia.nombre}` : `Materia ${indice + 1}`;
+                        validarMateriasRepetidas();
+                    });
+                    manuales.append(campo);
+                });
+                tarjeta.append(manuales);
 
                 if (tramite.campos_materia.length) {
                     const campos = document.createElement('div');
@@ -1102,30 +1192,42 @@
             });
 
             const lleno = elegidas.length >= tramite.max_materias;
-            document.getElementById('materia').disabled = lleno;
             document.getElementById('agregar-materia').disabled = lleno;
+            validarMateriasRepetidas();
+            validarRangosYFechas();
+        }
+
+        function validarMateriasRepetidas() {
+            if (!errorMaterias) return;
+            const vistas = new Set();
+            let repetida = false;
+            elegidas.forEach((materia, indice) => {
+                const control = document.getElementById(`materia-${indice}-manual-codigo`);
+                if (!control) return;
+                control.setCustomValidity('');
+                const partes = ['codigo', 'periodo', 'paralelo'].map(clave =>
+                    (materia[clave] ?? '').trim().replace(/\s+/gu, ' ').toLowerCase());
+                if (partes.some(valor => valor === '')) return;
+                const clave = JSON.stringify(partes);
+                if (vistas.has(clave)) {
+                    control.setCustomValidity('Esta materia ya está agregada con el mismo periodo y paralelo.');
+                    repetida = true;
+                }
+                vistas.add(clave);
+            });
+            errorMaterias.textContent = repetida
+                ? 'Quita la materia repetida o revisa su código, periodo y paralelo.' : '';
         }
 
         if (tramite.max_materias > 0) {
             document.getElementById('agregar-materia')
                 .addEventListener('click', () => {
-                    const selector = document.getElementById('materia');
-                    const materia = materias.find(item => item.id === selector.value);
-
-                    if (!materia) {
-                        errorMaterias.textContent = 'Selecciona una materia para agregarla.';
-                        return;
-                    }
-
-                    if (elegidas.some(item => item.id === materia.id)) {
-                        errorMaterias.textContent = 'Esa materia ya está en tu solicitud.';
-                        return;
-                    }
-
-                    elegidas.push({ ...materia, datos: {} });
-                    selector.value = '';
+                    if (elegidas.length >= tramite.max_materias) return;
+                    const id = globalThis.crypto?.randomUUID?.() ?? `materia-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+                    elegidas.push({ id, codigo: '', nombre: '', periodo: '', paralelo: '', docente: '', datos: {} });
                     errorMaterias.textContent = '';
                     pintarMaterias();
+                    document.getElementById(`materia-${elegidas.length - 1}-manual-codigo`).focus();
                     programarGuardado();
                 });
         }
@@ -1146,6 +1248,7 @@
                     }
                 });
             });
+            validarRangosYFechas();
         }
 
         document.getElementById('campos-tramite')
@@ -1156,9 +1259,13 @@
         // Paso 2 → 3: valida materias y campos visibles del trámite.
         document.getElementById('continuar-respaldos')
             .addEventListener('click', () => {
+                limpiarTextos();
+                validarCambioSolicitado();
+                validarMateriasRepetidas();
+                validarRangosYFechas();
                 if (tramite.max_materias > 0 && elegidas.length === 0) {
                     errorMaterias.textContent = 'Agrega al menos una materia.';
-                    document.getElementById('materia').focus();
+                    document.getElementById('agregar-materia').focus();
                     return;
                 }
 
@@ -1483,17 +1590,7 @@
         }
 
         function pintarResumen() {
-            pintarLista('lista-datos', [
-                ['Nombres y apellidos', textoDe('nombre')],
-                ['Código estudiantil', textoDe('codigo')],
-                ['Cédula o pasaporte', textoDe('cedula')],
-                ['Facultad', textoDe('facultad')],
-                ['Carrera', textoDe('carrera')],
-                ['Modalidad', textoDe('modalidad')],
-                ['Periodo actual', textoDe('periodo')],
-                ['Correo institucional', textoDe('correo')],
-                ['Celular', textoDe('celular')]
-            ]);
+            pintarLista('lista-datos', Object.entries(camposPersonales).map(([clave, [etiqueta]]) => [etiqueta, textoDe(clave)]));
 
             const filasTramite = [];
 
@@ -1502,6 +1599,7 @@
                     elegidas.length === 1 ? 'Materia' : `Materia ${indice + 1}`,
                     `${materia.codigo} — ${materia.nombre}`
                 ]);
+                filasTramite.push([`Periodo, paralelo y docente (${materia.codigo})`, `${materia.periodo} · ${materia.paralelo} · ${materia.docente}`]);
 
                 tramite.campos_materia.forEach(definicion => {
                     filasTramite.push([
@@ -1550,11 +1648,35 @@
                 evento.target.value === 'pdf' ? 'Descargar documento PDF' : 'Descargar documento Word';
         });
 
+        function validarAntesDeConfirmar() {
+            limpiarTextos();
+            validarCambioSolicitado();
+            validarFacultadYCarrera();
+            validarMateriasRepetidas();
+            validarRangosYFechas();
+            for (const numero of [1, 2]) {
+                if (numero === 2 && tramite.max_materias > 0 && elegidas.length === 0) {
+                    mostrarPaso(2);
+                    errorMaterias.textContent = 'Agrega al menos una materia.';
+                    document.getElementById('agregar-materia').focus();
+                    return false;
+                }
+                for (const control of document.querySelectorAll(`#paso-${numero} input, #paso-${numero} select, #paso-${numero} textarea`)) {
+                    if (!control.disabled && !control.checkValidity()) {
+                        mostrarPaso(numero);
+                        control.reportValidity();
+                        return false;
+                    }
+                }
+            }
+            return true;
+        }
+
         document.getElementById('confirmar-solicitud')
             .addEventListener('click', async () => {
                 const declaracion = document.getElementById('declaracion');
 
-                if (!declaracion.reportValidity()) return;
+                if (!validarAntesDeConfirmar() || !declaracion.reportValidity()) return;
 
                 {
                     const boton = document.getElementById('confirmar-solicitud');
@@ -1577,6 +1699,7 @@
                             const error = await respuesta.json();
                             throw new Error(Object.values(error.errors || {}).flat().join(' ') || error.message || 'No se pudo generar el documento.');
                         }
+                        versionDocumento = respuesta.headers.get('X-Documento-Version');
                         const url = URL.createObjectURL(await respuesta.blob());
                         const enlace = document.createElement('a');
                         enlace.href = url;
@@ -1592,7 +1715,7 @@
                             mensaje.textContent = 'PDF descargado. Revísalo, imprímelo, fírmalo y sube el PDF firmado. Descargar no envía la solicitud.';
                             return;
                         }
-                        mensaje.textContent = 'Word descargado con datos de demostración. Ábrelo en Microsoft Word y usa Archivo → Exportar → Crear PDF. Imprímelo, fírmalo y sube abajo el PDF firmado. La solicitud todavía no se guarda ni se envía.';
+                        mensaje.textContent = 'Word descargado con los datos que completaste. Revísalo, conviértelo a PDF, imprímelo, fírmalo y sube abajo el PDF firmado. La solicitud todavía no se envía.';
                     } catch (error) {
                         mensaje.textContent = error.message;
                     } finally {
@@ -1608,13 +1731,17 @@
         const estadoFirmado = document.getElementById('estado-firmado');
         const errorFirmado = document.getElementById('error-firmado');
         let firmado = @json($firmado);
+        let versionDocumento = @json($versionDocumento);
+        let enviandoSolicitud = false;
+        let solicitudEnviada = false;
 
         function pintarFirmado() {
             const fila = document.getElementById('firmado-subido');
 
             fila.hidden = firmado === null;
             document.getElementById('recibido-firmado').hidden = firmado === null;
-            document.getElementById('enviar-solicitud').disabled = !@json($envioDisponible) || firmado === null;
+            document.getElementById('enviar-solicitud').disabled = !@json($envioDisponible) || firmado === null
+                || versionDocumento === null || enviandoSolicitud || solicitudEnviada;
 
             if (firmado) {
                 fila.querySelector('.archivo-nombre').textContent = firmado.nombre_original;
@@ -1689,20 +1816,28 @@
             const boton = document.getElementById('enviar-solicitud');
             const mensaje = document.getElementById('mensaje-envio');
             const declaracion = document.getElementById('declaracion');
-            if (!declaracion.reportValidity()) return;
+            if (boton.disabled || enviandoSolicitud || solicitudEnviada) return;
+            if (!validarAntesDeConfirmar() || !declaracion.reportValidity()) return;
+            const datosEnvio = {...datosBorrador(), tramite: @json($codigoTramite),
+                clave_envio: versionDocumento, declaracion: declaracion.checked};
+            cancelarGuardado();
+            enviandoSolicitud = true;
             boton.disabled = true;
             mensaje.textContent = 'Guardando el expediente y enviando a revisión…';
             try {
                 const respuesta = await enCola(() => fetch(@json(route('solicitudes.enviar')), {
                     method: 'POST',
                     headers: {'Content-Type': 'application/json', 'Accept': 'application/json', 'X-CSRF-TOKEN': @json(csrf_token())},
-                    body: JSON.stringify({...datosBorrador(), tramite: @json($codigoTramite), nombre: textoDe('nombre'), codigo: textoDe('codigo'), carrera: textoDe('carrera'), correo: textoDe('correo'), declaracion: declaracion.checked})
+                    body: JSON.stringify(datosEnvio)
                 }));
                 const resultado = await respuesta.json();
                 if (!respuesta.ok) throw new Error(Object.values(resultado.errors || {}).flat().join(' ') || resultado.message);
+                solicitudEnviada = true;
                 window.location.assign(resultado.url);
             } catch (error) {
                 mensaje.textContent = error.message || 'No se pudo enviar. Tus datos permanecen guardados.';
+            } finally {
+                enviandoSolicitud = false;
                 pintarFirmado();
             }
         });
@@ -1724,7 +1859,7 @@
 
             tramite.campos.forEach(definicion => {
                 campos[definicion.nombre] =
-                    document.getElementById(`campo-${definicion.nombre}`).value;
+                    document.getElementById(`campo-${definicion.nombre}`).value.trim();
             });
 
             archivos.forEach(item => {
@@ -1732,10 +1867,12 @@
             });
 
             return {
+                ...Object.fromEntries(Object.keys(camposPersonales).map(clave => [clave, textoDe(clave)])),
                 paso: pasoActual,
-                ...Object.fromEntries(['nombre', 'codigo', 'cedula', 'facultad', 'carrera', 'modalidad', 'periodo', 'correo'].map(id => [id, textoDe(id)])),
-                celular: document.getElementById('celular').value,
-                materias: elegidas.map(materia => ({ id: materia.id, datos: materia.datos })),
+                materias: elegidas.map(materia => ({ id: materia.id,
+                    ...Object.fromEntries(Object.keys(camposMateriaManual).map(clave => [clave, (materia[clave] ?? '').trim()])),
+                    datos: Object.fromEntries(Object.entries(materia.datos).map(([clave, valor]) =>
+                        [clave, typeof valor === 'string' ? valor.trim() : valor])) })),
                 campos,
                 requisitos
             };
@@ -1798,6 +1935,14 @@
         }
 
         const contenido = document.querySelector('.distribucion');
+        contenido.addEventListener('input', validarCambioSolicitado);
+        contenido.addEventListener('change', validarCambioSolicitado);
+        contenido.addEventListener('input', validarRangosYFechas);
+        contenido.addEventListener('change', validarRangosYFechas);
+        contenido.addEventListener('focusout', evento => {
+            limpiarControl(evento.target);
+            validarCambioSolicitado();
+        });
         contenido.addEventListener('input', programarGuardado);
         contenido.addEventListener('change', programarGuardado);
 
@@ -1830,6 +1975,7 @@
 
             cancelarGuardado();
             formularioDatos.reset();
+            actualizarCarreras();
             document.getElementById('declaracion').checked = false;
             document.querySelectorAll(
                 '#campos-tramite input, #campos-tramite select, #campos-tramite textarea'
@@ -1839,6 +1985,7 @@
             actualizarCondicionales();
 
             elegidas.length = 0;
+            validarCambioSolicitado();
             archivos.length = 0;
 
             if (tramite.max_materias > 0) {
@@ -1850,6 +1997,7 @@
             pintarArchivos();
 
             firmado = null;
+            versionDocumento = null;
             errorFirmado.textContent = '';
             bloqueFirmado.hidden = true;
             pintarFirmado();
@@ -1861,14 +2009,23 @@
         });
 
         if (borrador) {
-            ['nombre', 'codigo', 'cedula', 'facultad', 'carrera', 'modalidad', 'periodo', 'correo'].forEach(id => {
-                document.getElementById(id).value = borrador[id] ?? '';
+            Object.keys(camposPersonales).forEach(clave => {
+                const control = document.getElementById(clave);
+                if (clave === 'carrera') {
+                    actualizarCarreras(borrador[clave] ?? '');
+                } else if (!control.readOnly) {
+                    const valor = borrador[clave] ?? '';
+                    if (clave === 'facultad' && valor && !Object.hasOwn(catalogoFacultades, valor)) {
+                        const anterior = new Option(`Revisa la facultad guardada: ${valor}`, valor);
+                        anterior.disabled = true;
+                        control.append(anterior);
+                    }
+                    control.value = valor;
+                }
             });
-            document.getElementById('celular').value = borrador.celular ?? '';
-            document.getElementById('confirmar-datos').checked = borrador.paso > 1;
 
             tramite.campos.forEach(definicion => {
-                let valorGuardado = borrador.campos[definicion.nombre] ?? '';
+                let valorGuardado = borrador.campos?.[definicion.nombre] ?? '';
                 if (definicion.tipo === 'lista' && definicion.opciones['sí']) {
                     const normalizado = valorGuardado.trim().toLowerCase();
                     if (normalizado === 'si' || normalizado === 'sí') valorGuardado = 'sí';
@@ -1879,12 +2036,8 @@
             });
             actualizarCondicionales();
 
-            borrador.materias.forEach(guardada => {
-                const materia = materias.find(item => item.id === guardada.id);
-
-                if (materia) {
-                    elegidas.push({ ...materia, datos: { ...guardada.datos } });
-                }
+            (borrador.materias ?? []).slice(0, tramite.max_materias).forEach(guardada => {
+                elegidas.push({ ...guardada, datos: { ...guardada.datos } });
             });
 
             if (tramite.max_materias > 0) {
@@ -1892,17 +2045,16 @@
             }
 
             // El paso 4 se vuelve a armar al pasar por la validación del paso 3.
-            pasoActual = Math.min(borrador.paso, 3);
-
-            if (pasoActual > 1) {
-                mostrarPaso(pasoActual);
-            }
+            // En cada visita se revisan y confirman los datos personales recuperados.
+            pasoActual = 1;
 
             estadoBorrador.textContent =
                 `Recuperamos tu borrador, guardado ${cuandoSeGuardo(borrador.guardado_at)}.`;
             botonDescartar.hidden = false;
         }
 
+        validarCambioSolicitado();
+        validarRangosYFechas();
         pintarArchivos();
     </script>
     @include('estudiante.partials.chatbot-flotante')

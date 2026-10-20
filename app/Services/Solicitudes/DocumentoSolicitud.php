@@ -108,7 +108,7 @@ class DocumentoSolicitud
             $reemplazos = [
                 '[Nombres y Apellidos]' => $datos['nombre'], '[NOMBRES Y APELLIDOS]' => $datos['nombre'],
                 '[código estudiantil]' => 'código estudiantil '.$datos['codigo'],
-                '[XXXXXXXXXX]' => $campos['cedula'] ?? '',
+                '[XXXXXXXXXX]' => $datos['cedula'] ?? $campos['cedula'] ?? '',
                 'XXXXXXXXXX' => str_contains($texto, 'Celular:') ? $datos['celular'] : $datos['codigo'],
                 '[CARRERA]' => $datos['carrera'], '[XXXXXXXXX]' => $campos['institucion'] ?? '',
                 '[XXXXXXXX]' => $campos['carrera_destino'] ?? '',
@@ -197,10 +197,16 @@ class DocumentoSolicitud
         }
         if ($ancla) {
             $lineas = [];
+            foreach (['cedula', 'facultad', 'modalidad', 'periodo'] as $campoPersonal) {
+                if (filled($datos[$campoPersonal] ?? null)) {
+                    $lineas[] = DatosFormularioSolicitud::PERSONALES[$campoPersonal][0].': '.$datos[$campoPersonal];
+                }
+            }
             if ($codigo === 'homologacion') {
                 $lineas[] = 'Código estudiantil: '.$datos['codigo'];
             }
             foreach ($materias as $m) {
+                $lineas[] = $m['codigo'].' — Periodo: '.$m['periodo'].'; paralelo: '.$m['paralelo'].'; docente: '.$m['docente'];
                 $contenido = $xml->textContent;
                 foreach ($this->valores as $clave => $valor) {
                     $contenido = str_replace('${'.$clave.'}', $valor, $contenido);
@@ -249,8 +255,10 @@ class DocumentoSolicitud
             $p->parentNode->removeChild($p);
         }
         $firma = false;
+        $marcadores = [];
+        foreach ($this->valores as $nombre => $valor) $marcadores['${'.$nombre.'}'] = $valor;
         foreach ($xp->query('//w:body/w:p') as $p) {
-            $texto = $this->texto($xp, $p);
+            $texto = strtr($this->texto($xp, $p), $marcadores);
             if (str_starts_with(trim($texto), 'Dr.') || str_contains($texto, 'Correo Institucional:')) {
                 $pr = $xp->query('./w:pPr', $p)->item(0);
                 if (! $pr) {
@@ -271,6 +279,14 @@ class DocumentoSolicitud
                 $propiedades = $xml->createElementNS(self::NS, 'w:pPr');
                 $p->insertBefore($propiedades, $p->firstChild);
             }
+            // Evita enviar solo la firma/contacto a otra página por espaciados heredados.
+            $espaciado = $xp->query('./w:spacing', $propiedades)->item(0);
+            if (! $espaciado) {
+                $espaciado = $xml->createElementNS(self::NS, 'w:spacing');
+                $propiedades->appendChild($espaciado);
+            }
+            $espaciado->setAttributeNS(self::NS, 'w:before', '0');
+            $espaciado->setAttributeNS(self::NS, 'w:after', '80');
             if (! str_contains($texto, 'Celular:') && ! $xp->query('./w:keepNext', $propiedades)->length) {
                 $propiedades->appendChild($xml->createElementNS(self::NS, 'w:keepNext'));
             }

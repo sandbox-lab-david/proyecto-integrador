@@ -8,6 +8,7 @@ use App\Services\Archivos\RespaldosTemporales;
 use App\Services\Solicitudes\BorradoresTemporales;
 use App\Services\Solicitudes\TramitesSimulados;
 use App\Services\Solicitudes\DocumentosTemporales;
+use App\Services\Solicitudes\DatosFormularioSolicitud;
 use Illuminate\Http\JsonResponse;
 use App\Http\Requests\Estudiante\GuardarBorradorRequest;
 use Illuminate\Http\Response;
@@ -37,10 +38,10 @@ class BorradorTemporalController extends Controller
 
         $camposMateria = array_column($definicion['campos_materia'], 'nombre');
 
-        $borrador = $this->borradores->guardar($tramite, [
+        $borrador = $this->borradores->guardar($tramite, Arr::only($datos, array_keys(DatosFormularioSolicitud::PERSONALES)) + [
             'paso' => (int) $datos['paso'],
             'celular' => $datos['celular'] ?? null,
-            'materias' => array_map(fn (array $materia) => [
+            'materias' => array_map(fn (array $materia) => Arr::only($materia, array_keys(DatosFormularioSolicitud::MATERIA)) + [
                 'id' => $materia['id'],
                 'datos' => Arr::only($materia['datos'] ?? [], $camposMateria),
             ], array_values($datos['materias'] ?? [])),

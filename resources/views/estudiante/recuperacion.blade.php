@@ -751,8 +751,8 @@
                 </div>
 
                 <p class="nota">
-                    Puedes consultar el primer paso del formulario de
-                    demostración.
+                    Completa tus datos y los de la materia en el formulario.
+                    Puedes consultar tus dudas en el chatbot.
                 </p>
             </aside>
         </div>

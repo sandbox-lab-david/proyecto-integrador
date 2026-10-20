@@ -153,7 +153,7 @@
 
             </div>
 
-            <p class="nota">El formulario está disponible con datos de demostración.</p>
+            <p class="nota">Completa tus datos y los de tus materias en el formulario. Puedes consultar tus dudas en el chatbot.</p>
         </aside>
 </div>
     </main>

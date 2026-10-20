@@ -5,8 +5,11 @@ namespace App\Http\Requests\Estudiante;
 use App\Services\Solicitudes\TramitesSimulados;
 use App\Services\Solicitudes\DocumentoSolicitud;
 use App\Services\Solicitudes\ReglasCampoSolicitud;
+use App\Services\Solicitudes\DatosFormularioSolicitud;
+use App\Services\Solicitudes\CatalogoFacultades;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\Validator;
 
 class GenerarDocumentoRequest extends FormRequest
 {
@@ -40,11 +43,14 @@ class GenerarDocumentoRequest extends FormRequest
             ],
 
             'materias' => ['present', 'array', 'min:'.(($definicion['max_materias'] ?? 0) > 0 ? 1 : 0), 'max:'.($definicion['max_materias'] ?? 0)],
-            'materias.*.id' => ['required', 'distinct', Rule::in(array_column($tramites->materias(), 'id'))],
             'materias.*.datos' => ['present', 'array'],
             'campos' => ['present', 'array'],
             'declaracion' => ['required', 'accepted'],
         ];
+        $reglas = array_replace($reglas, DatosFormularioSolicitud::reglas(false));
+        foreach (CatalogoFacultades::restricciones($this->input('facultad')) as $campo => $regla) {
+            $reglas[$campo][] = $regla;
+        }
         foreach (['campos' => 'campos', 'campos_materia' => 'materias.*.datos'] as $grupo => $prefijo) {
             $campos = $definicion[$grupo] ?? [];
             $reglas[$prefijo] = ['present', 'array'.($campos ? ':'.implode(',', array_column($campos, 'nombre')) : '')];
@@ -61,14 +67,28 @@ class GenerarDocumentoRequest extends FormRequest
         return $reglas;
     }
 
+    protected function prepareForValidation(): void
+    {
+        $this->merge(DatosFormularioSolicitud::limpiarEntrada($this->all()));
+        $this->merge(CatalogoFacultades::normalizar($this->all()));
+        // La identidad procede de la sesión, aunque se manipule el formulario en el navegador.
+        $this->merge(DatosFormularioSolicitud::cuenta($this->user()));
+    }
+
+    public function withValidator(Validator $validador): void
+    {
+        $validador->after(function (Validator $resultado): void {
+            DatosFormularioSolicitud::validarMateriasUnicas($resultado);
+            DatosFormularioSolicitud::validarCambio($resultado, (string) $this->input('tramite'));
+            ReglasCampoSolicitud::validarCronologia($resultado, (string) $this->input('tramite'));
+        });
+    }
+
     public function messages(): array
     {
-        return [
+        return array_replace(DatosFormularioSolicitud::mensajes(), [
             'required' => 'El campo :attribute es obligatorio.',
             'string' => 'El campo :attribute debe enviarse como texto.',
-            'max.string' => 'El campo :attribute no debe superar :max caracteres.',
-            'max.numeric' => 'El campo :attribute no debe ser mayor que :max.',
-            'max.array' => 'El campo :attribute admite como máximo :max elementos.',
             'integer' => 'El campo :attribute debe ser un número entero.',
             'numeric' => 'El campo :attribute debe ser numérico.',
             'date_format' => 'El campo :attribute debe tener el formato :format.',
@@ -76,19 +96,16 @@ class GenerarDocumentoRequest extends FormRequest
             'correo.email' => 'Ingresa un correo electrónico válido.',
 
             'celular.required' => 'Ingresa tu número de celular.',
-            'celular.max' => 'El celular admite como máximo 20 dígitos.',
-            'celular.regex' => 'El celular solo debe contener números.',
 
-            'materia_id.required' => 'Selecciona una materia.',
-            'materia_id.in' => 'Selecciona una materia del catálogo de prueba.',
+            'materias.*.id.distinct' => 'Hay una materia repetida en la solicitud.',
 
             'tramite.in' => 'Selecciona un trámite válido para generar su documento.',
-        ];
+        ]);
     }
 
     public function attributes(): array
     {
-        return [
+        $atributos = [
             'tramite' => 'trámite',
             'nombre' => 'nombre',
             'codigo' => 'código estudiantil',
@@ -97,5 +114,9 @@ class GenerarDocumentoRequest extends FormRequest
             'celular' => 'celular',
             'materia_id' => 'materia',
         ];
+        foreach (DatosFormularioSolicitud::PERSONALES as $campo => [$etiqueta]) $atributos[$campo] = mb_strtolower($etiqueta);
+        foreach (DatosFormularioSolicitud::MATERIA as $campo => [$etiqueta]) $atributos['materias.*.'.$campo] = mb_strtolower($etiqueta);
+        return $atributos + ReglasCampoSolicitud::atributos(
+            app(TramitesSimulados::class)->buscar((string) $this->input('tramite')) ?? []);
     }
 }

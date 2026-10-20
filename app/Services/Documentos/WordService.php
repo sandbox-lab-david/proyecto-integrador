@@ -7,6 +7,7 @@ use Illuminate\Support\Str;
 use PhpOffice\PhpWord\TemplateProcessor;
 use PhpOffice\PhpWord\Settings;
 use RuntimeException;
+use Symfony\Component\Process\ExecutableFinder;
 use Symfony\Component\Process\Process;
 
 class WordService
@@ -34,11 +35,7 @@ class WordService
 
     public function convertirAPdf(string $rutaDocx): string
     {
-        $binario = PHP_OS_FAMILY === 'Windows'
-            ? 'C:/Program Files/LibreOffice/program/soffice.com' : '/usr/bin/libreoffice';
-        if (! is_file($binario)) {
-            throw new RuntimeException('Instala LibreOffice en el servidor para generar el PDF. Puedes seguir descargando el Word.');
-        }
+        $binario = $this->buscarLibreOffice();
         $carpeta = sys_get_temp_dir().DIRECTORY_SEPARATOR.'uees-pdf-'.Str::uuid();
         File::ensureDirectoryExists($carpeta);
         try {
@@ -48,7 +45,18 @@ class WordService
                 fn ($segmento) => str_replace('%3A', ':', rawurlencode($segmento)),
                 explode('/', $rutaPerfil),
             ));
-            $proceso = new Process([$binario, '-env:UserInstallation='.$perfil, '--headless', '--convert-to', 'pdf', '--outdir', $carpeta, $carpeta.'/documento.docx']);
+            // El servidor web no siempre transmite a los procesos las rutas de Windows.
+            // LibreOffice necesita un directorio temporal escribible también desde HTTP.
+            $entorno = PHP_OS_FAMILY === 'Windows'
+                ? ['TEMP' => $carpeta, 'TMP' => $carpeta]
+                : ['TMPDIR' => $carpeta];
+            if (PHP_OS_FAMILY === 'Windows') {
+                foreach (['SystemRoot', 'WINDIR', 'USERPROFILE', 'APPDATA', 'LOCALAPPDATA', 'PROGRAMDATA', 'PATH', 'PATHEXT', 'COMSPEC'] as $variable) {
+                    $valor = getenv($variable);
+                    if (is_string($valor) && $valor !== '') $entorno[$variable] = $valor;
+                }
+            }
+            $proceso = new Process([$binario, '-env:UserInstallation='.$perfil, '--headless', '--convert-to', 'pdf', '--outdir', $carpeta, $carpeta.'/documento.docx'], null, $entorno);
             $proceso->setTimeout(60);
             $proceso->mustRun();
             $ruta = $carpeta.'/documento.pdf';
@@ -60,7 +68,26 @@ class WordService
             return $ruta;
         } catch (\Throwable $error) {
             File::deleteDirectory($carpeta);
-            throw new RuntimeException('No se pudo generar el PDF: '.$error->getMessage(), 0, $error);
+            throw new RuntimeException('No se pudo generar el PDF. Inténtalo de nuevo o descarga el documento Word.', 0, $error);
         }
+    }
+
+    private function buscarLibreOffice(): string
+    {
+        $buscador = new ExecutableFinder;
+        $candidatos = PHP_OS_FAMILY === 'Windows'
+            ? [
+                (getenv('ProgramFiles') ?: 'C:/Program Files').'/LibreOffice/program/soffice.com',
+                (getenv('ProgramFiles(x86)') ?: 'C:/Program Files (x86)').'/LibreOffice/program/soffice.com',
+                getenv('LOCALAPPDATA') ? getenv('LOCALAPPDATA').'/Programs/LibreOffice/program/soffice.com' : null,
+                $buscador->find('soffice.com'),
+            ]
+            : [$buscador->find('libreoffice'), $buscador->find('soffice'), '/usr/bin/libreoffice'];
+
+        foreach ($candidatos as $candidato) {
+            if (is_string($candidato) && is_file($candidato)) return $candidato;
+        }
+
+        throw new RuntimeException('La descarga PDF no está disponible en este momento. Puedes descargar el Word y guardarlo como PDF.');
     }
 }

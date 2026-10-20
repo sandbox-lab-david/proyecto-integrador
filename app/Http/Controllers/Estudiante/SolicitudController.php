@@ -15,6 +15,8 @@ use App\Services\Solicitudes\DocumentoSolicitud;
 use App\Services\Solicitudes\DocumentosTemporales;
 use App\Services\Solicitudes\IntegracionEnvio;
 use App\Services\Solicitudes\EnvioSolicitud;
+use App\Services\Solicitudes\DatosFormularioSolicitud;
+use App\Services\Solicitudes\CatalogoFacultades;
 use App\Http\Requests\Estudiante\EnviarSolicitudRequest;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
@@ -29,8 +31,6 @@ class SolicitudController extends Controller
         }
         abort_unless($request->user(), 401, 'Inicia sesión para enviar una solicitud.');
         $datos = $request->validated();
-        $datos['materias'] = array_map(fn ($materia) =>
-            collect($catalogo->materias())->firstWhere('id', $materia['id']) + ['datos' => $materia['datos']], $datos['materias']);
         $solicitud = $envio->enviar($request->user(), $datos);
         return response()->json(['codigo' => $solicitud->codigo, 'url' => route('solicitudes.index')], 201);
     }
@@ -78,9 +78,6 @@ class SolicitudController extends Controller
     ) {
         $datos = $request->validated();
 
-        $datos['materias'] = array_map(fn ($materia) =>
-            collect($tramites->materias())->firstWhere('id', $materia['id'])
-                + ['datos' => $materia['datos']], $datos['materias']);
 
         try {
             $documento = $documentos->generarWord($datos);
@@ -117,6 +114,7 @@ class SolicitudController extends Controller
             'Content-Disposition' => 'attachment; filename="solicitud-'.$datos['tramite'].'.'.$formato.'"',
             'Cache-Control' => 'private, no-store',
             'X-Firmado-Conservado' => $firmados->buscar($datos['tramite']) ? '1' : '0',
+            'X-Documento-Version' => $temporales->buscar($datos['tramite'])['version'],
         ]);
     }
 
@@ -126,6 +124,7 @@ class SolicitudController extends Controller
         RespaldosTemporales $respaldos,
         BorradoresTemporales $borradores,
         FirmadosTemporales $firmados,
+        DocumentosTemporales $temporales,
     ): View {
         $codigoTramite = (string) (
             $request->route('tramite') ?? $request->query('tramite')
@@ -138,10 +137,14 @@ class SolicitudController extends Controller
         return view('estudiante.formulario-solicitud', [
             'codigoTramite' => $codigoTramite,
             'tramite' => $tramite,
-            'materias' => $tramites->materias(),
+            'datosCuenta' => DatosFormularioSolicitud::cuenta($request->user()),
+            'camposPersonales' => DatosFormularioSolicitud::PERSONALES,
+            'camposMateriaManual' => DatosFormularioSolicitud::MATERIA,
+            'catalogoFacultades' => CatalogoFacultades::todas(),
             'respaldosSubidos' => $respaldos->delTramite($codigoTramite),
-            'borrador' => $borradores->buscar($codigoTramite),
+            'borrador' => ($borrador = $borradores->buscar($codigoTramite)) ? CatalogoFacultades::normalizar($borrador) : null,
             'firmado' => $firmados->delTramite($codigoTramite),
+            'versionDocumento' => $temporales->buscar($codigoTramite)['version'] ?? null,
             'envioDisponible' => app()->bound(IntegracionEnvio::class) && $request->user() !== null,
         ]);
     }

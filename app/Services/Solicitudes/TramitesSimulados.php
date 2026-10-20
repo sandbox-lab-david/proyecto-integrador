@@ -3,11 +3,10 @@
 namespace App\Services\Solicitudes;
 
 /**
- * Datos de prueba del formulario de solicitudes.
+ * Definiciones de trámites mientras se integra el catálogo del Módulo 4.
  *
- * Reemplaza temporalmente a TramiteCatalogoService (G4) y a
- * CatalogoAcademicoService (G1). Cuando esos servicios existan,
- * el controlador los usará y esta clase se podrá borrar.
+ * Los formularios reciben datos personales y materias escritos por el estudiante.
+ * No utilizan el catálogo académico ni necesitan importar datos del SIAC.
  */
 class TramitesSimulados
 {
@@ -81,7 +80,7 @@ class TramitesSimulados
             'cambio-malla' => ['Cambio de malla / pénsum', 0, [$campo('pensum_actual', 'Pénsum actual'), $campo('malla_destino', 'Malla de destino'), $campo('motivo', 'Motivo', false, 'texto_largo')]],
             'cambio-modalidad' => ['Cambio de modalidad', 0, [$campo('modalidad_actual', 'Modalidad actual'), $campo('modalidad_destino', 'Modalidad solicitada'), $campo('carrera_destino', 'Carrera de destino', false), $motivo]],
             'suficiencia' => ['Examen de suficiencia', 10, [$campo('tipo_respaldo', 'Tipo de respaldo'), $campo('fundamento', 'Fundamento', true, 'texto_largo')]],
-            'homologacion' => ['Homologación', 10, [$campo('cedula', 'Cédula de identidad'), $campo('institucion', 'Institución de procedencia'), $campo('carrera_destino', 'Carrera de destino'), $campo('informacion', 'Información adicional', false, 'texto_largo')]],
+            'homologacion' => ['Homologación', 10, [$campo('institucion', 'Institución de procedencia'), $campo('carrera_destino', 'Carrera de destino'), $campo('informacion', 'Información adicional', false, 'texto_largo')]],
             'incompleto' => ['Incompleto', 10, [$campo('tipo_causa', 'Tipo de causa'), $campo('detalle', 'Detalle de la causa', true, 'texto_largo')]],
             'person-to-person' => ['Person to Person', 10, [$campo('motivo', 'Motivo', false, 'texto_largo')]],
             'recalificacion' => ['Recalificación de examen', 10, [$campo('evaluacion', 'Evaluación'), $campo('publicacion_fecha', 'Fecha de publicación de la nota', true, 'fecha'), $campo('publicacion_hora', 'Hora de publicación de la nota', true, 'hora'), $campo('reclamo', 'Puntos del reclamo', true, 'texto_largo')]],
@@ -98,7 +97,7 @@ class TramitesSimulados
             $porMateria = [];
             if ($codigo === 'tercer-registro') {
                 foreach ([1, 2] as $registro) {
-                    $porMateria[] = array_replace($anio('registro_'.$registro.'_anio', 'Año del registro '.$registro), ['max' => now()->year, 'ayuda' => 'Declara el año del registro anterior.']);
+                    $porMateria[] = array_replace($anio('registro_'.$registro.'_anio', 'Año del registro '.$registro), ['max' => now(ReglasCampoSolicitud::zonaHoraria())->year, 'ayuda' => 'Declara el año del registro anterior.']);
                     $porMateria[] = $campo('registro_'.$registro.'_periodo', 'Periodo del registro '.$registro) + ['max_length' => 50];
                     $porMateria[] = $campo('registro_'.$registro.'_nota', 'Nota del registro '.$registro, true, 'numero') + ['min' => 0, 'max' => 100];
                 }
@@ -134,6 +133,7 @@ class TramitesSimulados
         return $resultado;
     }
 
+    /** Datos de ejemplo conservados para las pruebas antiguas; no se sirven al formulario. */
     public function materias(): array
     {
         return [
@@ -177,7 +177,7 @@ class TramitesSimulados
             'recuperacion' => [
                 'nombre' => 'examen de recuperación',
                 'ficha' => 'estudiante.tramites.recuperacion',
-                'instrucciones' => 'Selecciona la materia y declara tus datos académicos. '
+                'instrucciones' => 'Escribe los datos de la materia y declara tus datos académicos. '
                     .'La asistente verificará la información durante la revisión.',
                 'aviso' => 'Recuperación admite una sola materia por solicitud. '
                     .'La selección y los datos declarados no representan '
@@ -261,7 +261,7 @@ class TramitesSimulados
             'gracia' => [
                 'nombre' => 'examen de gracia',
                 'ficha' => 'estudiante.tramites.gracia',
-                'instrucciones' => 'Selecciona las materias y explica el motivo de tu solicitud.',
+                'instrucciones' => 'Escribe los datos de las materias y explica el motivo de tu solicitud.',
                 'max_materias' => 10,
                 'campos_materia' => [
                     [
@@ -301,7 +301,7 @@ class TramitesSimulados
             'supletorio' => [
                 'nombre' => 'examen supletorio',
                 'ficha' => 'estudiante.tramites.supletorio',
-                'instrucciones' => 'Selecciona las materias, el parcial que no rendiste '
+                'instrucciones' => 'Escribe los datos de las materias, elige el parcial que no rendiste '
                     .'y la circunstancia que te impidió presentarlo.',
                 'max_materias' => 10,
                 'campos_materia' => [],

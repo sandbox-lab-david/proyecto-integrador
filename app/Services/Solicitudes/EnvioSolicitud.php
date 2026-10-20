@@ -28,6 +28,62 @@ class EnvioSolicitud
 
     public function enviar(User $usuario, array $datos): Solicitud
     {
+        $clave = $datos['clave_envio'] ?? null;
+        if (! is_string($clave) || ! Str::isUuid($clave)) {
+            throw ValidationException::withMessages(['clave_envio' => 'Descarga el documento antes de enviar la solicitud.']);
+        }
+
+        $carpeta = 'expedientes/'.Str::uuid();
+        try {
+            $solicitud = DB::transaction(function () use ($usuario, $datos, $clave, $carpeta) {
+                // Serializa los envíos del mismo usuario antes de comprobar el duplicado.
+                // La consulta y el expediente se confirman en la misma transacción.
+                User::query()->whereKey($usuario->getKey())->lockForUpdate()->firstOrFail();
+                $previa = Solicitud::where('detalle->envio_usuario_id', $usuario->getKey())
+                    ->where('detalle->documento_version', $clave)->first();
+                if ($previa) {
+                    if (! hash_equals($this->huellaEnvio($previa->detalle), $this->huellaEnvio($datos))) {
+                        throw ValidationException::withMessages(['clave_envio' => 'Este envío ya se realizó con otros datos. Inicia una nueva solicitud para hacer otro envío.']);
+                    }
+                    return $previa;
+                }
+
+                $documento = $this->documentos->buscar($datos['tramite']);
+                if (($documento['version'] ?? null) !== $clave) {
+                    throw ValidationException::withMessages(['clave_envio' => 'El documento cambió. Descarga la versión actual y sube su PDF firmado.']);
+                }
+                $datos['envio_usuario_id'] = $usuario->getKey();
+                return $this->crearExpediente($usuario, $datos, $carpeta);
+            }, 5);
+        } catch (\Throwable $error) {
+            Storage::disk(ArchivoService::DISCO)->deleteDirectory($carpeta);
+            throw $error;
+        }
+
+        // Se limpian solo después del commit, sin borrar una versión nueva del formulario.
+        $tramite = $datos['tramite'];
+        if (($this->documentos->buscar($tramite)['version'] ?? null) === $clave) {
+            try {
+                foreach ($this->respaldos->delTramite($tramite) as $archivo) $this->respaldos->quitar($archivo['id']);
+                $this->firmados->quitar($tramite);
+                $this->documentos->quitar($tramite);
+                $this->borradores->descartar($tramite);
+            } catch (\Throwable $error) {
+                report($error);
+            }
+        }
+        return $solicitud;
+    }
+
+    private function huellaEnvio(array $datos): string
+    {
+        $requisitos = $datos['requisitos'] ?? [];
+        ksort($requisitos);
+        return hash('sha256', $this->documentos->huella($datos).'|'.json_encode($requisitos, JSON_THROW_ON_ERROR));
+    }
+
+    private function crearExpediente(User $usuario, array $datos, string $carpeta): Solicitud
+    {
         $tramite = $datos['tramite'];
         $documento = $this->documentos->buscar($tramite);
         $firmado = $this->firmados->buscar($tramite);
@@ -63,17 +119,8 @@ class EnvioSolicitud
                 throw new RuntimeException('La integración no devolvió un contexto académico válido.');
             }
         }
-        foreach ($datos['materias'] as $materia) {
-            if (! isset($contexto['cursos'][$materia['id']])) {
-                throw ValidationException::withMessages(['materias' => 'No se pudo vincular una materia con su curso real.']);
-            }
-        }
         $datos['documento_version'] = $documento['version'];
-        $previa = Solicitud::where('carrera_estudiante_id', $contexto['carrera_estudiante_id'])
-            ->where('detalle->documento_version', $documento['version'])->first();
-        if ($previa) return $previa;
         $disco = Storage::disk(ArchivoService::DISCO);
-        $carpeta = 'expedientes/'.Str::uuid();
         $copiar = function (string $origen, string $nombre) use ($disco, $carpeta): string {
             $destino = $carpeta.'/'.$nombre;
             if (! $disco->exists($origen) || ! $disco->copy($origen, $destino)) {
@@ -107,7 +154,8 @@ class EnvioSolicitud
                         foreach ($datos['materias'] as $materia) {
                             $academicos = $materia['datos'];
                             $fila = $solicitud->materias()->create([
-                                'curso_id' => $contexto['cursos'][$materia['id']],
+                                // El detalle conserva los datos declarados completos; vincular un curso es opcional.
+                                'curso_id' => $contexto['cursos'][$materia['id']] ?? null,
                                 'nota_declarada' => ($academicos['nota'] ?? $academicos['calificacion'] ?? '') === '' ? null : ($academicos['nota'] ?? $academicos['calificacion']),
                                 'asistencia_declarada' => ($academicos['asistencia'] ?? '') === '' ? null : $academicos['asistencia'],
                                 'estado_declarado' => ($academicos['estado'] ?? '') ?: null,
@@ -147,16 +195,6 @@ class EnvioSolicitud
         } catch (\Throwable $error) {
             $disco->deleteDirectory($carpeta);
             throw $error;
-        }
-        // Los temporales se conservan si falla cualquier parte de la transacción.
-        try {
-            foreach ($archivos as $archivo) $this->respaldos->quitar($archivo['id']);
-            $this->firmados->quitar($tramite);
-            $this->documentos->quitar($tramite);
-            $this->borradores->descartar($tramite);
-        } catch (\Throwable $error) {
-            // El expediente ya se confirmó: un fallo de limpieza no revierte su envío.
-            report($error);
         }
         return $solicitud;
     }

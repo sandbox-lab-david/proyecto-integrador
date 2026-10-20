@@ -107,7 +107,7 @@ class BorradoresTemporalesTest extends TestCase
     {
         $this->guardar(['paso' => 5])->assertJsonValidationErrors('paso');
 
-        $this->guardar(['materias' => [['id' => 'no-existe']]])->assertJsonValidationErrors('materias.0.id');
+        $this->guardar(['materias' => [['id' => 'fila/con/ruta']]])->assertJsonValidationErrors('materias.0.id');
 
         // Recuperación admite una sola materia.
         $this->guardar(['materias' => [['id' => 'calculo-demo'], ['id' => 'fisica-demo']]])
