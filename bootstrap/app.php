@@ -9,6 +9,8 @@ use App\Http\Middleware\SoloEstudiante;
 return Application::configure(basePath: dirname(__DIR__))
     ->withRouting(
         web: __DIR__.'/../routes/web.php',
+        api: __DIR__.'/../routes/api.php',
+        apiPrefix: 'api',
         commands: __DIR__.'/../routes/console.php',
         health: '/up',
     )
@@ -31,7 +33,7 @@ return Application::configure(basePath: dirname(__DIR__))
                     $codigo = 'datos_invalidos';
                     $reintentable = false;
                     $campos = $e->errors();
-                } elseif ($e instanceof \App\Modules\Chatbot\Services\Prolog\PrologException) {
+                } elseif ($e instanceof \App\Services\Chatbot\Prolog\PrologException) {
                     $statusCode = $e->status;
                     $codigo = $e->codigo;
                     $reintentable = $e->reintentable;
@@ -50,7 +52,18 @@ return Application::configure(basePath: dirname(__DIR__))
                     $reintentable = in_array($statusCode, [503, 504]);
                 }
 
-                $mensaje = $statusCode === 422 ? 'Revisa los campos.' : ($e->getMessage() ?: 'Error interno del servidor.');
+                // Fix 10: nunca exponer getMessage() en 500s ni detalles internos.
+                // El 419 (CSRF/sesión vencida) se mapea a un mensaje legible.
+                if ($statusCode === 419) {
+                    $codigo = 'sesion_vencida';
+                    $mensaje = 'Tu sesión ha vencido. Recarga la página e intenta de nuevo.';
+                } elseif ($statusCode === 422) {
+                    $mensaje = 'Revisa los campos enviados.';
+                } elseif ($statusCode >= 500) {
+                    $mensaje = 'Error interno del servidor. Inténtalo de nuevo más tarde.';
+                } else {
+                    $mensaje = $e->getMessage() ?: 'Ha ocurrido un error. Inténtalo de nuevo.';
+                }
 
                 $errorPayload = [
                     'codigo' => $codigo,

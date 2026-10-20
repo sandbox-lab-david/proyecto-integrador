@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Modules\Chatbot\Services\Prolog;
+namespace App\Services\Chatbot\Prolog;
 
 use RuntimeException;
 use Throwable;

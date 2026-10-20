@@ -2,10 +2,10 @@
 # Prueba las protecciones del servidor. Arranca su propio servidor en el puerto 8099
 # con limites bajos. Uso (desde la raiz del proyecto):  bash prolog/pruebas/probar_limites.sh
 # Requiere hechos.pl y reglas.pl en prolog/kb/ (los de prueba sirven).
-export PROLOG_API_KEY=clave-de-prueba PROLOG_RATE_MAX=5 PROLOG_RATE_VENTANA=60 PROLOG_MAX_BODY=300
+export PROLOG_API_KEY=clave-de-prueba-0123 PROLOG_RATE_MAX=5 PROLOG_RATE_VENTANA=60 PROLOG_MAX_BODY=300
 swipl prolog/kb/servidor.pl --port=8099 >/tmp/probar_limites.log 2>&1 &
 PID=$!; trap 'kill $PID 2>/dev/null' EXIT; sleep 3
-U=http://127.0.0.1:8099; H='Content-Type: application/json'; K='X-Api-Key: clave-de-prueba'
+U=http://127.0.0.1:8099; H='Content-Type: application/json'; K='X-Api-Key: clave-de-prueba-0123'
 B='{"version":2,"tramite_id":"examen_recuperacion","intencion":"consultar_requisitos"}'
 c() { curl -s -o /dev/null -w '%{http_code}' "$@"; }
 ok() { [ "$1" = "$2" ] && echo "OK    $3 -> $1" || echo "FALLO $3 -> $1 (esperado $2)"; }

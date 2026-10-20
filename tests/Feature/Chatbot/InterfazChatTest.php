@@ -133,25 +133,76 @@ class InterfazChatTest extends TestCase
             ->assertSee('Iniciar esta solicitud');
     }
 
-    public function test_reporte_sin_preguntas_muestra_estado_vacio(): void
+    public function test_documento_sin_obligacion_confirmada_no_se_muestra_como_opcional(): void
     {
-        $this->get('/chatbot/reporte')
-            ->assertOk()
-            ->assertSee('No hay preguntas sin resolver');
+        foreach ([['obligatorio' => false], ['obligatorio' => null], []] as $obligacion) {
+            $this->blade('<x-chat.documento :documento="$d" />', [
+                'd' => ['nombre' => 'Respaldo del motivo'] + $obligacion,
+            ])
+                ->assertSee('Por confirmar')
+                ->assertSee('cb-etq-pendiente', false)
+                ->assertDontSee('Opcional')
+                ->assertDontSee('Obligatorio');
+        }
     }
 
-    public function test_reporte_lista_las_preguntas_no_resueltas(): void
+    public function test_documento_con_obligacion_explicita_usa_su_etiqueta(): void
     {
-        $this->view('chatbot.reporte', [
-            'preguntas' => [
-                ['texto' => 'puedo pedir beca?', 'tramite' => null, 'fecha' => '2026-10-08 10:30:00'],
-                ['texto' => 'cuanto cuesta el supletorio', 'tramite' => 'Examen supletorio', 'fecha' => '2026-10-08 11:00:00'],
-            ],
-        ])
-            ->assertSee('2 preguntas')
-            ->assertSee('puedo pedir beca?')
-            ->assertSee('Ninguno')
-            ->assertSee('Examen supletorio')
-            ->assertSee('08/10/2026 11:00');
+        $this->blade('<x-chat.documento :documento="$d" />', ['d' => ['nombre' => 'Copia', 'obligacion' => 'opcional']])
+            ->assertSee('Opcional');
+        $this->blade('<x-chat.documento :documento="$d" />', ['d' => ['nombre' => 'Copia', 'obligacion' => 'condicional']])
+            ->assertSee('Según tu caso');
+        $this->blade('<x-chat.documento :documento="$d" />', ['d' => ['nombre' => 'Copia', 'obligacion' => 'obligatorio']])
+            ->assertSee('Obligatorio')
+            ->assertSee('cb-etq-vino', false);
     }
+
+    public function test_plazo_sin_fecha_se_muestra_por_confirmar(): void
+    {
+        $this->blade('<x-chat.datos-clave :plazo="$p" />', [
+            'p' => ['texto' => 'Consulta con la facultad la fecha límite.', 'inicio' => null, 'fin' => null],
+        ])
+            ->assertSee('Por confirmar')
+            ->assertSee('La define la facultad')
+            ->assertDontSee('Sin fecha');
+    }
+
+    public function test_consulta_de_costo_o_plazo_sin_dato_muestra_por_confirmar(): void
+    {
+        $html = (string) $this->blade('<x-chat.datos-clave tipo="costo" />');
+        $this->assertStringContainsString('Por confirmar', $html);
+        $this->assertStringContainsString('Lo confirma la facultad', $html);
+        $this->assertDoesNotMatchRegularExpression('/data-cb="dato-costo"\s+hidden/', $html);
+
+        $html = (string) $this->blade('<x-chat.datos-clave tipo="plazo" />');
+        $this->assertDoesNotMatchRegularExpression('/data-cb="dato-fin"\s+hidden/', $html);
+        $this->assertStringNotContainsString('Sin fecha', $html);
+    }
+
+    public function test_tramite_sin_evaluacion_automatica_no_parece_rechazo_ni_orientativo(): void
+    {
+        $html = (string) $this->blade('<x-resultado-elegibilidad :evaluacion="$e" />', [
+            'e' => ['resultado' => 'requiere_revision', 'motivos' => [
+                ['codigo' => 'evaluacion_no_disponible', 'texto' => 'No hay una evaluación automática implementada para este trámite.'],
+            ]],
+        ]);
+
+        $this->assertStringContainsString('Este trámite no tiene revisión automática', $html);
+        $this->assertStringContainsString('cb-sin-evaluacion', $html);
+        $this->assertMatchesRegularExpression('/data-cb="resultado-orientativo"\s+hidden/', $html);
+    }
+
+    public function test_evaluacion_parcial_lo_dice_en_el_titulo(): void
+    {
+        $html = (string) $this->blade('<x-resultado-elegibilidad :evaluacion="$e" />', [
+            'e' => ['resultado' => 'requiere_revision', 'motivos' => [
+                ['codigo' => 'promedio_ok', 'texto' => 'El promedio declarado (80) alcanza el mínimo de 75.'],
+                ['codigo' => 'condiciones_no_evaluadas', 'texto' => 'No se han comprobado los plazos aplicables.'],
+            ]],
+        ]);
+
+        $this->assertStringContainsString('data-cb="resultado-titulo">Solo se revisó una parte de los requisitos<', $html);
+        $this->assertDoesNotMatchRegularExpression('/data-cb="resultado-orientativo"\s+hidden/', $html);
+    }
+
 }

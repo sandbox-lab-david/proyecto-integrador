@@ -16,6 +16,8 @@ Route::get('/', function () {
     return view('welcome');
 });
 
+Route::view('/estilos', 'estilos')->name('estilos');
+
 require __DIR__.'/chatbot.php';
 require __DIR__.'/estudiantes.php';
 Route::get('/tramites', function () {

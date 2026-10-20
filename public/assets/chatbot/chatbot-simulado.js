@@ -2,7 +2,6 @@
     'use strict';
 
     const KB = 'avance-001';
-    const CLAVE_HISTORIAL = 'cb-simulado-historial';
 
     const categorias = [
         { id: 'evaluaciones', nombre: 'Evaluaciones', descripcion: 'Recuperación, gracia, supletorio' },
@@ -141,6 +140,11 @@
             r.titulo = t.nombre;
             r.mensaje = 'Todavía no hay información confirmada para este trámite.';
             r.aviso = 'La facultad aún no confirma los requisitos de este trámite. Puedes presentar la solicitud y la revisan caso por caso.';
+            if (sufijo === 'documentos') {
+                r.documentos = [{ id: `${t.id}_respaldo_1`, nombre: 'Respaldo del motivo de la solicitud.', descripcion: 'Consulta con la facultad si debes adjuntar este respaldo y en qué formato.', obligatorio: false, formato: 'Por confirmar', url: null }];
+            } else if (sufijo === 'plazo') {
+                r.plazo = { texto: 'Consulta con la facultad la fecha límite para tu período académico.', inicio: null, fin: null };
+            }
             return r;
         }
 
@@ -186,7 +190,13 @@
         const motivos = [];
 
         if (t.id !== 'examen_recuperacion') {
-            r.resultado = { estado: 'revision_manual', motivos: [{ codigo: 'regla_pendiente', texto: 'La facultad todavía no confirma la regla de este trámite.' }] };
+            r.resultado = {
+                estado: 'requiere_revision',
+                motivos: [
+                    { codigo: 'evaluacion_no_disponible', texto: 'No hay una evaluación automática implementada para este trámite. Esta respuesta no determina cumplimiento ni incumplimiento.' },
+                    { codigo: 'orientacion_tramite', texto: 'La facultad todavía no confirma la regla de este trámite.' },
+                ],
+            };
             return { status: 200, body: r };
         }
 
@@ -204,10 +214,11 @@
             r.sugerencias = ['examen_gracia__descripcion'];
         } else {
             r.resultado = {
-                estado: 'cumple',
+                estado: 'requiere_revision',
                 motivos: [
                     { codigo: 'gpa_ok', texto: `Tu GPA de ${datos.gpa} supera el mínimo de 75.` },
                     { codigo: 'sin_recuperacion', texto: 'No registras otro examen de recuperación en el último año.' },
+                    { codigo: 'condiciones_no_evaluadas', texto: 'No se comprobaron la cantidad de materias ni los plazos aplicables.' },
                 ],
             };
         }
@@ -306,28 +317,6 @@
         return { status: 200, body: informativa(t, p.id.split('__')[1]) };
     }
 
-    function leerHistorial() {
-        try {
-            return JSON.parse(sessionStorage.getItem(CLAVE_HISTORIAL)) || [];
-        } catch (e) {
-            return [];
-        }
-    }
-
-    function guardarHistorial(mensajes) {
-        try {
-            sessionStorage.setItem(CLAVE_HISTORIAL, JSON.stringify(mensajes));
-        } catch (e) {
-            return;
-        }
-    }
-
-    function textoUsuario(payload) {
-        if (payload.texto) return payload.texto;
-        const p = pregunta(payload.pregunta_id);
-        return p ? p.texto : '';
-    }
-
     async function pedir(metodo, url, cuerpo) {
         const ruta = new URL(url, location.href).pathname;
         const lento = cuerpo && /lento/.test(normalizar(cuerpo.texto));
@@ -337,27 +326,8 @@
             return { status: 200, body: { version: 2, categorias, tramites, preguntas } };
         }
 
-        if (ruta.endsWith('/historial')) {
-            if (metodo === 'DELETE') {
-                guardarHistorial([]);
-                return { status: 200, body: { version: 2, mensajes: [] } };
-            }
-            return { status: 200, body: { version: 2, mensajes: leerHistorial() } };
-        }
-
         if (ruta.endsWith('/mensaje')) {
-            const r = mensaje(cuerpo);
-            if (r.status === 200) {
-                const historial = leerHistorial();
-                if (!cuerpo.datos_usuario || !Object.keys(cuerpo.datos_usuario).length) {
-                    historial.push({ emisor: 'usuario', texto: textoUsuario(cuerpo), respuesta: null });
-                }
-                if (r.body.estado === 'respondido') {
-                    historial.push({ emisor: 'bot', texto: r.body.mensaje || r.body.titulo || '', respuesta: r.body });
-                }
-                guardarHistorial(historial);
-            }
-            return r;
+            return mensaje(cuerpo);
         }
 
         return error(404, 'error_interno', 'Ruta no encontrada.', false);

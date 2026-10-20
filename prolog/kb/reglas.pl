@@ -119,21 +119,12 @@ consultar(consultar_costo, Tramite, Salida) :-
 % Evalúa los datos recibidos del estudiante según las reglas del reglamento.
 % ----------------------------------------------------------------------------
 
-% Caso especial: Examen de Recuperación (reglas específicas)
+% Contención de recuperación: el perfil actual no representa todas las
+% condiciones. Un promedio suficiente nunca basta para devolver cumple.
 evaluar(examen_recuperacion, Perfil, _Fecha, _Origen, Salida) :-
     obtener_aviso(examen_recuperacion, Aviso),
-    (   ( get_dict(promedio, Perfil, Promedio) ; get_dict(period_gpa, Perfil, Promedio) ; get_dict(gpa, Perfil, Promedio) )
-    ->  (   Promedio >= 75
-        ->  Estado = "cumple",
-            format(string(MsgOk), "Tu GPA (~w) supera o iguala el mínimo de 75.", [Promedio]),
-            Motivos = [_{codigo: "promedio_ok", texto: MsgOk}]
-        ;   Estado = "no_cumple",
-            format(string(MsgNo), "Tu GPA (~w) no alcanza el mínimo requerido de 75.", [Promedio]),
-            Motivos = [_{codigo: "promedio_insuficiente", texto: MsgNo}]
-        )
-    ;   Estado = "requiere_revision",
-        Motivos = [_{codigo: "datos_incompletos", texto: "Falta ingresar el promedio o datos requeridos para completar la evaluación."}]
-    ),
+    promedio_recuperacion(Perfil, EstadoPromedio),
+    resultado_recuperacion(EstadoPromedio, Estado, Motivos),
     Salida = _{
         items: [],
         documentos: [],
@@ -152,7 +143,11 @@ evaluar(Tramite, _Perfil, _Fecha, _Origen, Salida) :-
     obtener_aviso(Tramite, Aviso),
     (   pendiente_validacion(Tramite, DetallePendiente)
     ->  TextoMotivo = DetallePendiente
-    ;   TextoMotivo = "La solicitud requiere revisión y autorización de la Facultad según la normativa vigente."
+    ;   observacion_conocimiento(Tramite, Observacion)
+    ->  TextoMotivo = Observacion
+    ;   descripcion(Tramite, Descripcion)
+    ->  TextoMotivo = Descripcion
+    ;   TextoMotivo = "Consulta los requisitos del trámite para conocer la información disponible."
     ),
     Salida = _{
         items: [],
@@ -161,7 +156,10 @@ evaluar(Tramite, _Perfil, _Fecha, _Origen, Salida) :-
         plazo: null,
         resultado: _{
             estado: "requiere_revision",
-            motivos: [_{codigo: "revision_facultad", texto: TextoMotivo}]
+            motivos: [
+                _{codigo: "evaluacion_no_disponible", texto: "No hay una evaluación automática implementada para este trámite. Esta respuesta no determina cumplimiento ni incumplimiento."},
+                _{codigo: "orientacion_tramite", texto: TextoMotivo}
+            ]
         },
         aviso: Aviso
     }.
@@ -169,6 +167,55 @@ evaluar(Tramite, _Perfil, _Fecha, _Origen, Salida) :-
 % ----------------------------------------------------------------------------
 % Predicados auxiliares
 % ----------------------------------------------------------------------------
+
+% Alias históricos solo para llamadas directas: el puente recibe promedio.
+% null equivale a dato ausente, igual que en perfil_sin_nulos/2 del puente.
+% No se elige silenciosamente un alias si otro contiene un valor inválido
+% o contradictorio. La comparación numérica acepta 80 y 80.0 como iguales.
+promedio_recuperacion(Perfil, Estado) :-
+    (   is_dict(Perfil)
+    ->  findall(V, (member(K, [promedio, period_gpa, gpa]),
+                   get_dict(K, Perfil, V), V \== null), Valores),
+        (   Valores == []
+        ->  Estado = ausente
+        ;   \+ maplist(promedio_valido, Valores)
+        ->  Estado = invalido
+        ;   Valores = [Primero|Resto],
+            (   maplist(promedio_igual(Primero), Resto)
+            ->  Estado = valido(Primero)
+            ;   Estado = contradictorio
+            )
+        )
+    ;   Estado = perfil_invalido
+    ).
+
+promedio_valido(V) :- number(V), catch((V >= 0, V =< 100), _, fail).
+promedio_igual(A, B) :- A =:= B.
+
+resultado_recuperacion(valido(Promedio), Estado, Motivos) :-
+    (   Promedio < 75
+    ->  Estado = "no_cumple",
+        format(string(Msg), "El promedio declarado (~w) es inferior al mínimo de 75. Los datos son declarados, no verificados institucionalmente.", [Promedio]),
+        Motivos = [_{codigo: "promedio_insuficiente", texto: Msg}]
+    ;   Estado = "requiere_revision",
+        format(string(Msg), "El promedio declarado (~w) alcanza el mínimo de 75; esto solo comprueba el promedio, no la elegibilidad completa.", [Promedio]),
+        Motivos = [
+            _{codigo: "promedio_ok", texto: Msg},
+            _{codigo: "condiciones_no_evaluadas", texto: "No se han comprobado la materia reprobada, ausencia de fraude, historial de recuperación, cantidad de materias ni plazos aplicables. El perfil actual no permite completar esas comprobaciones."}
+        ]
+    ).
+resultado_recuperacion(ausente, "requiere_revision", [
+    _{codigo: "promedio_ausente", texto: "Falta el promedio declarado para comprobar el mínimo de 75. No se puede determinar la elegibilidad completa."}
+]).
+resultado_recuperacion(invalido, "requiere_revision", [
+    _{codigo: "promedio_invalido", texto: "El promedio debe ser un número entre 0 y 100; no se evalúa un valor inválido."}
+]).
+resultado_recuperacion(contradictorio, "requiere_revision", [
+    _{codigo: "promedio_contradictorio", texto: "Se recibieron valores distintos para el promedio y sus alias; deben corregirse antes de evaluar."}
+]).
+resultado_recuperacion(perfil_invalido, "requiere_revision", [
+    _{codigo: "perfil_invalido", texto: "El perfil debe ser un objeto de datos declarados."}
+]).
 
 obtener_aviso(Tramite, Aviso) :-
     (   pendiente_validacion(Tramite, AvisoTexto)
