@@ -85,8 +85,6 @@ puerto(8081).
 
 arrancar :-
     puerto(Port), cfg(host, Host), cfg(workers, W), cfg(timeout_conexion, TC),
-    arrancar :-
-    puerto(Port), cfg(host, Host), cfg(workers, W), cfg(timeout_conexion, TC),
     verificar_seguridad,
     cargar_conocimiento,
     instalar_senales,
@@ -119,6 +117,7 @@ fallo_arranque(Fmt, Args) :-
     format(string(M), Fmt, Args),
     format(user_error, "ERROR DE ARRANQUE: ~s~n", [M]),
     halt(1).
+
 instalar_senales :-
     forall(member(S, [term, int]), catch(on_signal(S, _, apagar), _, true)).
 

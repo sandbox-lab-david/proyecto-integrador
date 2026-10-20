@@ -24,7 +24,7 @@ final class HttpPrologClient implements PrologClient
 
     public static function desdeConfig(): self
     {
-                // HTTP-01: en produccion Laravel no habla con el motor sin credencial.
+        // HTTP-01: en produccion Laravel no habla con el motor sin credencial.
         if (app()->isProduction() && trim((string) config('chatbot.prolog.api_key', '')) === '') {
             throw new PrologException(500, 'error_interno',
                 'PROLOG_API_KEY es obligatoria en produccion.');
