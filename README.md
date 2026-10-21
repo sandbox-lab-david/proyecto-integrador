@@ -4,6 +4,7 @@
 
 - [Chatbot (Módulo 4): servidor Prolog](#chatbot-módulo-4-servidor-prolog) — Grupo 4
 - [Marco común de las páginas (layout)](#marco-común-de-las-páginas-layout--grupo-1) — Grupo 1
+- [Acceso, registro y roles](#acceso-registro-y-roles--grupo-1) — Grupo 1
 
 ## Chatbot (Módulo 4): servidor Prolog
 
@@ -218,4 +219,64 @@ Pruebas automáticas del marco:
 
 ```bash
 php artisan test tests/Feature/LayoutComunTest.php
+```
+
+## Acceso, registro y roles · Grupo 1
+
+El inicio de sesión del proyecto usa **Laravel Breeze**: sus controladores están en `app/Http/Controllers/Auth/` y sus rutas en `routes/auth.php`. **Fortify ya no se usa** y se quitó del proyecto.
+
+### Después de traer estos cambios
+
+Se quitaron paquetes y migraciones, así que cada grupo debe correr:
+
+```bash
+composer install
+php artisan migrate:fresh --seed
+npm run build
+```
+
+### Usuarios de prueba
+
+`php artisan migrate:fresh --seed` crea estos usuarios. Todos tienen la clave `password123`.
+
+| Correo | Tipo | Rol | Al iniciar sesión llega a |
+|---|---|---|---|
+| `admin@uees.edu.ec` | trabajador | `admin` | `/administracion` (G1) |
+| `asistente@uees.edu.ec` | trabajador | `asistente` | `/revision/asistente` (G3) |
+| `director@uees.edu.ec` | trabajador | `director` | `/revision/asistente` (G3) |
+| `consulta@uees.edu.ec` | trabajador | `consulta` | Página "Tu cuenta aún no tiene un módulo asignado" |
+| `estudiante@uees.edu.ec` | estudiante | — | `/estudiante/tramites` (G2) |
+
+### Cómo funciona
+
+```
+/  ──► sin sesión: /login      con sesión: /dashboard
+/dashboard ──► revisa quién es y lo manda a su módulo (tabla de arriba)
+```
+
+- **Registro (`/register`):** solo para estudiantes, con correo `@uees.edu.ec`. La cuenta se crea siempre como `estudiante`. El personal no se registra: su cuenta la crea el administrador.
+- **Roles:** un usuario `trabajador` tiene su registro en `trabajadores` y uno o más roles en `rol_trabajador`. Se consultan con `AutorizacionService::tieneRol($usuario, 'asistente')` (C15). Roles válidos: `admin`, `asistente`, `director`, `docente`, `consulta`.
+- **A dónde llega cada rol** se decide en `app/Http/Controllers/Acceso/PanelController.php`. Si su grupo publica una nueva página de inicio para un rol, pidan al Grupo 1 que la agregue ahí.
+- **Sin permiso:** cualquier `abort(403)` o ruta con `rol:` muestra `resources/views/errors/403.blade.php`, en español y con el marco común.
+
+### Cómo proteger sus rutas
+
+```php
+// Solo estudiantes con sesión iniciada (C22)
+Route::middleware(['auth', 'estudiante'])->group(function () {
+    // ...
+});
+
+// Solo ciertos roles (C21). Varios roles se separan con comas.
+Route::middleware(['auth', 'rol:asistente,director'])->group(function () {
+    // ...
+});
+```
+
+Las páginas del Grupo 1 ya están protegidas con `auth` + `rol:admin`.
+
+Pruebas automáticas:
+
+```bash
+php artisan test tests/Feature/AccesoYRolesTest.php tests/Feature/Auth
 ```

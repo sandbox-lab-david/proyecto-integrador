@@ -1,54 +1,41 @@
-<x-guest-layout>
-    <!-- Contenedor centrado para el login -->
-    <div class="student-shell" style="max-width: 480px; padding-top: 10vh;">
-        
-        <!-- Panel tipo tarjeta del CSS de la profesora -->
-        <div class="step-panel active">
-            
-            <div class="form-heading" style="justify-content: center; margin-bottom: 24px;">
-                <h2 style="text-align: center;">Iniciar Sesión</h2>
-            </div>
+<x-guest-layout titulo="Iniciar sesión">
+    <p class="ui-antetitulo">Acceso</p>
+    <h1 class="ui-titulo">Iniciar sesión</h1>
+    <p class="ui-texto-gris mt-chico">Entra con tu correo institucional de la UEES.</p>
 
-            <!-- Mostrar errores de validación si existen -->
-            @if ($errors->any())
-                <div class="notice warning mb-4">
-                    <strong>Error de acceso:</strong> Revisa tus credenciales.
-                </div>
-            @endif
+    @if (session('status'))
+        <div class="ui-alerta ui-alerta-exito mt-amplio" role="status">{{ session('status') }}</div>
+    @endif
 
-            <form method="POST" action="{{ route('login') }}" style="display: grid; gap: 18px;">
-                @csrf
+    <form method="POST" action="{{ route('login') }}" class="ui-form mt-amplio">
+        @csrf
 
-                <!-- Campo Correo -->
-                <div class="field">
-                    <label for="email">Correo Institucional</label>
-                    <input id="email" type="email" name="email" value="{{ old('email') }}" required autofocus placeholder="usuario@uees.edu.ec">
-                </div>
-
-                <!-- Campo Contraseña -->
-                <div class="field">
-                    <label for="password">Contraseña</label>
-                    <input id="password" type="password" name="password" required>
-                </div>
-
-                <!-- Recordar sesión -->
-                <div class="checkbox-field" style="margin-top: 5px;">
-                    <input id="remember_me" type="checkbox" name="remember">
-                    <label for="remember_me">Mantener sesión iniciada</label>
-                </div>
-
-                <!-- Acciones -->
-                <div class="form-actions" style="margin-top: 10px;">
-                    @if (Route::has('password.request'))
-                        <a href="{{ route('password.request') }}" class="text-btn">¿Olvidaste tu contraseña?</a>
-                    @endif
-                    <button type="submit" class="primary-btn">Ingresar</button>
-                </div>
-            </form>
-            
-            <div style="text-align: center; margin-top: 20px;">
-                <a href="{{ route('register') }}" class="text-btn" style="font-size: 0.8rem;">¿No tienes cuenta? Regístrate aquí</a>
-            </div>
+        <div class="ui-campo @error('email') ui-campo-error @enderror">
+            <label for="email">Correo institucional</label>
+            <input id="email" type="email" name="email" class="ui-control" value="{{ old('email') }}" required autofocus autocomplete="username" placeholder="nombre@uees.edu.ec">
+            @error('email')<p class="ui-error-campo">{{ $message }}</p>@enderror
         </div>
-    </div>
+
+        <div class="ui-campo @error('password') ui-campo-error @enderror">
+            <label for="password">Contraseña</label>
+            <input id="password" type="password" name="password" class="ui-control" required autocomplete="current-password">
+            @error('password')<p class="ui-error-campo">{{ $message }}</p>@enderror
+        </div>
+
+        <label class="ui-casilla">
+            <input type="checkbox" name="remember">
+            <span>Mantener la sesión iniciada</span>
+        </label>
+
+        <div class="ui-acciones justify-between">
+            <a class="ui-enlace text-chico" href="{{ route('password.request') }}">¿Olvidaste tu contraseña?</a>
+            <button type="submit" class="ui-btn ui-btn-primario">Ingresar</button>
+        </div>
+    </form>
+
+    @if (Route::has('register'))
+        <p class="ui-texto-gris text-chico mt-amplio">
+            ¿Eres estudiante y no tienes cuenta? <a class="ui-enlace" href="{{ route('register') }}">Regístrate aquí</a>
+        </p>
+    @endif
 </x-guest-layout>

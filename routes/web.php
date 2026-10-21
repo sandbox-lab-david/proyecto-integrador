@@ -12,12 +12,11 @@ use App\Http\Controllers\Administracion\MateriaController;
 use App\Http\Controllers\Administracion\ParaleloController;
 use App\Http\Controllers\Administracion\CargaController;
 use App\Http\Controllers\ProfileController;
+use App\Http\Controllers\Acceso\PanelController;
 
-Route::get('/', function () {
-    return view('welcome');
-});
+Route::get('/', fn () => auth()->check() ? redirect()->route('dashboard') : redirect()->route('login'));
 
-Route::get('/dashboard', fn () => view('dashboard'))->middleware(['auth', 'verified'])->name('dashboard');
+Route::get('/dashboard', PanelController::class)->middleware('auth')->name('dashboard');
 
 Route::middleware('auth')->group(function () {
     Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
@@ -48,33 +47,35 @@ Route::get('/app', function () {
 });
 
 // ===== Grupo 1: Administración académica =====
-Route::get('/administracion', [InicioController::class, 'index'])->name('administracion.inicio');
+Route::middleware(['auth', 'rol:admin'])->group(function () {
+    Route::get('/administracion', [InicioController::class, 'index'])->name('administracion.inicio');
 
-Route::get('/periodos', [PeriodoController::class, 'index'])->name('administracion.periodos');
-Route::post('/periodos', [PeriodoController::class, 'store'])->name('administracion.periodos.store');
+    Route::get('/periodos', [PeriodoController::class, 'index'])->name('administracion.periodos');
+    Route::post('/periodos', [PeriodoController::class, 'store'])->name('administracion.periodos.store');
 
-Route::get('/materias', [MateriaController::class, 'index'])->name('administracion.materias');
-Route::post('/materias', [MateriaController::class, 'store'])->name('administracion.materias.store');
+    Route::get('/materias', [MateriaController::class, 'index'])->name('administracion.materias');
+    Route::post('/materias', [MateriaController::class, 'store'])->name('administracion.materias.store');
 
-Route::get('/paralelos', [ParaleloController::class, 'index'])->name('administracion.paralelos');
-Route::post('/paralelos', [ParaleloController::class, 'store'])->name('administracion.paralelos.store');
+    Route::get('/paralelos', [ParaleloController::class, 'index'])->name('administracion.paralelos');
+    Route::post('/paralelos', [ParaleloController::class, 'store'])->name('administracion.paralelos.store');
 
-Route::prefix('administracion/cargas')->name('cargas.')->controller(CargaController::class)->group(function () {
-    Route::get('/', 'index')->name('index');
-    Route::post('/vista-previa', 'preview')->name('preview');
-    Route::post('/procesar', 'procesar')->name('procesar');
-    Route::get('/historial', 'historial')->name('historial');
-    Route::get('/plantilla/{tipo}', 'descargarPlantilla')->name('plantilla');
-    Route::get('/reporte-errores/{id}', 'descargarReporteErrores')->name('reporte-errores');
+    Route::prefix('administracion/cargas')->name('cargas.')->controller(CargaController::class)->group(function () {
+        Route::get('/', 'index')->name('index');
+        Route::post('/vista-previa', 'preview')->name('preview');
+        Route::post('/procesar', 'procesar')->name('procesar');
+        Route::get('/historial', 'historial')->name('historial');
+        Route::get('/plantilla/{tipo}', 'descargarPlantilla')->name('plantilla');
+        Route::get('/reporte-errores/{id}', 'descargarReporteErrores')->name('reporte-errores');
+    });
+
+    Route::resource('cursos', CursoController::class);
+
+    Route::resource('users', UserController::class);
+
+    Route::resource('directores_carrera', DirectorCarreraController::class);
+
+    Route::resource('importaciones', ImportacionesController::class)->only(['index', 'show', 'destroy']);
 });
-
-Route::resource('cursos', CursoController::class);
-
-Route::resource('users', UserController::class);
-
-Route::resource('directores_carrera', DirectorCarreraController::class);
-
-Route::resource('importaciones', ImportacionesController::class)->only(['index', 'show', 'destroy']);
 
 // ===== Grupo 3: Revisión y Consejo =====
 Route::get('/revision/asistente', [RevisionController::class, 'bandejaAsistente'])->name('revision.asistente');

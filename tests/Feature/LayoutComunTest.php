@@ -108,6 +108,8 @@ class LayoutComunTest extends TestCase
 
     public function test_las_paginas_del_grupo_1_usan_el_marco_y_resaltan_su_enlace(): void
     {
+        $this->actingAs($this->usuarioConRol('admin'));
+
         $paginas = [
             '/administracion' => 'Inicio',
             '/periodos' => 'Periodos académicos',
@@ -133,6 +135,6 @@ class LayoutComunTest extends TestCase
         $this->get('/tramites')->assertOk()->assertSee('Administración académica');
 
         $this->actingAs(User::factory()->create(['tipo' => 'trabajador']));
-        $this->get('/dashboard')->assertOk()->assertSee('Administración académica');
+        $this->get('/profile')->assertOk()->assertSee('Administración académica');
     }
 }
