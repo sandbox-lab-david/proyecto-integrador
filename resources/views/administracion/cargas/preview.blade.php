@@ -1,78 +1,57 @@
 @extends('layouts.app')
 
+@section('titulo', 'Vista previa de importación')
+
 @section('content')
-<div class="container mx-auto px-4 py-6">
-    <div class="flex justify-between items-center mb-6">
-        <h1 class="text-2xl font-bold text-gray-800">Vista Previa de Importación ({{ ucfirst($tipoCarga) }})</h1>
-        <a href="{{ route('cargas.index') }}" class="text-sm text-blue-600 hover:underline">← Cancelar y volver</a>
+    @php
+        $badges = ['valido' => 'ui-badge-exito', 'duplicado' => 'ui-badge-alerta', 'error' => 'ui-badge-peligro'];
+        $nombres = ['valido' => 'Válida', 'duplicado' => 'Duplicada', 'error' => 'Con error'];
+    @endphp
+
+    <div class="flex flex-wrap items-end justify-between gap-normal">
+        <div>
+            <p class="ui-antetitulo">Importaciones SIAC · Paso 3</p>
+            <h1 class="ui-titulo">Vista previa: {{ ucfirst($tipoCarga) }}</h1>
+            <p class="ui-texto-gris mt-chico">Solo se guardarán las filas válidas. Corrige las demás en el archivo y vuelve a cargarlo.</p>
+        </div>
+        <a href="{{ route('cargas.index') }}" class="ui-btn ui-btn-quieto">← Cancelar y volver</a>
     </div>
 
-    {{-- Resumen de Validación --}}
-    <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-        <div class="bg-green-50 border-l-4 border-green-500 p-4 rounded shadow-sm">
-            <span class="text-sm text-gray-600">Filas Válidas</span>
-            <p class="text-xl font-bold text-green-700">{{ $resumen['correctas'] }}</p>
-        </div>
-        <div class="bg-yellow-50 border-l-4 border-yellow-500 p-4 rounded shadow-sm">
-            <span class="text-sm text-gray-600">Duplicados</span>
-            <p class="text-xl font-bold text-yellow-700">{{ $resumen['duplicados'] }}</p>
-        </div>
-        <div class="bg-red-50 border-l-4 border-red-500 p-4 rounded shadow-sm">
-            <span class="text-sm text-gray-600">Errores de Formato</span>
-            <p class="text-xl font-bold text-red-700">{{ $resumen['errores'] }}</p>
-        </div>
-    </div>
+    <dl class="ui-datos mt-amplio">
+        <div class="ui-dato"><dt>Filas válidas</dt><dd class="text-exito">{{ $resumen['correctas'] }}</dd></div>
+        <div class="ui-dato"><dt>Duplicadas</dt><dd class="text-alerta">{{ $resumen['duplicados'] }}</dd></div>
+        <div class="ui-dato"><dt>Con error</dt><dd class="text-peligro">{{ $resumen['errores'] }}</dd></div>
+    </dl>
 
-    {{-- Tabla de Previsualización con Colores --}}
-    <div class="bg-white rounded-lg shadow-md overflow-x-auto mb-6">
-        <table class="min-w-full divide-y divide-gray-200 text-sm">
-            <thead class="bg-gray-100">
+    <div class="ui-tabla-caja mt-amplio">
+        <table class="ui-tabla">
+            <thead>
                 <tr>
-                    <th class="px-4 py-3 text-left font-medium text-gray-700">Fila</th>
-                    <th class="px-4 py-3 text-left font-medium text-gray-700">Identificación / Código</th>
-                    <th class="px-4 py-3 text-left font-medium text-gray-700">Nombre / Detalle</th>
-                    <th class="px-4 py-3 text-left font-medium text-gray-700">Estado de Validación</th>
-                    <th class="px-4 py-3 text-left font-medium text-gray-700">Observación</th>
+                    <th>Fila</th>
+                    <th>Código</th>
+                    <th>Nombre o detalle</th>
+                    <th>Estado</th>
+                    <th>Observación</th>
                 </tr>
             </thead>
-            <tbody class="divide-y divide-gray-200">
-                @foreach($filas as $fila)
-                    {{-- Lógica de resaltado según estado --}}
-                    @php
-                        $bgColor = 'bg-white';
-                        if ($fila['estado'] === 'error') $bgColor = 'bg-red-100 text-red-800';
-                        elseif ($fila['estado'] === 'duplicado') $bgColor = 'bg-yellow-100 text-yellow-800';
-                        elseif ($fila['estado'] === 'valido') $bgColor = 'bg-green-50 text-green-800';
-                    @endphp
-                    <tr class="{{ $bgColor }}">
-                        <td class="px-4 py-3 font-semibold">{{ $fila['num_fila'] }}</td>
-                        <td class="px-4 py-3">{{ $fila['codigo'] }}</td>
-                        <td class="px-4 py-3">{{ $fila['nombre'] }}</td>
-                        <td class="px-4 py-3">
-                            <span class="px-2 py-1 text-xs font-semibold rounded-full
-                                {{ $fila['estado'] === 'error' ? 'bg-red-200 text-red-800' : '' }}
-                                {{ $fila['estado'] === 'duplicado' ? 'bg-yellow-200 text-yellow-800' : '' }}
-                                {{ $fila['estado'] === 'valido' ? 'bg-green-200 text-green-800' : '' }}">
-                                {{ strtoupper($fila['estado']) }}
-                            </span>
-                        </td>
-                        <td class="px-4 py-3 text-xs">{{ $fila['observacion'] }}</td>
+            <tbody>
+                @foreach ($filas as $fila)
+                    <tr>
+                        <td class="font-semibold">{{ $fila['num_fila'] }}</td>
+                        <td>{{ $fila['codigo'] }}</td>
+                        <td>{{ $fila['nombre'] }}</td>
+                        <td><span class="ui-badge {{ $badges[$fila['estado']] ?? '' }}">{{ $nombres[$fila['estado']] ?? $fila['estado'] }}</span></td>
+                        <td class="text-chico text-gris">{{ $fila['observacion'] }}</td>
                     </tr>
                 @endforeach
             </tbody>
         </table>
     </div>
 
-    {{-- Botón de Confirmación --}}
-    <form action="{{ route('cargas.procesar') }}" method="POST">
+    <form action="{{ route('cargas.procesar') }}" method="POST" class="ui-acciones justify-end mt-amplio">
         @csrf
         <input type="hidden" name="batch_id" value="{{ $batchId }}">
-        <div class="flex justify-end gap-3">
-            <a href="{{ route('cargas.index') }}" class="px-4 py-2 bg-gray-300 text-gray-700 rounded-md hover:bg-gray-400 text-sm">Cancelar</a>
-            <button type="submit" class="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 text-sm font-semibold" {{ $resumen['correctas'] == 0 ? 'disabled' : '' }}>
-                Confirmar y Procesar Registros Válidos
-            </button>
-        </div>
+        <a href="{{ route('cargas.index') }}" class="ui-btn ui-btn-secundario">Cancelar</a>
+        <button type="submit" class="ui-btn ui-btn-primario" @disabled($resumen['correctas'] == 0)>Guardar {{ $resumen['correctas'] }} filas válidas</button>
     </form>
-</div>
 @endsection

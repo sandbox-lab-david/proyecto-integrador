@@ -6,7 +6,7 @@ return [
     | Configuración del Motor Prolog
     |--------------------------------------------------------------------------
     | Parámetros de conexión HTTP con el servidor en SWI-Prolog (servidor.pl).
-    | El contrato JSON v2 requiere comunicación por HTTP/JSON en el puerto 8081.
+    | El contrato JSON v3 requiere comunicación por HTTP/JSON en el puerto 8081.
     */
     'prolog' => [
         'url' => env('PROLOG_API_URL', 'http://127.0.0.1:8081'),
@@ -15,4 +15,13 @@ return [
         'connect_timeout' => (float) env('PROLOG_CONNECT_TIMEOUT', 1.0),
         'intentos' => (int) env('PROLOG_INTENTOS', 2),
     ],
+
+    /*
+    |--------------------------------------------------------------------------
+    | URL del portal G2 (Agenda Anny)
+    |--------------------------------------------------------------------------
+    | Base URL del portal donde los estudiantes inician las solicitudes.
+    | Se usa para construir las acciones de tipo 'url' en las respuestas del chatbot.
+    */
+    'g2_url' => env('G2_PORTAL_URL', 'https://agenda.uisek.edu.ec'),
 ];

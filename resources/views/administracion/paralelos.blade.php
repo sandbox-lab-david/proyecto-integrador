@@ -1,53 +1,104 @@
-<!DOCTYPE html>
-<html lang="es">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Paralelos y Docentes</title>
-    @vite(['resources/css/app.css', 'resources/js/app.js'])
-</head>
-<body class="bg-gray-100 p-8">
-    <div class="max-w-6xl mx-auto">
-        <h1 class="text-3xl font-bold text-gray-800 mb-6">Gestión de Paralelos y Docentes</h1>
+@extends('layouts.app')
 
-        <!-- Formulario de Asignación -->
-        <div class="bg-white p-6 rounded-lg shadow-md mb-8 border-t-4 border-purple-600">
-            <h2 class="text-xl font-semibold mb-4 text-gray-700">Asignar Docente a Paralelo</h2>
-            <form action="#" method="POST" class="grid grid-cols-1 md:grid-cols-3 gap-4">
-                
-                <div>
-                    <label class="block text-sm font-medium text-gray-700">Docente</label>
-                    <select class="mt-1 block w-full rounded-md border border-gray-300 p-2 shadow-sm focus:border-purple-500 focus:outline-none bg-white">
-                        <option value="">Seleccione un docente...</option>
+@section('titulo', 'Paralelos y docentes')
+
+@section('content')
+    <p class="ui-antetitulo">Estructura académica</p>
+    <h1 class="ui-titulo">Paralelos y docentes</h1>
+    <p class="ui-texto-gris mt-chico">Cada paralelo es una materia ofertada en un periodo, con su docente. El portal del estudiante los usa para completar paralelo y docente automáticamente.</p>
+
+    <div class="grid gap-amplio mt-amplio lg:grid-cols-[340px_minmax(0,1fr)] items-start">
+        <section class="ui-tarjeta">
+            <h2 class="ui-subtitulo">Nuevo paralelo</h2>
+            @if ($materias->isEmpty() || $periodos->isEmpty())
+                <div class="ui-alerta ui-alerta-aviso">
+                    <strong>Faltan datos</strong>
+                    Primero registra al menos una <a class="ui-enlace" href="{{ route('administracion.materias') }}">materia</a> y un <a class="ui-enlace" href="{{ route('administracion.periodos') }}">periodo</a>.
+                </div>
+            @endif
+            <form method="POST" action="{{ route('administracion.paralelos.store') }}" class="ui-form">
+                @csrf
+                <div class="ui-campo @error('materia_id') ui-campo-error @enderror">
+                    <label for="materia_id">Materia</label>
+                    <select id="materia_id" name="materia_id" class="ui-control">
+                        <option value="">Selecciona una materia</option>
+                        @foreach ($materias as $materia)
+                            <option value="{{ $materia->id }}" @selected((string) old('materia_id') === (string) $materia->id)>{{ $materia->codigo }} · {{ $materia->nombre }}</option>
+                        @endforeach
                     </select>
+                    @error('materia_id')<p class="ui-error-campo">{{ $message }}</p>@enderror
                 </div>
-
-                <div>
-                    <label class="block text-sm font-medium text-gray-700">Materia</label>
-                    <select class="mt-1 block w-full rounded-md border border-gray-300 p-2 shadow-sm focus:border-purple-500 focus:outline-none bg-white">
-                        <option value="">Seleccione una materia...</option>
+                <div class="ui-campo @error('periodo_id') ui-campo-error @enderror">
+                    <label for="periodo_id">Periodo</label>
+                    <select id="periodo_id" name="periodo_id" class="ui-control">
+                        <option value="">Selecciona un periodo</option>
+                        @foreach ($periodos as $periodo)
+                            <option value="{{ $periodo->id }}" @selected((string) old('periodo_id', $periodos->firstWhere('activo', true)?->id) === (string) $periodo->id)>{{ $periodo->nombre }}{{ $periodo->activo ? ' (activo)' : '' }}</option>
+                        @endforeach
                     </select>
+                    @error('periodo_id')<p class="ui-error-campo">{{ $message }}</p>@enderror
                 </div>
-
-                <div>
-                    <label class="block text-sm font-medium text-gray-700">Nombre del Paralelo</label>
-                    <input type="text" placeholder="Ej: Paralelo A" class="mt-1 block w-full rounded-md border border-gray-300 p-2 shadow-sm focus:border-purple-500 focus:outline-none">
+                <div class="ui-campo @error('profesor_id') ui-campo-error @enderror">
+                    <label for="profesor_id">Docente <span class="ui-opcional">(opcional)</span></label>
+                    <select id="profesor_id" name="profesor_id" class="ui-control">
+                        <option value="">Sin asignar</option>
+                        @foreach ($docentes as $docente)
+                            <option value="{{ $docente->id }}" @selected((string) old('profesor_id') === (string) $docente->id)>{{ $docente->apellidos }}, {{ $docente->nombres }}</option>
+                        @endforeach
+                    </select>
+                    @error('profesor_id')<p class="ui-error-campo">{{ $message }}</p>@enderror
                 </div>
-
-                <div class="md:col-span-3 mt-2">
-                    <button type="submit" class="bg-purple-600 text-white px-5 py-2 rounded-md shadow hover:bg-purple-700 transition">
-                        Guardar Asignación
-                    </button>
+                <div class="grid grid-cols-2 gap-medio">
+                    <div class="ui-campo @error('paralelo') ui-campo-error @enderror">
+                        <label for="paralelo">Paralelo</label>
+                        <input id="paralelo" name="paralelo" class="ui-control" value="{{ old('paralelo') }}" placeholder="A1" maxlength="20">
+                        @error('paralelo')<p class="ui-error-campo">{{ $message }}</p>@enderror
+                    </div>
+                    <div class="ui-campo @error('cupo') ui-campo-error @enderror">
+                        <label for="cupo">Cupo <span class="ui-opcional">(opcional)</span></label>
+                        <input id="cupo" name="cupo" type="number" min="1" max="200" class="ui-control" value="{{ old('cupo') }}">
+                        @error('cupo')<p class="ui-error-campo">{{ $message }}</p>@enderror
+                    </div>
+                </div>
+                <div class="ui-acciones">
+                    <button type="submit" class="ui-btn ui-btn-primario" @disabled($materias->isEmpty() || $periodos->isEmpty())>Guardar paralelo</button>
                 </div>
             </form>
-        </div>
+        </section>
 
-        <!-- Lista/Tabla -->
-        <div class="bg-white p-6 rounded-lg shadow-md">
-            <h2 class="text-xl font-semibold mb-4 text-gray-700">Asignaciones Actuales</h2>
-            <p class="text-gray-500 text-sm italic"></p>
-        </div>
-        
+        <section>
+            <h2 class="ui-subtitulo mb-medio">Paralelos registrados</h2>
+            @if ($cursos->isEmpty())
+                <div class="ui-vacio">Todavía no hay paralelos registrados.</div>
+            @else
+                <div class="ui-tabla-caja">
+                    <table class="ui-tabla">
+                        <thead>
+                            <tr>
+                                <th>Materia</th>
+                                <th>Paralelo</th>
+                                <th>Periodo</th>
+                                <th>Docente</th>
+                                <th>Cupo</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach ($cursos as $curso)
+                                <tr>
+                                    <td>
+                                        <span class="font-semibold">{{ $curso->materia->codigo ?? '—' }}</span>
+                                        <span class="block text-chico text-gris">{{ $curso->materia->nombre ?? '' }}</span>
+                                    </td>
+                                    <td><span class="ui-badge ui-badge-vino">{{ $curso->paralelo }}</span></td>
+                                    <td>{{ $curso->periodo->nombre ?? '—' }}</td>
+                                    <td>{{ $curso->profesor ? $curso->profesor->nombres.' '.$curso->profesor->apellidos : 'Sin asignar' }}</td>
+                                    <td>{{ $curso->cupo ?? '—' }}</td>
+                                </tr>
+                            @endforeach
+                        </tbody>
+                    </table>
+                </div>
+            @endif
+        </section>
     </div>
-</body>
-</html>
+@endsection

@@ -712,7 +712,7 @@
                     <p class="ayuda">
                         Tus archivos se guardan de forma temporal mientras
                         completas el formulario. Quedarán unidos a tu
-                        solicitud cuando el guardado esté disponible.
+                        solicitud al enviarla a revisión.
                     </p>
                 </section>
 
@@ -844,9 +844,8 @@
                             Enviar a revisión
                         </button>
                         @unless ($envioDisponible)
-                            <p class="ayuda">El envío estará disponible cuando se integre
-                                el acceso del estudiante, el guardado del expediente y los estados
-                                de revisión. Por ahora se conservan datos y archivos temporales.</p>
+                            <p class="ayuda">Inicia sesión para enviar tu solicitud.</p>
+                            <a href="{{ route('login') }}">Iniciar sesión</a>
                         @endunless
                         <p id="mensaje-envio" class="seleccion" role="status"></p>
                     </section>
@@ -1336,7 +1335,7 @@
 
                 estado.className = 'estado-requisito' + (cantidad ? ' listo' : '');
                 estado.textContent = cantidad === 0
-                    ? 'Pendiente'
+                    ? 'Sin adjuntar'
                     : `${cantidad} ${cantidad === 1 ? 'archivo' : 'archivos'}`;
 
                 fila.append(nombre, estado);

@@ -2,61 +2,25 @@
 
 namespace App\Services\Solicitudes;
 
-use App\Models\CarreraEstudiante;
 use App\Models\EstadoSolicitud;
-use App\Models\EvaluacionElegibilidad;
-use App\Models\HistorialSolicitud;
-use App\Models\Resolucion;
 use App\Models\Solicitud;
-use App\Models\TipoTramite;
-use App\Services\Academico\AutorizacionService;
-use App\Services\Academico\EstudianteService;
 use App\Services\Flujo\EstadoSolicitudService;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Support\Collection as Lista;
+use Illuminate\Support\Facades\Schema;
 
-/**
- * Lo que «Mis solicitudes» (RF-2.13) muestra de las solicitudes guardadas:
- * las del estudiante de la sesión y las observaciones que puede leer.
- *
- * Está escrito contra los contratos de G1 (C11) y G3 (C64, C66) y todavía no
- * se ha ejecutado: esas clases no están en develop. Mientras falte alguna,
- * disponible() devuelve false y la pantalla solo lista lo que hay en la sesión.
- */
+/** Seguimiento estudiantil sobre expedientes persistidos y observaciones públicas. */
 class SeguimientoSolicitudes
 {
-    /**
-     * Clases de otros grupos que usan el listado, el detalle y SolicitudPolicy.
-     *
-     * @var list<class-string>
-     */
-    private const DEPENDENCIAS = [
-        EstudianteService::class,
-        AutorizacionService::class,
-        CarreraEstudiante::class,
-        EstadoSolicitudService::class,
-        EstadoSolicitud::class,
-        HistorialSolicitud::class,
-        Resolucion::class,
-        TipoTramite::class,
-        EvaluacionElegibilidad::class,
-    ];
-
-    public function __construct(
-        private readonly EstudianteService $estudiantes,
-        private readonly SolicitudService $solicitudes,
-        private readonly EstadoSolicitudService $estados,
-    ) {}
+    public function __construct(private readonly EstadoSolicitudService $estados) {}
 
     public static function disponible(): bool
     {
-        foreach (self::DEPENDENCIAS as $clase) {
-            if (! class_exists($clase)) {
-                return false;
-            }
-        }
-
-        return true;
+        return Schema::hasTable('tipos_tramite')
+            && Schema::hasTable('comprobaciones_informativas')
+            && Schema::hasColumn('historial_solicitud', 'visible_estudiante')
+            && method_exists(EstadoSolicitudService::class, 'lineaDeTiempo')
+            && view()->exists('components.estado-badge') && view()->exists('components.linea-tiempo');
     }
 
     /**
@@ -64,11 +28,12 @@ class SeguimientoSolicitudes
      */
     public function delEstudianteActual(): Collection
     {
-        $estudiante = $this->estudiantes->estudianteActual();
+        if (! auth()->check()) {
+            return new Collection;
+        }
 
-        return $estudiante === null
-            ? new Collection
-            : $this->solicitudes->delEstudiante($estudiante->getKey());
+        return Solicitud::whereHas('carreraEstudiante', fn ($q) => $q->where('user_id', auth()->id()))
+            ->with(['tipoTramite', 'estadoSolicitud'])->latest('id')->get();
     }
 
     /**
@@ -82,13 +47,13 @@ class SeguimientoSolicitudes
         $estados = $this->estados->estados();
 
         return $this->estados->lineaDeTiempo($solicitud, false)
-            ->filter(fn ($paso) => filled($paso->observacion))
+            ->filter(fn ($paso) => filled($paso->comentario))
             ->sortByDesc('created_at')
             ->values()
             ->map(fn ($paso) => [
                 'fecha' => $paso->created_at,
-                'estado' => $estados->find($paso->estado_nuevo_id),
-                'texto' => $paso->observacion,
+                'estado' => $estados->firstWhere('codigo', $paso->estado_nuevo),
+                'texto' => $paso->comentario,
             ]);
     }
 }

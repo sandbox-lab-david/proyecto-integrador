@@ -1,0 +1,1767 @@
+{
+  "version": "catalogo-informativo-001",
+  "tramites": [
+    {
+      "costo_texto": "Consulta con Secretaría el arancel vigente y los efectos económicos aplicables a tu solicitud.",
+      "descripcion": "Añadir una materia a una homologación que ya fue aprobada, cuando faltó un documento de respaldo.",
+      "documentos": [
+        {
+          "id": "otro",
+          "nombre": "Otro documento de apoyo",
+          "descripcion": "Puedes adjuntarlo como apoyo a tu solicitud.",
+          "formato": "PDF, JPG o PNG",
+          "url": null,
+          "obligatorio": false,
+          "obligacion": "opcional"
+        },
+        {
+          "id": "resolucion-previa",
+          "nombre": "Resolución de homologación previa",
+          "descripcion": "Puedes adjuntarlo como apoyo a tu solicitud.",
+          "formato": "PDF, JPG o PNG",
+          "url": null,
+          "obligatorio": false,
+          "obligacion": "opcional"
+        },
+        {
+          "id": "documento-omitido",
+          "nombre": "Documento omitido",
+          "descripcion": "Puedes adjuntarlo como apoyo a tu solicitud.",
+          "formato": "PDF, JPG o PNG",
+          "url": null,
+          "obligatorio": false,
+          "obligacion": "opcional"
+        }
+      ],
+      "fuente": "agenda-anny.rar: data.js, transactions y guidance; revisión 2026-10-11",
+      "id": "alcance_homologacion",
+      "nombre": "Alcance de homologación",
+      "notas": [
+        "Falta confirmar plazo, autoridad que valida el documento y causales de rechazo."
+      ],
+      "plazo_texto": "Consulta con tu facultad las fechas aplicables a tu período académico.",
+      "requisitos": [
+        "Tener una homologación previamente aprobada.",
+        "Solicitar la revisión de una materia no considerada por falta de un respaldo en esa homologación."
+      ],
+      "slug": "alcance-homologacion",
+      "categoria_id": "homologacion",
+      "parametros": {},
+      "formulario": {
+        "nombre": "Alcance de homologación",
+        "ficha": "estudiante.tramites.alcance-homologacion",
+        "instrucciones": "Completa los datos de este trámite. La información será revisada por la facultad.",
+        "max_materias": 10,
+        "campos_materia": [],
+        "campos": [
+          {
+            "nombre": "motivo",
+            "etiqueta": "Motivo de la solicitud",
+            "obligatorio": true,
+            "tipo": "texto_largo"
+          },
+          {
+            "nombre": "documento_faltante",
+            "etiqueta": "Documento que faltó",
+            "obligatorio": true,
+            "tipo": "texto"
+          }
+        ],
+        "documentos": [
+          {
+            "id": "otro",
+            "nombre": "Otro documento de apoyo",
+            "obligatorio": false
+          },
+          {
+            "id": "resolucion-previa",
+            "nombre": "Resolución de homologación previa",
+            "obligatorio": false
+          },
+          {
+            "id": "documento-omitido",
+            "nombre": "Documento omitido",
+            "obligatorio": false
+          }
+        ]
+      }
+    },
+    {
+      "costo_texto": "Consulta con Secretaría el arancel vigente y los efectos económicos aplicables a tu solicitud.",
+      "descripcion": "Solicitar la participación como ayudante de una asignatura durante un periodo académico.",
+      "documentos": [
+        {
+          "id": "recomendaciones-docentes",
+          "nombre": "Recomendaciones de al menos dos docentes (pueden agruparse en un PDF)",
+          "descripcion": "Adjunta este respaldo.",
+          "formato": "PDF, JPG o PNG",
+          "url": null,
+          "obligatorio": true,
+          "obligacion": "obligatorio"
+        },
+        {
+          "id": "solicitud-docente",
+          "nombre": "Solicitud del docente de la materia de la ayudantía",
+          "descripcion": "Adjunta este respaldo.",
+          "formato": "PDF, JPG o PNG",
+          "url": null,
+          "obligatorio": true,
+          "obligacion": "obligatorio"
+        },
+        {
+          "id": "otro",
+          "nombre": "Otro documento de apoyo",
+          "descripcion": "Puedes adjuntarlo como apoyo a tu solicitud.",
+          "formato": "PDF, JPG o PNG",
+          "url": null,
+          "obligatorio": false,
+          "obligacion": "opcional"
+        },
+        {
+          "id": "calificaciones",
+          "nombre": "Información académica o calificaciones",
+          "descripcion": "Puedes adjuntarlo como apoyo a tu solicitud.",
+          "formato": "PDF, JPG o PNG",
+          "url": null,
+          "obligatorio": false,
+          "obligacion": "opcional"
+        }
+      ],
+      "fuente": "agenda-anny.rar: data.js, transactions y guidance; revisión 2026-10-11",
+      "id": "ayudante_catedra",
+      "nombre": "Ayudante de cátedra",
+      "notas": [
+        "Falta confirmar promedio mínimo, quién puede postular, cupos, funciones y criterio de selección. El motor del proyecto contempla GPA general mínimo de 90, materia aprobada con nota mínima de 90 y ausencia de materias reprobadas. Son criterios de implementación pendientes de validación; la plantilla menciona retribución de 5 puntos."
+      ],
+      "plazo_texto": "Consulta con tu facultad las fechas aplicables a tu período académico.",
+      "requisitos": [
+        "Aceptar las responsabilidades académicas de la ayudantía.",
+        "La facultad revisa los antecedentes académicos y autoriza la ayudantía."
+      ],
+      "slug": "ayudante-catedra",
+      "categoria_id": "apoyo_academico",
+      "parametros": {},
+      "formulario": {
+        "nombre": "Ayudante de cátedra",
+        "ficha": "estudiante.tramites.ayudante",
+        "instrucciones": "Completa los datos de este trámite. La información será revisada por la facultad.",
+        "max_materias": 10,
+        "campos_materia": [
+          {
+            "nombre": "calificacion",
+            "etiqueta": "Calificación en la materia",
+            "obligatorio": false,
+            "tipo": "numero",
+            "min": 0,
+            "max": 100
+          }
+        ],
+        "campos": [
+          {
+            "nombre": "periodo",
+            "etiqueta": "Periodo",
+            "obligatorio": true,
+            "tipo": "texto"
+          },
+          {
+            "nombre": "anio",
+            "etiqueta": "Año de la ayudantía",
+            "obligatorio": true,
+            "tipo": "numero",
+            "min": 1000,
+            "max": 9999,
+            "entero": true,
+            "step": 1
+          },
+          {
+            "nombre": "gpa_general",
+            "etiqueta": "GPA general",
+            "obligatorio": false,
+            "tipo": "numero",
+            "min": 0,
+            "max": 100
+          },
+          {
+            "nombre": "motivacion",
+            "etiqueta": "Motivación",
+            "obligatorio": false,
+            "tipo": "texto_largo"
+          }
+        ],
+        "documentos": [
+          {
+            "id": "recomendaciones-docentes",
+            "nombre": "Recomendaciones de al menos dos docentes (pueden agruparse en un PDF)",
+            "obligatorio": true
+          },
+          {
+            "id": "solicitud-docente",
+            "nombre": "Solicitud del docente de la materia de la ayudantía",
+            "obligatorio": true
+          },
+          {
+            "id": "otro",
+            "nombre": "Otro documento de apoyo",
+            "obligatorio": false
+          },
+          {
+            "id": "calificaciones",
+            "nombre": "Información académica o calificaciones",
+            "obligatorio": false
+          }
+        ]
+      }
+    },
+    {
+      "costo_texto": "Consulta con Secretaría el arancel vigente y los efectos económicos aplicables a tu solicitud.",
+      "descripcion": "Cambiar de la carrera actual a otra carrera y, cuando corresponda, solicitar un nuevo código.",
+      "documentos": [
+        {
+          "id": "otro",
+          "nombre": "Otro documento de apoyo",
+          "descripcion": "Puedes adjuntarlo como apoyo a tu solicitud.",
+          "formato": "PDF, JPG o PNG",
+          "url": null,
+          "obligatorio": false,
+          "obligacion": "opcional"
+        },
+        {
+          "id": "justificacion",
+          "nombre": "Justificación del cambio",
+          "descripcion": "Puedes adjuntarlo como apoyo a tu solicitud.",
+          "formato": "PDF, JPG o PNG",
+          "url": null,
+          "obligatorio": false,
+          "obligacion": "opcional"
+        },
+        {
+          "id": "documentacion-destino",
+          "nombre": "Documentación de la carrera de destino",
+          "descripcion": "Puedes adjuntarlo como apoyo a tu solicitud.",
+          "formato": "PDF, JPG o PNG",
+          "url": null,
+          "obligatorio": false,
+          "obligacion": "opcional"
+        }
+      ],
+      "fuente": "agenda-anny.rar: data.js, transactions y guidance; revisión 2026-10-11",
+      "id": "cambio_carrera",
+      "nombre": "Cambio de carrera",
+      "notas": [
+        "Falta confirmar restricciones académicas, financieras y fechas límite."
+      ],
+      "plazo_texto": "Consulta con tu facultad las fechas aplicables a tu período académico.",
+      "requisitos": [
+        "Ser estudiante de una carrera de la universidad y solicitar el traslado a otra.",
+        "El cambio requiere revisión de la carrera de destino y puede afectar las equivalencias de materias."
+      ],
+      "slug": "cambio-carrera",
+      "categoria_id": "cambios_academicos",
+      "parametros": {},
+      "formulario": {
+        "nombre": "Cambio de carrera",
+        "ficha": "estudiante.tramites.cambio-carrera",
+        "instrucciones": "Completa los datos de este trámite. La información será revisada por la facultad.",
+        "max_materias": 0,
+        "campos_materia": [],
+        "campos": [
+          {
+            "nombre": "carrera_destino",
+            "etiqueta": "Carrera de destino",
+            "obligatorio": true,
+            "tipo": "texto"
+          },
+          {
+            "nombre": "nuevo_codigo",
+            "etiqueta": "¿Solicitas nuevo código estudiantil?",
+            "obligatorio": true,
+            "tipo": "lista",
+            "opciones": {
+              "sí": "Sí",
+              "no": "No"
+            }
+          },
+          {
+            "nombre": "motivo",
+            "etiqueta": "Motivo de la solicitud",
+            "obligatorio": true,
+            "tipo": "texto_largo"
+          }
+        ],
+        "documentos": [
+          {
+            "id": "otro",
+            "nombre": "Otro documento de apoyo",
+            "obligatorio": false
+          },
+          {
+            "id": "justificacion",
+            "nombre": "Justificación del cambio",
+            "obligatorio": false
+          },
+          {
+            "id": "documentacion-destino",
+            "nombre": "Documentación de la carrera de destino",
+            "obligatorio": false
+          }
+        ]
+      }
+    },
+    {
+      "costo_texto": "Consulta con Secretaría el arancel vigente y los efectos económicos aplicables a tu solicitud.",
+      "descripcion": "Pasar del pénsum anterior a la malla curricular vigente para continuar el registro de materias.",
+      "documentos": [
+        {
+          "id": "otro",
+          "nombre": "Otro documento de apoyo",
+          "descripcion": "Puedes adjuntarlo como apoyo a tu solicitud.",
+          "formato": "PDF, JPG o PNG",
+          "url": null,
+          "obligatorio": false,
+          "obligacion": "opcional"
+        },
+        {
+          "id": "pensum-actual",
+          "nombre": "Malla o pénsum actual",
+          "descripcion": "Puedes adjuntarlo como apoyo a tu solicitud.",
+          "formato": "PDF, JPG o PNG",
+          "url": null,
+          "obligatorio": false,
+          "obligacion": "opcional"
+        }
+      ],
+      "fuente": "agenda-anny.rar: data.js, transactions y guidance; revisión 2026-10-11",
+      "id": "cambio_malla",
+      "nombre": "Cambio de malla / pénsum",
+      "notas": [
+        "Falta confirmar condiciones, equivalencias, costos y efectos académicos."
+      ],
+      "plazo_texto": "Consulta con tu facultad las fechas aplicables a tu período académico.",
+      "requisitos": [
+        "Solicitar continuar los estudios bajo una versión distinta de la malla curricular.",
+        "El reconocimiento de materias y las asignaturas pendientes dependen de la revisión académica."
+      ],
+      "slug": "cambio-malla",
+      "categoria_id": "cambios_academicos",
+      "parametros": {},
+      "formulario": {
+        "nombre": "Cambio de malla / pénsum",
+        "ficha": "estudiante.tramites.cambio-malla",
+        "instrucciones": "Completa los datos de este trámite. La información será revisada por la facultad.",
+        "max_materias": 0,
+        "campos_materia": [],
+        "campos": [
+          {
+            "nombre": "pensum_actual",
+            "etiqueta": "Pénsum actual",
+            "obligatorio": true,
+            "tipo": "texto"
+          },
+          {
+            "nombre": "malla_destino",
+            "etiqueta": "Malla de destino",
+            "obligatorio": true,
+            "tipo": "texto"
+          },
+          {
+            "nombre": "motivo",
+            "etiqueta": "Motivo",
+            "obligatorio": false,
+            "tipo": "texto_largo"
+          }
+        ],
+        "documentos": [
+          {
+            "id": "otro",
+            "nombre": "Otro documento de apoyo",
+            "obligatorio": false
+          },
+          {
+            "id": "pensum-actual",
+            "nombre": "Malla o pénsum actual",
+            "obligatorio": false
+          }
+        ]
+      }
+    },
+    {
+      "costo_texto": "Consulta con Secretaría el arancel vigente y los efectos económicos aplicables a tu solicitud.",
+      "descripcion": "Solicitar el cambio a otra modalidad o a una carrera ofrecida en otra modalidad.",
+      "documentos": [
+        {
+          "id": "otro",
+          "nombre": "Otro documento de apoyo",
+          "descripcion": "Puedes adjuntarlo como apoyo a tu solicitud.",
+          "formato": "PDF, JPG o PNG",
+          "url": null,
+          "obligatorio": false,
+          "obligacion": "opcional"
+        },
+        {
+          "id": "respaldo-motivo",
+          "nombre": "Respaldo del motivo",
+          "descripcion": "Puedes adjuntarlo como apoyo a tu solicitud.",
+          "formato": "PDF, JPG o PNG",
+          "url": null,
+          "obligatorio": false,
+          "obligacion": "opcional"
+        }
+      ],
+      "fuente": "agenda-anny.rar: data.js, transactions y guidance; revisión 2026-10-11",
+      "id": "cambio_modalidad",
+      "nombre": "Cambio de modalidad",
+      "notas": [
+        "La plantilla original no pide expresamente la modalidad de destino; debe validarse su versión definitiva."
+      ],
+      "plazo_texto": "Consulta con tu facultad las fechas aplicables a tu período académico.",
+      "requisitos": [
+        "Que la carrera esté disponible en la modalidad de destino.",
+        "Obtener la aprobación correspondiente para aplicar el cambio."
+      ],
+      "slug": "cambio-modalidad",
+      "categoria_id": "cambios_academicos",
+      "parametros": {},
+      "formulario": {
+        "nombre": "Cambio de modalidad",
+        "ficha": "estudiante.tramites.cambio-modalidad",
+        "instrucciones": "Completa los datos de este trámite. La información será revisada por la facultad.",
+        "max_materias": 0,
+        "campos_materia": [],
+        "campos": [
+          {
+            "nombre": "modalidad_actual",
+            "etiqueta": "Modalidad actual",
+            "obligatorio": true,
+            "tipo": "texto"
+          },
+          {
+            "nombre": "modalidad_destino",
+            "etiqueta": "Modalidad solicitada",
+            "obligatorio": true,
+            "tipo": "texto"
+          },
+          {
+            "nombre": "carrera_destino",
+            "etiqueta": "Carrera de destino",
+            "obligatorio": false,
+            "tipo": "texto"
+          },
+          {
+            "nombre": "motivo",
+            "etiqueta": "Motivo de la solicitud",
+            "obligatorio": true,
+            "tipo": "texto_largo"
+          }
+        ],
+        "documentos": [
+          {
+            "id": "otro",
+            "nombre": "Otro documento de apoyo",
+            "obligatorio": false
+          },
+          {
+            "id": "respaldo-motivo",
+            "nombre": "Respaldo del motivo",
+            "obligatorio": false
+          }
+        ]
+      }
+    },
+    {
+      "costo_texto": "Consulta con Secretaría el arancel vigente y los efectos económicos aplicables a tu solicitud.",
+      "descripcion": "Solicitar una oportunidad excepcional de evaluación asociada a una pérdida por faltas.",
+      "documentos": [
+        {
+          "id": "respaldo",
+          "nombre": "Otro documento de apoyo",
+          "descripcion": "Puedes adjuntarlo como apoyo a tu solicitud.",
+          "formato": "PDF, JPG o PNG",
+          "url": null,
+          "obligatorio": false,
+          "obligacion": "opcional"
+        },
+        {
+          "id": "asistencia",
+          "nombre": "Reporte de asistencia",
+          "descripcion": "Puedes adjuntarlo como apoyo a tu solicitud.",
+          "formato": "PDF, JPG o PNG",
+          "url": null,
+          "obligatorio": false,
+          "obligacion": "opcional"
+        },
+        {
+          "id": "calificaciones",
+          "nombre": "Calificaciones de la materia",
+          "descripcion": "Puedes adjuntarlo como apoyo a tu solicitud.",
+          "formato": "PDF, JPG o PNG",
+          "url": null,
+          "obligatorio": false,
+          "obligacion": "opcional"
+        },
+        {
+          "id": "justificacion",
+          "nombre": "Justificación del caso",
+          "descripcion": "Puedes adjuntarlo como apoyo a tu solicitud.",
+          "formato": "PDF, JPG o PNG",
+          "url": null,
+          "obligatorio": false,
+          "obligacion": "opcional"
+        }
+      ],
+      "fuente": "agenda-anny.rar: data.js, transactions y guidance; revisión 2026-10-11",
+      "id": "examen_gracia",
+      "nombre": "Examen de gracia",
+      "notas": [
+        "Debe confirmarse con Anny que esta interpretación corresponde al examen de gracia usado por la Facultad. El handbook distingue nota previa mínima de 80 y nota de 90 para aprobar el examen. El motor no verifica asistencia y usa SEMESTRE ACTUAL; validar pérdida por faltas."
+      ],
+      "plazo_texto": "Consulta con tu facultad las fechas aplicables a tu período académico.",
+      "requisitos": [
+        "Solicitarlo para una materia perdida por faltas.",
+        "El material revisado indica al menos 70 % de asistencia y calificación previa mínima de 80; la facultad debe verificar su aplicación al caso."
+      ],
+      "slug": "examen-gracia",
+      "categoria_id": "evaluaciones",
+      "parametros": {},
+      "formulario": {
+        "nombre": "examen de gracia",
+        "ficha": "estudiante.tramites.gracia",
+        "instrucciones": "Escribe los datos de las materias y explica el motivo de tu solicitud.",
+        "max_materias": 10,
+        "campos_materia": [
+          {
+            "nombre": "asistencia",
+            "etiqueta": "Asistencia (%)",
+            "tipo": "numero",
+            "obligatorio": false,
+            "min": 0,
+            "max": 100
+          },
+          {
+            "nombre": "nota",
+            "etiqueta": "Calificación actual",
+            "tipo": "numero",
+            "obligatorio": false,
+            "min": 0,
+            "max": 100
+          }
+        ],
+        "campos": [
+          {
+            "nombre": "motivo",
+            "etiqueta": "Motivo y justificación",
+            "tipo": "texto_largo",
+            "obligatorio": true
+          }
+        ],
+        "documentos": [
+          {
+            "id": "respaldo",
+            "nombre": "Otro documento de apoyo",
+            "obligatorio": false
+          },
+          {
+            "id": "asistencia",
+            "nombre": "Reporte de asistencia",
+            "obligatorio": false
+          },
+          {
+            "id": "calificaciones",
+            "nombre": "Calificaciones de la materia",
+            "obligatorio": false
+          },
+          {
+            "id": "justificacion",
+            "nombre": "Justificación del caso",
+            "obligatorio": false
+          }
+        ]
+      }
+    },
+    {
+      "costo_texto": "Consulta con Secretaría el arancel vigente y los efectos económicos aplicables a tu solicitud.",
+      "descripcion": "Solicitar un examen de recuperación para una asignatura reprobada.",
+      "documentos": [
+        {
+          "id": "registro-calificaciones",
+          "nombre": "Registro de calificaciones o evidencia de la materia reprobada",
+          "descripcion": "Adjunta este respaldo.",
+          "formato": "PDF, JPG o PNG",
+          "url": null,
+          "obligatorio": true,
+          "obligacion": "obligatorio"
+        },
+        {
+          "id": "otro",
+          "nombre": "Otro documento de apoyo",
+          "descripcion": "Puedes adjuntarlo como apoyo a tu solicitud.",
+          "formato": "PDF, JPG o PNG",
+          "url": null,
+          "obligatorio": false,
+          "obligacion": "opcional"
+        }
+      ],
+      "fuente": "agenda-anny.rar: data.js, transactions y guidance; revisión 2026-10-11",
+      "id": "examen_recuperacion",
+      "nombre": "Examen de recuperación",
+      "notas": [
+        "Debe resolverse la contradicción entre la plantilla con varias materias y la regla informada de una sola materia. Conflicto con el handbook 2023: el proyecto usa 365 días y el handbook cuenta de mayo a abril; el motor usa GPA general y el handbook GPA del período con excepción para una o dos materias. No automatizar hasta acordar el criterio."
+      ],
+      "plazo_texto": "Consulta el calendario de presentación con tu facultad. El intervalo de 365 días se cuenta desde el último examen de recuperación.",
+      "requisitos": [
+        "Solicitar el examen para una materia reprobada; la facultad revisa los antecedentes académicos del caso.",
+        "La referencia de GPA general es 75 sobre 100.",
+        "El intervalo entre exámenes de recuperación es de 365 días, contados desde la fecha del último examen.",
+        "Presentar una sola materia por solicitud."
+      ],
+      "slug": "examen-recuperacion",
+      "categoria_id": "evaluaciones",
+      "parametros": {
+        "gpa_general_minimo": 75,
+        "intervalo_recuperacion_dias": 365
+      },
+      "formulario": {
+        "nombre": "examen de recuperación",
+        "ficha": "estudiante.tramites.recuperacion",
+        "instrucciones": "Escribe los datos de la materia y declara tus datos académicos. La asistente verificará la información durante la revisión.",
+        "aviso": "Recuperación admite una sola materia por solicitud. La facultad revisa los antecedentes del caso.",
+        "max_materias": 1,
+        "campos_materia": [
+          {
+            "nombre": "estado",
+            "etiqueta": "Estado académico declarado",
+            "tipo": "lista",
+            "obligatorio": false,
+            "opciones": {
+              "aprobada": "Aprobada",
+              "reprobada": "Reprobada",
+              "semestre_actual": "Semestre actual",
+              "retirada": "Retirada"
+            }
+          },
+          {
+            "nombre": "nota",
+            "etiqueta": "Nota de la materia",
+            "tipo": "numero",
+            "obligatorio": false,
+            "min": 0,
+            "max": 100
+          },
+          {
+            "nombre": "asistencia",
+            "etiqueta": "Asistencia (%)",
+            "tipo": "numero",
+            "obligatorio": false,
+            "min": 0,
+            "max": 100
+          }
+        ],
+        "campos": [
+          {
+            "nombre": "gpa_general",
+            "etiqueta": "GPA general",
+            "tipo": "numero",
+            "obligatorio": false,
+            "min": 0,
+            "max": 100,
+            "ayuda": "Declara tu GPA general sobre 100. Puedes consultar la referencia sin completar este dato."
+          },
+          {
+            "nombre": "historial_recuperacion",
+            "etiqueta": "Exámenes de recuperación anteriores",
+            "tipo": "lista",
+            "obligatorio": false,
+            "opciones": {
+              "nunca": "Nunca he rendido un examen de recuperación",
+              "con_fecha": "He rendido uno y conozco la fecha",
+              "fecha_desconocida": "He rendido uno, pero no conozco la fecha",
+              "desconocido": "No puedo confirmar esta información"
+            }
+          },
+          {
+            "nombre": "ultima_recuperacion",
+            "etiqueta": "Fecha del último examen de recuperación",
+            "tipo": "fecha",
+            "obligatorio": true,
+            "mostrar_si": {
+              "campo": "historial_recuperacion",
+              "valor": "con_fecha"
+            }
+          },
+          {
+            "nombre": "observacion",
+            "etiqueta": "Observación",
+            "tipo": "texto_largo",
+            "obligatorio": false
+          }
+        ],
+        "documentos": [
+          {
+            "id": "registro-calificaciones",
+            "nombre": "Registro de calificaciones o evidencia de la materia reprobada",
+            "obligatorio": true
+          },
+          {
+            "id": "otro",
+            "nombre": "Otro documento de apoyo",
+            "obligatorio": false
+          }
+        ]
+      }
+    },
+    {
+      "costo_texto": "Consulta con Secretaría el arancel vigente y los efectos económicos aplicables a tu solicitud.",
+      "descripcion": "Demostrar conocimientos previos para aprobar una asignatura mediante evaluación.",
+      "documentos": [
+        {
+          "id": "otro",
+          "nombre": "Otro documento de apoyo",
+          "descripcion": "Puedes adjuntarlo como apoyo a tu solicitud.",
+          "formato": "PDF, JPG o PNG",
+          "url": null,
+          "obligatorio": false,
+          "obligacion": "opcional"
+        },
+        {
+          "id": "certificados",
+          "nombre": "Certificados de estudios",
+          "descripcion": "Puedes adjuntarlo como apoyo a tu solicitud.",
+          "formato": "PDF, JPG o PNG",
+          "url": null,
+          "obligatorio": false,
+          "obligacion": "opcional"
+        },
+        {
+          "id": "silabos",
+          "nombre": "Sílabos o programas",
+          "descripcion": "Puedes adjuntarlo como apoyo a tu solicitud.",
+          "formato": "PDF, JPG o PNG",
+          "url": null,
+          "obligatorio": false,
+          "obligacion": "opcional"
+        },
+        {
+          "id": "calificaciones",
+          "nombre": "Calificaciones de otra institución",
+          "descripcion": "Puedes adjuntarlo como apoyo a tu solicitud.",
+          "formato": "PDF, JPG o PNG",
+          "url": null,
+          "obligatorio": false,
+          "obligacion": "opcional"
+        },
+        {
+          "id": "experiencia",
+          "nombre": "Respaldo de experiencia laboral",
+          "descripcion": "Puedes adjuntarlo como apoyo a tu solicitud.",
+          "formato": "PDF, JPG o PNG",
+          "url": null,
+          "obligatorio": false,
+          "obligacion": "opcional"
+        }
+      ],
+      "fuente": "agenda-anny.rar: data.js, transactions y guidance; revisión 2026-10-11",
+      "id": "examen_suficiencia",
+      "nombre": "Examen de suficiencia",
+      "notas": [
+        "Falta confirmar materias excluidas, nota mínima, número de oportunidades y costo."
+      ],
+      "plazo_texto": "Consulta con tu facultad las fechas aplicables a tu período académico.",
+      "requisitos": [
+        "Contar con conocimientos de la asignatura demostrables mediante estudios previos, experiencia u otro mecanismo aceptado.",
+        "La facultad debe autorizar la evaluación y determinar los respaldos y condiciones aplicables."
+      ],
+      "slug": "examen-suficiencia",
+      "categoria_id": "evaluaciones",
+      "parametros": {},
+      "formulario": {
+        "nombre": "Examen de suficiencia",
+        "ficha": "estudiante.tramites.suficiencia",
+        "instrucciones": "Completa los datos de este trámite. La información será revisada por la facultad.",
+        "max_materias": 10,
+        "campos_materia": [],
+        "campos": [
+          {
+            "nombre": "tipo_respaldo",
+            "etiqueta": "Tipo de respaldo",
+            "obligatorio": true,
+            "tipo": "texto"
+          },
+          {
+            "nombre": "fundamento",
+            "etiqueta": "Fundamento",
+            "obligatorio": true,
+            "tipo": "texto_largo"
+          }
+        ],
+        "documentos": [
+          {
+            "id": "otro",
+            "nombre": "Otro documento de apoyo",
+            "obligatorio": false
+          },
+          {
+            "id": "certificados",
+            "nombre": "Certificados de estudios",
+            "obligatorio": false
+          },
+          {
+            "id": "silabos",
+            "nombre": "Sílabos o programas",
+            "obligatorio": false
+          },
+          {
+            "id": "calificaciones",
+            "nombre": "Calificaciones de otra institución",
+            "obligatorio": false
+          },
+          {
+            "id": "experiencia",
+            "nombre": "Respaldo de experiencia laboral",
+            "obligatorio": false
+          }
+        ]
+      }
+    },
+    {
+      "costo_texto": "Consulta con Secretaría el arancel vigente y los efectos económicos aplicables a tu solicitud.",
+      "descripcion": "Solicitar un examen acumulativo cuando no fue posible rendir un examen parcial.",
+      "documentos": [
+        {
+          "id": "evidencia-impedimento",
+          "nombre": "Evidencia que respalde el impedimento para rendir el examen",
+          "descripcion": "Adjunta este respaldo.",
+          "formato": "PDF, JPG o PNG",
+          "url": null,
+          "obligatorio": true,
+          "obligacion": "obligatorio"
+        }
+      ],
+      "fuente": "agenda-anny.rar: data.js, transactions y guidance; revisión 2026-10-11",
+      "id": "examen_supletorio",
+      "nombre": "Examen supletorio",
+      "notas": [
+        "Falta confirmar el plazo exacto para presentar inicialmente la solicitud."
+      ],
+      "plazo_texto": "El material disponible indica rendir dentro de 30 días desde la autorización. Consulta por separado el plazo para presentar la solicitud.",
+      "requisitos": [
+        "No haber podido rendir un examen parcial por una circunstancia que debe someterse a revisión.",
+        "Obtener autorización académica para rendir el examen. La valoración de la causa y sus respaldos corresponde a la facultad."
+      ],
+      "slug": "examen-supletorio",
+      "categoria_id": "evaluaciones",
+      "parametros": {},
+      "formulario": {
+        "nombre": "examen supletorio",
+        "ficha": "estudiante.tramites.supletorio",
+        "instrucciones": "Escribe los datos de las materias, elige el parcial que no rendiste y la circunstancia que te impidió presentarlo.",
+        "max_materias": 10,
+        "campos_materia": [],
+        "campos": [
+          {
+            "nombre": "parcial",
+            "etiqueta": "Parcial no rendido",
+            "tipo": "lista",
+            "obligatorio": true,
+            "opciones": {
+              "primer_parcial": "Primer parcial",
+              "segundo_parcial": "Segundo parcial"
+            }
+          },
+          {
+            "nombre": "circunstancia",
+            "etiqueta": "Circunstancia",
+            "tipo": "texto_largo",
+            "obligatorio": true,
+            "ayuda": "Describe qué te impidió rendir el examen."
+          }
+        ],
+        "documentos": [
+          {
+            "id": "evidencia-impedimento",
+            "nombre": "Evidencia que respalde el impedimento para rendir el examen",
+            "obligatorio": true
+          }
+        ]
+      }
+    },
+    {
+      "costo_texto": "Consulta con Secretaría el arancel vigente y los efectos económicos aplicables a tu solicitud.",
+      "descripcion": "Reconocer materias aprobadas previamente en otra institución o dentro de la universidad.",
+      "documentos": [
+        {
+          "id": "identidad",
+          "nombre": "Documento de identidad",
+          "descripcion": "Puedes adjuntarlo como apoyo a tu solicitud.",
+          "formato": "PDF, JPG o PNG",
+          "url": null,
+          "obligatorio": false,
+          "obligacion": "opcional"
+        },
+        {
+          "id": "certificado-academico",
+          "nombre": "Certificado académico",
+          "descripcion": "Puedes adjuntarlo como apoyo a tu solicitud.",
+          "formato": "PDF, JPG o PNG",
+          "url": null,
+          "obligatorio": false,
+          "obligacion": "opcional"
+        },
+        {
+          "id": "silabos",
+          "nombre": "Sílabos de las materias que se evaluarán",
+          "descripcion": "Puedes adjuntarlo como apoyo a tu solicitud.",
+          "formato": "PDF, JPG o PNG",
+          "url": null,
+          "obligatorio": false,
+          "obligacion": "opcional"
+        },
+        {
+          "id": "otro",
+          "nombre": "Otro documento de apoyo",
+          "descripcion": "Puedes adjuntarlo como apoyo a tu solicitud.",
+          "formato": "PDF, JPG o PNG",
+          "url": null,
+          "obligatorio": false,
+          "obligacion": "opcional"
+        }
+      ],
+      "fuente": "agenda-anny.rar: data.js, transactions y guidance; revisión 2026-10-11",
+      "id": "homologacion",
+      "nombre": "Homologación",
+      "notas": [
+        "La Facultad debe confirmar excepciones, costos y documentos según la institución de procedencia."
+      ],
+      "plazo_texto": "Consulta con tu facultad las fechas aplicables a tu período académico.",
+      "requisitos": [
+        "Haber aprobado previamente las materias que se desean reconocer.",
+        "La facultad debe determinar la equivalencia de contenidos y la antigüedad admisible para el programa de destino."
+      ],
+      "slug": "homologacion",
+      "categoria_id": "homologacion",
+      "parametros": {},
+      "formulario": {
+        "nombre": "Homologación",
+        "ficha": "estudiante.tramites.homologacion",
+        "instrucciones": "Completa los datos de este trámite. La información será revisada por la facultad.",
+        "max_materias": 10,
+        "campos_materia": [],
+        "campos": [
+          {
+            "nombre": "institucion",
+            "etiqueta": "Institución de procedencia",
+            "obligatorio": true,
+            "tipo": "texto"
+          },
+          {
+            "nombre": "carrera_destino",
+            "etiqueta": "Carrera de destino",
+            "obligatorio": true,
+            "tipo": "texto"
+          },
+          {
+            "nombre": "informacion",
+            "etiqueta": "Información adicional",
+            "obligatorio": false,
+            "tipo": "texto_largo"
+          }
+        ],
+        "documentos": [
+          {
+            "id": "identidad",
+            "nombre": "Documento de identidad",
+            "obligatorio": false
+          },
+          {
+            "id": "certificado-academico",
+            "nombre": "Certificado académico",
+            "obligatorio": false
+          },
+          {
+            "id": "silabos",
+            "nombre": "Sílabos de las materias que se evaluarán",
+            "obligatorio": false
+          },
+          {
+            "id": "otro",
+            "nombre": "Otro documento de apoyo",
+            "obligatorio": false
+          }
+        ],
+        "aviso": "Consulta con la facultad si tu caso requiere documentos originales."
+      }
+    },
+    {
+      "costo_texto": "Consulta con Secretaría el arancel vigente y los efectos económicos aplicables a tu solicitud.",
+      "descripcion": "Solicitar la condición de incompleto por enfermedad o calamidad que impide continuar temporalmente.",
+      "documentos": [
+        {
+          "id": "otro",
+          "nombre": "Otro documento de apoyo",
+          "descripcion": "Puedes adjuntarlo como apoyo a tu solicitud.",
+          "formato": "PDF, JPG o PNG",
+          "url": null,
+          "obligatorio": false,
+          "obligacion": "opcional"
+        },
+        {
+          "id": "evidencia-causa",
+          "nombre": "Certificado o evidencia de la situación",
+          "descripcion": "Puedes adjuntarlo como apoyo a tu solicitud.",
+          "formato": "PDF, JPG o PNG",
+          "url": null,
+          "obligatorio": false,
+          "obligacion": "opcional"
+        },
+        {
+          "id": "materias-afectadas",
+          "nombre": "Detalle de las materias afectadas",
+          "descripcion": "Puedes adjuntarlo como apoyo a tu solicitud.",
+          "formato": "PDF, JPG o PNG",
+          "url": null,
+          "obligatorio": false,
+          "obligacion": "opcional"
+        }
+      ],
+      "fuente": "agenda-anny.rar: data.js, transactions y guidance; revisión 2026-10-11",
+      "id": "incompleto",
+      "nombre": "Incompleto",
+      "notas": [
+        "Falta confirmar el plazo exacto aplicable a cada tipo de periodo académico. El handbook indica solicitud hasta un mes después de terminar el período y alcance sobre todas las materias salvo excepción del Consejo; conciliar con los plazos y selección del portal."
+      ],
+      "plazo_texto": "Consulta con tu facultad las fechas aplicables a tu período académico.",
+      "requisitos": [
+        "Tener una situación grave y verificable que impida completar temporalmente los estudios.",
+        "Obtener resolución sobre las materias afectadas y las condiciones para retomarlas."
+      ],
+      "slug": "incompleto",
+      "categoria_id": "registro",
+      "parametros": {},
+      "formulario": {
+        "nombre": "Incompleto",
+        "ficha": "estudiante.tramites.incompleto",
+        "instrucciones": "Completa los datos de este trámite. La información será revisada por la facultad.",
+        "max_materias": 10,
+        "campos_materia": [],
+        "campos": [
+          {
+            "nombre": "tipo_causa",
+            "etiqueta": "Tipo de causa",
+            "obligatorio": true,
+            "tipo": "texto"
+          },
+          {
+            "nombre": "detalle",
+            "etiqueta": "Detalle de la causa",
+            "obligatorio": true,
+            "tipo": "texto_largo"
+          }
+        ],
+        "documentos": [
+          {
+            "id": "otro",
+            "nombre": "Otro documento de apoyo",
+            "obligatorio": false
+          },
+          {
+            "id": "evidencia-causa",
+            "nombre": "Certificado o evidencia de la situación",
+            "obligatorio": false
+          },
+          {
+            "id": "materias-afectadas",
+            "nombre": "Detalle de las materias afectadas",
+            "obligatorio": false
+          }
+        ]
+      }
+    },
+    {
+      "costo_texto": "Consulta con Secretaría el arancel vigente y los efectos económicos aplicables a tu solicitud.",
+      "descripcion": "Solicitar una modalidad individual para cursar una materia específica.",
+      "documentos": [
+        {
+          "id": "otro",
+          "nombre": "Documento de apoyo",
+          "descripcion": "Puedes adjuntarlo como apoyo a tu solicitud.",
+          "formato": "PDF, JPG o PNG",
+          "url": null,
+          "obligatorio": false,
+          "obligacion": "opcional"
+        }
+      ],
+      "fuente": "agenda-anny.rar: data.js, transactions y guidance; revisión 2026-10-11",
+      "id": "person_to_person",
+      "nombre": "Person to Person",
+      "notas": [
+        "No se encontraron reglas suficientes sobre quién califica, disponibilidad, costo, duración ni aprobación."
+      ],
+      "plazo_texto": "Consulta con tu facultad las fechas aplicables a tu período académico.",
+      "requisitos": [
+        "Identificar la materia que deseas cursar bajo esta modalidad.",
+        "Consultar con tu facultad la disponibilidad y las condiciones de autorización."
+      ],
+      "slug": "person-to-person",
+      "categoria_id": "apoyo_academico",
+      "parametros": {},
+      "formulario": {
+        "nombre": "Person to Person",
+        "ficha": "estudiante.tramites.person-to-person",
+        "instrucciones": "Completa los datos de este trámite. La información será revisada por la facultad.",
+        "max_materias": 10,
+        "campos_materia": [],
+        "campos": [
+          {
+            "nombre": "motivo",
+            "etiqueta": "Motivo",
+            "obligatorio": false,
+            "tipo": "texto_largo"
+          }
+        ],
+        "documentos": [
+          {
+            "id": "otro",
+            "nombre": "Documento de apoyo",
+            "obligatorio": false
+          }
+        ]
+      }
+    },
+    {
+      "costo_texto": "Consulta con Secretaría el arancel vigente y los efectos económicos aplicables a tu solicitud.",
+      "descripcion": "Solicitar la revisión formal de la calificación de un examen de una materia activa.",
+      "documentos": [
+        {
+          "id": "otro",
+          "nombre": "Otro documento de apoyo",
+          "descripcion": "Puedes adjuntarlo como apoyo a tu solicitud.",
+          "formato": "PDF, JPG o PNG",
+          "url": null,
+          "obligatorio": false,
+          "obligacion": "opcional"
+        },
+        {
+          "id": "examen",
+          "nombre": "Examen y calificación",
+          "descripcion": "Puedes adjuntarlo como apoyo a tu solicitud.",
+          "formato": "PDF, JPG o PNG",
+          "url": null,
+          "obligatorio": false,
+          "obligacion": "opcional"
+        },
+        {
+          "id": "puntos-revision",
+          "nombre": "Puntos solicitados para revisión",
+          "descripcion": "Puedes adjuntarlo como apoyo a tu solicitud.",
+          "formato": "PDF, JPG o PNG",
+          "url": null,
+          "obligatorio": false,
+          "obligacion": "opcional"
+        }
+      ],
+      "fuente": "agenda-anny.rar: data.js, transactions y guidance; revisión 2026-10-11",
+      "id": "recalificacion",
+      "nombre": "Recalificación de examen",
+      "notas": [
+        "Falta confirmar cómo se cuentan las 48 horas y el procedimiento de revisión. El handbook limita la recalificación a evaluaciones finales del parcial. El portal permite otra evaluación activa; confirmar alcance y si las 48 horas son límite obligatorio."
+      ],
+      "plazo_texto": "Consulta con tu facultad las fechas aplicables a tu período académico.",
+      "requisitos": [
+        "Solicitar la revisión de una evaluación que admita recalificación y fundamentar el desacuerdo en puntos concretos.",
+        "La revisión no garantiza un cambio de calificación."
+      ],
+      "slug": "recalificacion",
+      "categoria_id": "evaluaciones",
+      "parametros": {},
+      "formulario": {
+        "nombre": "Recalificación de examen",
+        "ficha": "estudiante.tramites.recalificacion",
+        "instrucciones": "Completa los datos de este trámite. La información será revisada por la facultad.",
+        "max_materias": 10,
+        "campos_materia": [],
+        "campos": [
+          {
+            "nombre": "evaluacion",
+            "etiqueta": "Evaluación",
+            "obligatorio": true,
+            "tipo": "texto"
+          },
+          {
+            "nombre": "publicacion_fecha",
+            "etiqueta": "Fecha de publicación de la nota",
+            "obligatorio": true,
+            "tipo": "fecha"
+          },
+          {
+            "nombre": "publicacion_hora",
+            "etiqueta": "Hora de publicación de la nota",
+            "obligatorio": true,
+            "tipo": "hora"
+          },
+          {
+            "nombre": "reclamo",
+            "etiqueta": "Puntos del reclamo",
+            "obligatorio": true,
+            "tipo": "texto_largo"
+          }
+        ],
+        "documentos": [
+          {
+            "id": "otro",
+            "nombre": "Otro documento de apoyo",
+            "obligatorio": false
+          },
+          {
+            "id": "examen",
+            "nombre": "Examen y calificación",
+            "obligatorio": false
+          },
+          {
+            "id": "puntos-revision",
+            "nombre": "Puntos solicitados para revisión",
+            "obligatorio": false
+          }
+        ]
+      }
+    },
+    {
+      "costo_texto": "Consulta con Secretaría el arancel vigente y los efectos económicos aplicables a tu solicitud.",
+      "descripcion": "Solicitar el registro tardío de materias a las que el estudiante ha asistido como oyente.",
+      "documentos": [
+        {
+          "id": "otro",
+          "nombre": "Otro documento de apoyo",
+          "descripcion": "Puedes adjuntarlo como apoyo a tu solicitud.",
+          "formato": "PDF, JPG o PNG",
+          "url": null,
+          "obligatorio": false,
+          "obligacion": "opcional"
+        },
+        {
+          "id": "asistencia",
+          "nombre": "Evidencia de asistencia",
+          "descripcion": "Puedes adjuntarlo como apoyo a tu solicitud.",
+          "formato": "PDF, JPG o PNG",
+          "url": null,
+          "obligatorio": false,
+          "obligacion": "opcional"
+        },
+        {
+          "id": "autorizacion-docente",
+          "nombre": "Autorización del docente",
+          "descripcion": "Puedes adjuntarlo como apoyo a tu solicitud.",
+          "formato": "PDF, JPG o PNG",
+          "url": null,
+          "obligatorio": false,
+          "obligacion": "opcional"
+        }
+      ],
+      "fuente": "agenda-anny.rar: data.js, transactions y guidance; revisión 2026-10-11",
+      "id": "registro_extemporaneo",
+      "nombre": "Registro extemporáneo",
+      "notas": [
+        "Falta confirmar fecha límite, aprobación docente, cupos, pagos y restricciones."
+      ],
+      "plazo_texto": "Consulta con tu facultad las fechas aplicables a tu período académico.",
+      "requisitos": [
+        "Solicitar el registro de materias una vez terminado el plazo ordinario.",
+        "La asistencia como oyente está contemplada por el proyecto, pero su exigencia debe confirmarse; no equivale a matrícula ni garantiza autorización."
+      ],
+      "slug": "registro-extemporaneo",
+      "categoria_id": "registro",
+      "parametros": {},
+      "formulario": {
+        "nombre": "Registro extemporáneo",
+        "ficha": "estudiante.tramites.registro-extemporaneo",
+        "instrucciones": "Completa los datos de este trámite. La información será revisada por la facultad.",
+        "max_materias": 10,
+        "campos_materia": [],
+        "campos": [
+          {
+            "nombre": "oyente",
+            "etiqueta": "¿Asististe como oyente?",
+            "obligatorio": true,
+            "tipo": "lista",
+            "opciones": {
+              "sí": "Sí",
+              "no": "No"
+            }
+          },
+          {
+            "nombre": "motivo",
+            "etiqueta": "Motivo de la solicitud",
+            "obligatorio": true,
+            "tipo": "texto_largo"
+          }
+        ],
+        "documentos": [
+          {
+            "id": "otro",
+            "nombre": "Otro documento de apoyo",
+            "obligatorio": false
+          },
+          {
+            "id": "asistencia",
+            "nombre": "Evidencia de asistencia",
+            "obligatorio": false
+          },
+          {
+            "id": "autorizacion-docente",
+            "nombre": "Autorización del docente",
+            "obligatorio": false
+          }
+        ]
+      }
+    },
+    {
+      "costo_texto": "Consulta con Secretaría el arancel vigente y los efectos económicos aplicables a tu solicitud.",
+      "descripcion": "Retomar una carrera después de un periodo de inactividad para completar los estudios.",
+      "documentos": [
+        {
+          "id": "otro",
+          "nombre": "Otro documento de apoyo",
+          "descripcion": "Puedes adjuntarlo como apoyo a tu solicitud.",
+          "formato": "PDF, JPG o PNG",
+          "url": null,
+          "obligatorio": false,
+          "obligacion": "opcional"
+        },
+        {
+          "id": "respaldo-interrupcion",
+          "nombre": "Respaldo del motivo de interrupción",
+          "descripcion": "Puedes adjuntarlo como apoyo a tu solicitud.",
+          "formato": "PDF, JPG o PNG",
+          "url": null,
+          "obligatorio": false,
+          "obligacion": "opcional"
+        }
+      ],
+      "fuente": "agenda-anny.rar: data.js, transactions y guidance; revisión 2026-10-11",
+      "id": "reincorporacion_carrera",
+      "nombre": "Reincorporación a carrera",
+      "notas": [
+        "Falta confirmar tiempo máximo de inactividad, malla aplicable, deudas y proceso financiero."
+      ],
+      "plazo_texto": "Consulta con tu facultad las fechas aplicables a tu período académico.",
+      "requisitos": [
+        "Haber cursado la carrera y solicitar el retorno después de un período de inactividad.",
+        "El retorno depende de la revisión de la malla aplicable y las condiciones académicas y financieras."
+      ],
+      "slug": "reincorporacion",
+      "categoria_id": "retiros_continuidad",
+      "parametros": {},
+      "formulario": {
+        "nombre": "Reincorporación a carrera",
+        "ficha": "estudiante.tramites.reincorporacion",
+        "instrucciones": "Completa los datos de este trámite. La información será revisada por la facultad.",
+        "max_materias": 0,
+        "campos_materia": [],
+        "campos": [
+          {
+            "nombre": "ultimo_periodo",
+            "etiqueta": "Último periodo cursado",
+            "obligatorio": false,
+            "tipo": "texto"
+          },
+          {
+            "nombre": "motivo",
+            "etiqueta": "Motivo de la solicitud",
+            "obligatorio": true,
+            "tipo": "texto_largo"
+          }
+        ],
+        "documentos": [
+          {
+            "id": "otro",
+            "nombre": "Otro documento de apoyo",
+            "obligatorio": false
+          },
+          {
+            "id": "respaldo-interrupcion",
+            "nombre": "Respaldo del motivo de interrupción",
+            "obligatorio": false
+          }
+        ]
+      }
+    },
+    {
+      "costo_texto": "Consulta con Secretaría el arancel vigente y los efectos económicos aplicables a tu solicitud.",
+      "descripcion": "Permite solicitar dejar la carrera actual y revisar tus obligaciones academicas y financieras.",
+      "documentos": [
+        {
+          "id": "otro",
+          "nombre": "Otro documento de apoyo",
+          "descripcion": "Puedes adjuntarlo como apoyo a tu solicitud.",
+          "formato": "PDF, JPG o PNG",
+          "url": null,
+          "obligatorio": false,
+          "obligacion": "opcional"
+        },
+        {
+          "id": "respaldo-motivo",
+          "nombre": "Respaldo del motivo",
+          "descripcion": "Puedes adjuntarlo como apoyo a tu solicitud.",
+          "formato": "PDF, JPG o PNG",
+          "url": null,
+          "obligatorio": false,
+          "obligacion": "opcional"
+        }
+      ],
+      "fuente": "agenda-anny.rar: data.js, transactions y guidance; revisión 2026-10-11",
+      "id": "retiro_carrera",
+      "nombre": "Retiro de carrera",
+      "notas": [
+        "Debe diferenciarse formalmente de cambio de carrera y retiro de universidad."
+      ],
+      "plazo_texto": "Consulta con tu facultad las fechas aplicables a tu período académico.",
+      "requisitos": [
+        "Solicitar dejar la carrera actual y formalizar el retiro ante la facultad.",
+        "El retiro no elimina automáticamente las obligaciones académicas o financieras pendientes."
+      ],
+      "slug": "retiro-carrera",
+      "categoria_id": "retiros_continuidad",
+      "parametros": {},
+      "formulario": {
+        "nombre": "Retiro de carrera",
+        "ficha": "estudiante.tramites.retiro-carrera",
+        "instrucciones": "Completa los datos de este trámite. La información será revisada por la facultad.",
+        "max_materias": 0,
+        "campos_materia": [],
+        "campos": [
+          {
+            "nombre": "motivo",
+            "etiqueta": "Motivo de la solicitud",
+            "obligatorio": true,
+            "tipo": "texto_largo"
+          }
+        ],
+        "documentos": [
+          {
+            "id": "otro",
+            "nombre": "Otro documento de apoyo",
+            "obligatorio": false
+          },
+          {
+            "id": "respaldo-motivo",
+            "nombre": "Respaldo del motivo",
+            "obligatorio": false
+          }
+        ]
+      }
+    },
+    {
+      "costo_texto": "Consulta con Secretaría el arancel vigente y los efectos económicos aplicables a tu solicitud.",
+      "descripcion": "Solicitar el retiro de una materia antes del límite correspondiente.",
+      "documentos": [
+        {
+          "id": "otro",
+          "nombre": "Otro documento de apoyo",
+          "descripcion": "Puedes adjuntarlo como apoyo a tu solicitud.",
+          "formato": "PDF, JPG o PNG",
+          "url": null,
+          "obligatorio": false,
+          "obligacion": "opcional"
+        },
+        {
+          "id": "respaldo-motivo",
+          "nombre": "Respaldo del motivo",
+          "descripcion": "Puedes adjuntarlo como apoyo a tu solicitud.",
+          "formato": "PDF, JPG o PNG",
+          "url": null,
+          "obligatorio": false,
+          "obligacion": "opcional"
+        }
+      ],
+      "fuente": "agenda-anny.rar: data.js, transactions y guidance; revisión 2026-10-11",
+      "id": "retiro_materia",
+      "nombre": "Retiro de materia",
+      "notas": [
+        "Debe confirmarse el porcentaje económico: la plantilla indica 100 %, pero las respuestas describen 25 %, 50 % y 100 % según la semana. Conflicto con el handbook: describe reintegros de hasta 80 % en la primera semana y 50 % en la segunda. Confirmar el criterio económico antes de informar un valor."
+      ],
+      "plazo_texto": "Consulta con tu facultad las fechas aplicables a tu período académico.",
+      "requisitos": [
+        "Solicitar y formalizar el retiro de una materia dentro del plazo aplicable.",
+        "Dejar de asistir no equivale a retiro. La facultad debe revisar las consecuencias académicas y económicas."
+      ],
+      "slug": "retiro-materia",
+      "categoria_id": "retiros_continuidad",
+      "parametros": {},
+      "formulario": {
+        "nombre": "Retiro de materia",
+        "ficha": "estudiante.tramites.retiro-materia",
+        "instrucciones": "Completa los datos de este trámite. La información será revisada por la facultad.",
+        "max_materias": 10,
+        "campos_materia": [],
+        "campos": [
+          {
+            "nombre": "semana",
+            "etiqueta": "Semana actual del periodo",
+            "obligatorio": true,
+            "tipo": "numero",
+            "min": 1,
+            "entero": true,
+            "step": 1
+          },
+          {
+            "nombre": "motivo",
+            "etiqueta": "Motivo",
+            "obligatorio": false,
+            "tipo": "texto_largo"
+          }
+        ],
+        "documentos": [
+          {
+            "id": "otro",
+            "nombre": "Otro documento de apoyo",
+            "obligatorio": false
+          },
+          {
+            "id": "respaldo-motivo",
+            "nombre": "Respaldo del motivo",
+            "obligatorio": false
+          }
+        ]
+      }
+    },
+    {
+      "costo_texto": "Consulta con Secretaría el arancel vigente y los efectos económicos aplicables a tu solicitud.",
+      "descripcion": "Permite solicitar la salida completa de la universidad y la revision de tus materias y obligaciones pendientes.",
+      "documentos": [
+        {
+          "id": "otro",
+          "nombre": "Otro documento de apoyo",
+          "descripcion": "Puedes adjuntarlo como apoyo a tu solicitud.",
+          "formato": "PDF, JPG o PNG",
+          "url": null,
+          "obligatorio": false,
+          "obligacion": "opcional"
+        },
+        {
+          "id": "respaldo-motivo",
+          "nombre": "Respaldo del motivo",
+          "descripcion": "Puedes adjuntarlo como apoyo a tu solicitud.",
+          "formato": "PDF, JPG o PNG",
+          "url": null,
+          "obligatorio": false,
+          "obligacion": "opcional"
+        }
+      ],
+      "fuente": "agenda-anny.rar: data.js, transactions y guidance; revisión 2026-10-11",
+      "id": "retiro_universidad",
+      "nombre": "Retiro de universidad",
+      "notas": [
+        "La redacción de la plantilla debe revisarse porque utiliza términos similares al retiro de carrera."
+      ],
+      "plazo_texto": "Consulta con tu facultad las fechas aplicables a tu período académico.",
+      "requisitos": [
+        "Solicitar y formalizar la salida completa de la universidad, no solo de una carrera.",
+        "La facultad debe determinar las obligaciones que permanecen después del retiro."
+      ],
+      "slug": "retiro-universidad",
+      "categoria_id": "retiros_continuidad",
+      "parametros": {},
+      "formulario": {
+        "nombre": "Retiro de universidad",
+        "ficha": "estudiante.tramites.retiro-universidad",
+        "instrucciones": "Completa los datos de este trámite. La información será revisada por la facultad.",
+        "max_materias": 0,
+        "campos_materia": [],
+        "campos": [
+          {
+            "nombre": "motivo",
+            "etiqueta": "Motivo de la solicitud",
+            "obligatorio": true,
+            "tipo": "texto_largo"
+          }
+        ],
+        "documentos": [
+          {
+            "id": "otro",
+            "nombre": "Otro documento de apoyo",
+            "obligatorio": false
+          },
+          {
+            "id": "respaldo-motivo",
+            "nombre": "Respaldo del motivo",
+            "obligatorio": false
+          }
+        ]
+      }
+    },
+    {
+      "costo_texto": "Consulta con Secretaría el arancel vigente y los efectos económicos aplicables a tu solicitud.",
+      "descripcion": "Solicitar fuera del plazo ordinario el retiro de una o varias materias.",
+      "documentos": [
+        {
+          "id": "otro",
+          "nombre": "Otro documento de apoyo",
+          "descripcion": "Puedes adjuntarlo como apoyo a tu solicitud.",
+          "formato": "PDF, JPG o PNG",
+          "url": null,
+          "obligatorio": false,
+          "obligacion": "opcional"
+        },
+        {
+          "id": "evidencia-excepcional",
+          "nombre": "Evidencia de la circunstancia excepcional",
+          "descripcion": "Puedes adjuntarlo como apoyo a tu solicitud.",
+          "formato": "PDF, JPG o PNG",
+          "url": null,
+          "obligatorio": false,
+          "obligacion": "opcional"
+        }
+      ],
+      "fuente": "agenda-anny.rar: data.js, transactions y guidance; revisión 2026-10-11",
+      "id": "retiro_extemporaneo",
+      "nombre": "Retiro extemporáneo",
+      "notas": [
+        "Falta confirmar qué situaciones excepcionales se aceptan y quién las valida."
+      ],
+      "plazo_texto": "Se solicita una vez terminado el plazo ordinario. Consulta con la facultad la fecha máxima para revisar tu caso.",
+      "requisitos": [
+        "Solicitar el retiro una vez terminado el plazo ordinario y someter la circunstancia excepcional a revisión académica.",
+        "La autorización y las consecuencias académicas y financieras dependen de la revisión del caso."
+      ],
+      "slug": "retiro-extemporaneo",
+      "categoria_id": "retiros_continuidad",
+      "parametros": {},
+      "formulario": {
+        "nombre": "Retiro extemporáneo",
+        "ficha": "estudiante.tramites.retiro-extemporaneo",
+        "instrucciones": "Completa los datos de este trámite. La información será revisada por la facultad.",
+        "max_materias": 10,
+        "campos_materia": [],
+        "campos": [
+          {
+            "nombre": "motivo",
+            "etiqueta": "Motivo excepcional",
+            "obligatorio": true,
+            "tipo": "texto_largo"
+          }
+        ],
+        "documentos": [
+          {
+            "id": "otro",
+            "nombre": "Otro documento de apoyo",
+            "obligatorio": false
+          },
+          {
+            "id": "evidencia-excepcional",
+            "nombre": "Evidencia de la circunstancia excepcional",
+            "obligatorio": false
+          }
+        ]
+      }
+    },
+    {
+      "costo_texto": "Consulta con Secretaría el arancel vigente y los efectos económicos aplicables a tu solicitud.",
+      "descripcion": "Solicitar autorización para cursar por tercera vez una materia reprobada dos veces.",
+      "documentos": [
+        {
+          "id": "otro",
+          "nombre": "Otro documento de apoyo",
+          "descripcion": "Puedes adjuntarlo como apoyo a tu solicitud.",
+          "formato": "PDF, JPG o PNG",
+          "url": null,
+          "obligatorio": false,
+          "obligacion": "opcional"
+        },
+        {
+          "id": "registros-previos",
+          "nombre": "Calificaciones y periodos de registros anteriores",
+          "descripcion": "Puedes adjuntarlo como apoyo a tu solicitud.",
+          "formato": "PDF, JPG o PNG",
+          "url": null,
+          "obligatorio": false,
+          "obligacion": "opcional"
+        }
+      ],
+      "fuente": "agenda-anny.rar: data.js, transactions y guidance; revisión 2026-10-11",
+      "id": "tercer_registro",
+      "nombre": "Tercer registro",
+      "notas": [
+        "Falta confirmar excepciones, simultaneidad con otras materias y consecuencias de una nueva reprobación."
+      ],
+      "plazo_texto": "Consulta con tu facultad las fechas aplicables a tu período académico.",
+      "requisitos": [
+        "Haber reprobado la misma materia en dos registros anteriores.",
+        "El material revisado excluye Medicina y Enfermería y limita los terceros registros durante la carrera; confirmar su aplicación al caso.",
+        "Obtener autorización académica y confirmar la condición de cursar la materia en exclusividad."
+      ],
+      "slug": "tercer-registro",
+      "categoria_id": "registro",
+      "parametros": {},
+      "formulario": {
+        "nombre": "Tercer registro",
+        "ficha": "estudiante.tramites.tercer-registro",
+        "instrucciones": "Completa los datos de este trámite. La información será revisada por la facultad.",
+        "max_materias": 10,
+        "campos_materia": [
+          {
+            "nombre": "registro_1_anio",
+            "etiqueta": "Año del registro 1",
+            "obligatorio": true,
+            "tipo": "numero",
+            "min": 1000,
+            "max": 2026,
+            "entero": true,
+            "step": 1,
+            "ayuda": "Declara el año del registro anterior."
+          },
+          {
+            "nombre": "registro_1_periodo",
+            "etiqueta": "Periodo del registro 1",
+            "obligatorio": true,
+            "tipo": "texto",
+            "max_length": 50
+          },
+          {
+            "nombre": "registro_1_nota",
+            "etiqueta": "Nota del registro 1",
+            "obligatorio": true,
+            "tipo": "numero",
+            "min": 0,
+            "max": 100
+          },
+          {
+            "nombre": "registro_2_anio",
+            "etiqueta": "Año del registro 2",
+            "obligatorio": true,
+            "tipo": "numero",
+            "min": 1000,
+            "max": 2026,
+            "entero": true,
+            "step": 1,
+            "ayuda": "Declara el año del registro anterior."
+          },
+          {
+            "nombre": "registro_2_periodo",
+            "etiqueta": "Periodo del registro 2",
+            "obligatorio": true,
+            "tipo": "texto",
+            "max_length": 50
+          },
+          {
+            "nombre": "registro_2_nota",
+            "etiqueta": "Nota del registro 2",
+            "obligatorio": true,
+            "tipo": "numero",
+            "min": 0,
+            "max": 100
+          }
+        ],
+        "campos": [],
+        "documentos": [
+          {
+            "id": "otro",
+            "nombre": "Otro documento de apoyo",
+            "obligatorio": false
+          },
+          {
+            "id": "registros-previos",
+            "nombre": "Calificaciones y periodos de registros anteriores",
+            "obligatorio": false
+          }
+        ]
+      }
+    }
+  ]
+}

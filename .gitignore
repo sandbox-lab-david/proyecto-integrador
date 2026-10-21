@@ -28,3 +28,11 @@ Thumbs.db
 
 # Revisiones locales fechadas del proyecto (no versionar)
 /revisiones-locales/
+
+# Documentos locales de trabajo sobre el conocimiento del chatbot
+/prolog/REGLAS_Y_PERFIL.md
+/prolog/kb/README_CONOCIMIENTO.md
+/prolog/kb/INVENTARIO_CONOCIMIENTO.md
+
+# Revisiones generadas del catálogo y puntero local del motor
+/storage/prolog/

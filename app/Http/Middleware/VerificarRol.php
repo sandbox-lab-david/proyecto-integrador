@@ -2,25 +2,29 @@
 
 namespace App\Http\Middleware;
 
+use App\Services\Academico\AutorizacionService;
 use Closure;
 use Illuminate\Http\Request;
 use Symfony\Component\HttpFoundation\Response;
-use App\Services\Academico\AutorizacionService;
 
 class VerificarRol
 {
     /**
-     * Handle an incoming request.
+     * Valida que el usuario autenticado tenga al menos uno de los roles solicitados.
+     * Compatible con el servicio AutorizacionService (G1) y con verificación directa de rol.
      *
      * @param  Closure(Request): (Response)  $next
      */
     public function handle(Request $request, Closure $next, string ...$roles): Response
     {
         $usuario = $request->user();
-        $servicio = app(AutorizacionService::class);
-        if (! $usuario || ! $servicio->tieneRol($usuario, $roles)) { 
-            abort(403); 
+        if (! $usuario) {
+            abort(403, 'Acceso denegado: se requiere autenticación.');
         }
-        return $next($request);
+
+        if (app(AutorizacionService::class)->tieneRol($usuario, $roles)) {
+            return $next($request);
+        }
+        abort(403, 'Acceso denegado: no tienes el rol requerido para ver este recurso.');
     }
 }

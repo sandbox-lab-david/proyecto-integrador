@@ -14,8 +14,13 @@ class DatabaseSeeder extends Seeder
     {
         // Grupo 1
         $this->call([
+            RolSeeder::class,
+            FacultadSeeder::class,
+            CarreraSeeder::class,
+            PeriodoSeeder::class,
             UsuarioDemoSeeder::class,
-            //CursoSeeder::Class,
+        //CursoSeeder::Class,
+            // Aquí agregarán luego FacultadSeeder, PeriodoSeeder, etc.
         ]);
 
         User::factory()->create([

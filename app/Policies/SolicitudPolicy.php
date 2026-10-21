@@ -26,16 +26,14 @@ class SolicitudPolicy
      */
     public function view(User $u, Solicitud $s): bool
     {
-        $inscripcion = $s->carreraEstudiante;
-
-        if ((int) $inscripcion->estudiante->user_id === (int) $u->getKey()) {
+        if (! $u->activo || ! $s->carreraEstudiante) {
+            return false;
+        }
+        if ((int) $s->carreraEstudiante->user_id === (int) $u->id) {
             return true;
         }
 
-        $carrera = $inscripcion->carreraModalidad->carrera;
-
-        return $this->autorizacion->puedeVerCarrera($u, $carrera->getKey())
-            || $this->autorizacion->puedeVerFacultad($u, $carrera->facultad_id);
+        return $this->autorizacion->puedeVerCarrera($u, $s->carreraEstudiante->carrera_id);
     }
 
     /**

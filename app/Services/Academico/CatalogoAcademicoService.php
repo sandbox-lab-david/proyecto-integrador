@@ -6,10 +6,72 @@ use App\Models\Malla;
 use Illuminate\Database\Eloquent\Collection;
 use App\Models\Periodo;
 use Illuminate\Support\Carbon;
+use App\Models\Carrera;
+use App\Models\Facultad;
 
 class CatalogoAcademicoService
 {
-    
+
+    // ===C01: Devuelve la lista de facultades
+    public function facultades(bool $soloActivas=true): Collection
+    {
+        /*
+        // =STUB=
+        $facultadesFalsas = collect([
+            (object)['id' => 1, 'codigo' => 'ING', 'nombre' => 'Ingenieria', 'correo_notificaciones' => 'ingenieriauees@uees.edu.ec' 'activo' => true],
+            (object)['id' => 2, 'codigo' => 'MED', 'nombre' => 'Ciencias de la Salud', 'correo_notificaciones' => 'areasaluduees@uees.edu.ec' 'activo' => true],
+            (object)['id' => 3, 'codigo' => 'ARQ', 'nombre' => 'Arquitectura y Diseño', 'correo_notificaciones' => 'arquitectura@uees.edu.ec' 'activo' => false],
+        ]);
+
+        if ($soloActivas){
+        return $facultadesFalsas->where('activo', true)->values();
+        }
+
+        return $facultadesFalsas;
+        */
+
+        if ($soloActivas){
+            return Facultad::where('activo', true)->get();
+        }
+
+        return Facultad::all();
+    }
+
+    // ===C02: Carreras por facultad
+    public function carrerasPorFacultad($facultadId)
+    {
+        return Carrera::where('facultad_id', $facultadId)->get();
+    }
+
+    // ===C06: Periodos (Selects y filtros)
+    public function periodos()
+    {
+        return Periodo::orderBy('created_at', 'desc')->get(['id', 'nombre', 'activo']);
+    }
+
+    // ===C07: Devuelve el periodo academico activo actualmente
+    public function periodoActual()
+    {
+        /*
+        // =STUB=
+        return (object)[
+            'id' => '1',
+            'codigo' => 'ORD-2-2026',
+            'nombre' => 'Ordinario 2 2026',
+            'tipo' => 'Ordinario',
+            'fecha_incio' => '2026-09-01',
+            'fecha_fin' => '2026-12-17',
+            'semana_primer_parcial' => 8,
+            'activo' => true
+        ];
+        */
+
+        return \App\Models\Periodo::where('activo', true)->first();
+    } 
+
+
+
+
     //===C09: Devuelve los paralelos (cursos) activos de una materia en un periodo dado.
     public function cursosDeMateria(int $materiaId, int $periodoId): Collection
     {
@@ -77,6 +139,11 @@ class CatalogoAcademicoService
         return collect([]);
     }
     
-    
+    // ===C31: Carreras sin tercer registro
+    public function carrerasSinTercerRegistro(): Collection
+    {
+        // C31: según el Excel, sin parámetros; devuelve las carreras que no admiten tercer registro
+        return Carrera::where('admite_tercer_registro', false)->get();
+    }
 }
 

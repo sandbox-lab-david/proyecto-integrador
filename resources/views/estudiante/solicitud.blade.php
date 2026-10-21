@@ -62,12 +62,12 @@
 
                         <div>
                             <dt>Número</dt>
-                            <dd>{{ $resolucion->numero }}</dd>
+                            <dd>{{ $resolucion->numero_resolucion }}</dd>
                         </div>
 
                         <div>
                             <dt>Fecha</dt>
-                            <dd>{{ \Illuminate\Support\Carbon::parse($resolucion->fecha)->format('d/m/Y') }}</dd>
+                            <dd>{{ \Illuminate\Support\Carbon::parse($resolucion->fecha_resolucion)->format('d/m/Y') }}</dd>
                         </div>
                     </dl>
 
@@ -75,11 +75,11 @@
                         <p class="texto-observacion">{{ $resolucion->observacion }}</p>
                     @endif
 
-                    @if (filled($resolucion->ruta_pdf))
+                    @if (filled($resolucion->documento_pdf))
                         <x-visor-documento
-                            :ruta="$resolucion->ruta_pdf"
+                            :ruta="$resolucion->documento_pdf"
                             mime="application/pdf"
-                            :nombre="'Resolución '.$resolucion->numero.'.pdf'"
+                            :nombre="'Resolución '.$resolucion->numero_resolucion.'.pdf'"
                         />
                     @endif
                 </section>

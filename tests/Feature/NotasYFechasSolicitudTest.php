@@ -6,6 +6,7 @@ use App\Services\Solicitudes\DocumentosTemporales;
 use App\Services\Solicitudes\ReglasCampoSolicitud;
 use App\Services\Solicitudes\TramitesSimulados;
 use Illuminate\Support\Arr;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Storage;
 use PHPUnit\Framework\Attributes\DataProvider;
 use Tests\TestCase;
@@ -15,7 +16,7 @@ class NotasYFechasSolicitudTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
-        $this->travelTo(\Illuminate\Support\Carbon::parse('2026-10-20 15:30:00', ReglasCampoSolicitud::zonaHoraria()));
+        $this->travelTo(Carbon::parse('2026-10-20 15:30:00', ReglasCampoSolicitud::zonaHoraria()));
         Storage::fake('local');
     }
 
@@ -57,7 +58,7 @@ class NotasYFechasSolicitudTest extends TestCase
         return [
             'nota recuperacion' => ['recuperacion', 'materias.0.datos.nota'],
             'asistencia recuperacion' => ['recuperacion', 'materias.0.datos.asistencia'],
-            'gpa recuperacion' => ['recuperacion', 'campos.gpa_periodo'],
+            'gpa recuperacion' => ['recuperacion', 'campos.gpa_general'],
             'nota gracia' => ['gracia', 'materias.0.datos.nota'],
             'asistencia gracia' => ['gracia', 'materias.0.datos.asistencia'],
             'calificacion ayudante' => ['ayudante', 'materias.0.datos.calificacion'],
@@ -98,6 +99,7 @@ class NotasYFechasSolicitudTest extends TestCase
                 $casos[$tramite.' '.$fecha] = [$tramite, $campo, $fecha];
             }
         }
+
         return $casos;
     }
 
@@ -106,7 +108,9 @@ class NotasYFechasSolicitudTest extends TestCase
     {
         $datos = $this->datos($tramite);
         $datos['campos'][$campo] = $fecha;
-        if ($tramite === 'recuperacion') $datos['campos']['historial_recuperacion'] = 'con_fecha';
+        if ($tramite === 'recuperacion') {
+            $datos['campos']['historial_recuperacion'] = 'con_fecha';
+        }
         $this->rechazarEnTodasLasRutas($datos, 'campos.'.$campo);
     }
 
@@ -179,7 +183,7 @@ class NotasYFechasSolicitudTest extends TestCase
             'paso' => 2, 'campos' => ['publicacion_fecha' => '2026-10-20'],
         ])->assertOk();
         $datos = $this->datos('recuperacion');
-        $datos['campos']['gpa_periodo'] = '';
+        $datos['campos']['gpa_general'] = '';
         $datos['materias'][0]['datos']['nota'] = '';
         $this->postJson(route('solicitudes.documento'), $datos)->assertOk();
     }
@@ -224,7 +228,7 @@ class NotasYFechasSolicitudTest extends TestCase
 
     public function test_usa_el_dia_y_hora_de_ecuador_aunque_en_utc_ya_sea_manana(): void
     {
-        $this->travelTo(\Illuminate\Support\Carbon::parse('2026-10-21T02:00:00Z'));
+        $this->travelTo(Carbon::parse('2026-10-21T02:00:00Z'));
         $datos = $this->datos('recuperacion');
         $datos['campos']['historial_recuperacion'] = 'con_fecha';
         $datos['campos']['ultima_recuperacion'] = '2026-10-21';

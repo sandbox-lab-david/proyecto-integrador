@@ -16,4 +16,14 @@ class Trabajador extends Model
     {
         return $this->belongsTo(User::class);
     }
+
+    public function roles()
+    {
+        return $this->belongsToMany(Rol::class, 'rol_trabajador');
+    }
+
+    public function directoresCarrera()
+    {
+        return $this->hasMany(DirectorCarrera::class);
+    }
 }

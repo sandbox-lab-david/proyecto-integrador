@@ -12,13 +12,14 @@ use App\Services\Solicitudes\IntegracionEnvio;
 use App\Services\Solicitudes\TramitesSimulados;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 use PHPUnit\Framework\Attributes\DataProvider;
 use Tests\TestCase;
 
 class EnvioSolicitudTest extends TestCase
 {
-    use RefreshDatabase, ArchivosDePrueba;
+    use ArchivosDePrueba, RefreshDatabase;
 
     protected function setUp(): void
     {
@@ -28,18 +29,24 @@ class EnvioSolicitudTest extends TestCase
 
     private function integrar(bool $fallar = false): void
     {
-        $this->app->instance(IntegracionEnvio::class, new class($fallar) implements IntegracionEnvio {
+        $this->app->instance(IntegracionEnvio::class, new class($fallar) implements IntegracionEnvio
+        {
             public int $envios = 0;
+
             public function __construct(private bool $fallar) {}
+
             public function resolver(User $usuario, array $datos): array
             {
                 return ['carrera_estudiante_id' => 1, 'tipo_tramite_id' => 1, 'periodo_id' => 1,
                     'estado_solicitud_id' => 1, 'requisitos' => ['respaldo' => 1]];
             }
+
             public function enviar(Solicitud $solicitud, User $usuario): void
             {
                 $this->envios++;
-                if ($this->fallar) throw new \RuntimeException('Error de transición');
+                if ($this->fallar) {
+                    throw new \RuntimeException('Error de transición');
+                }
                 $solicitud->forceFill(['estado_solicitud_id' => 2])->save();
             }
         });
@@ -57,6 +64,7 @@ class EnvioSolicitudTest extends TestCase
         app(FirmadosTemporales::class)->guardar($this->pdf(), 'gracia');
         $respaldo = app(RespaldosTemporales::class)->agregar($this->pdf(), 'gracia');
         $datos['requisitos'] = [$respaldo['id'] => 'respaldo'];
+
         return $datos;
     }
 
@@ -93,9 +101,8 @@ class EnvioSolicitudTest extends TestCase
     public static function valoresGpa(): array
     {
         return [
-            'cero del periodo' => [['gpa_periodo' => '0'], '0.00'],
             'cero general' => [['gpa_general' => '0'], '0.00'],
-            'vacio' => [['gpa_periodo' => ''], null],
+            'vacio' => [['gpa_general' => ''], null],
         ];
     }
 
@@ -127,13 +134,13 @@ class EnvioSolicitudTest extends TestCase
         app(EnvioSolicitud::class)->enviar(User::factory()->create(), $datos);
     }
 
-    public function test_no_anuncia_envio_sin_integracion_real(): void
+    public function test_envio_requiere_sesion_y_muestra_acceso_al_login(): void
     {
         $datos = $this->preparar();
-        $this->postJson(route('solicitudes.enviar'), $datos)->assertStatus(503);
+        $this->postJson(route('solicitudes.enviar'), $datos)->assertStatus(401);
         $this->assertDatabaseCount('solicitudes', 0);
         $this->get(route('solicitudes.create', ['tramite' => 'gracia']))->assertOk()
-            ->assertSee('El envío estará disponible');
+            ->assertSee('Inicia sesión para enviar tu solicitud.');
     }
 
     public function test_repetir_el_envio_devuelve_el_mismo_expediente_aunque_no_queden_temporales(): void
@@ -233,7 +240,7 @@ class EnvioSolicitudTest extends TestCase
         $usuario = User::factory()->create(['name' => 'Ana Pérez', 'email' => 'ana@uees.edu.ec']);
         $this->actingAs($usuario);
         $datos = $this->preparar();
-        $datos['clave_envio'] = (string) \Illuminate\Support\Str::uuid();
+        $datos['clave_envio'] = (string) Str::uuid();
         $this->postJson(route('solicitudes.enviar'), $datos)->assertUnprocessable()->assertJsonValidationErrors('clave_envio');
         unset($datos['clave_envio']);
         $this->postJson(route('solicitudes.enviar'), $datos)->assertUnprocessable()->assertJsonValidationErrors('clave_envio');

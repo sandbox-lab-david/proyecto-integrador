@@ -46,8 +46,8 @@ class EstudianteService
     }
 
     //===C14 
-    public function actualizarContacto($estudiante, string $celular): void
+    public function actualizarContacto(Estudiante $estudiante, string $celular): void
     {
-        
+        $estudiante->update(['celular' => $celular]);
     }
 }

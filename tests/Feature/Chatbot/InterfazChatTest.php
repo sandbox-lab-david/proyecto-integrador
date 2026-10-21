@@ -21,7 +21,7 @@ class InterfazChatTest extends TestCase
 
         foreach (['bot', 'usuario', 'espera', 'respuesta', 'documento', 'solicitud', 'sugerencias', 'error', 'formulario',
             'campo-texto', 'campo-numero', 'campo-seleccion', 'campo-booleano', 'campo-fecha'] as $plantilla) {
-            $this->assertStringContainsString('data-plantilla="' . $plantilla . '"', $html);
+            $this->assertStringContainsString('data-plantilla="'.$plantilla.'"', $html);
         }
     }
 
@@ -61,49 +61,10 @@ class InterfazChatTest extends TestCase
             ->assertSee('Consultar chatbot');
     }
 
-    public function test_resultado_cumple_con_datos_declarados_es_orientativo(): void
+    public function test_componente_presenta_referencias_sin_dictamenes(): void
     {
-        $vista = $this->blade('<x-resultado-elegibilidad :evaluacion="$e" />', [
-            'e' => [
-                'resultado' => 'cumple',
-                'motivos' => [['codigo' => 'gpa_ok', 'texto' => 'Tu GPA de 82 supera el mínimo de 75.']],
-                'con_datos_verificados' => false,
-            ],
-        ]);
-
-        $vista->assertSee('Cumples los requisitos')
-            ->assertSee('cb-cumple', false)
-            ->assertSee('Tu GPA de 82 supera el mínimo de 75.')
-            ->assertSee('Resultado orientativo');
-    }
-
-    public function test_resultado_no_cumple_muestra_cada_motivo(): void
-    {
-        $this->blade('<x-resultado-elegibilidad :evaluacion="$e" />', [
-            'e' => ['resultado' => 'no_cumple', 'motivos' => ['Tu GPA es 71 y el mínimo es 75.', 'Hubo fraude académico.']],
-        ])
-            ->assertSee('Por ahora no cumples los requisitos')
-            ->assertSee('cb-no-cumple', false)
-            ->assertSee('Tu GPA es 71 y el mínimo es 75.')
-            ->assertSee('Hubo fraude académico.');
-    }
-
-    public function test_resultado_revision_manual_acepta_el_nombre_anterior(): void
-    {
-        $this->blade('<x-resultado-elegibilidad :evaluacion="$e" />', [
-            'e' => ['resultado' => 'requiere_revision', 'motivos' => [], 'con_datos_verificados' => true],
-        ])
-            ->assertSee('Este caso lo revisa la facultad')
-            ->assertSee('cb-revision', false);
-    }
-
-    public function test_resultado_con_datos_verificados_no_es_orientativo(): void
-    {
-        $html = (string) $this->blade('<x-resultado-elegibilidad :evaluacion="$e" />', [
-            'e' => ['resultado' => 'cumple', 'motivos' => [], 'con_datos_verificados' => true],
-        ]);
-
-        $this->assertMatchesRegularExpression('/data-cb="resultado-orientativo"\s+hidden/', $html);
+        $this->blade('<x-resultado-elegibilidad :evaluacion="$e" />', ['e' => ['comprobaciones' => [['texto' => 'Referencia GPA general: 75']]]])
+            ->assertSee('Referencia GPA general: 75')->assertDontSee('Cumples los requisitos')->assertDontSee('no cumples');
     }
 
     public function test_respuesta_muestra_documentos_costo_y_aviso(): void
@@ -133,25 +94,32 @@ class InterfazChatTest extends TestCase
             ->assertSee('Iniciar esta solicitud');
     }
 
-    public function test_reporte_sin_preguntas_muestra_estado_vacio(): void
+    public function test_documento_sin_obligacion_confirmada_no_se_muestra_como_opcional(): void
     {
-        $this->get('/chatbot/reporte')
-            ->assertOk()
-            ->assertSee('No hay preguntas sin resolver');
+        foreach ([['obligatorio' => false], ['obligatorio' => null], []] as $obligacion) {
+            $this->blade('<x-chat.documento :documento="$d" />', [
+                'd' => ['nombre' => 'Respaldo del motivo'] + $obligacion,
+            ])
+                ->assertSee('Consulta con tu facultad')
+                ->assertDontSee('Opcional')
+                ->assertDontSee('Obligatorio');
+        }
     }
 
-    public function test_reporte_lista_las_preguntas_no_resueltas(): void
+    public function test_documento_con_obligacion_explicita_usa_su_etiqueta(): void
     {
-        $this->view('chatbot.reporte', [
-            'preguntas' => [
-                ['texto' => 'puedo pedir beca?', 'tramite' => null, 'fecha' => '2026-10-08 10:30:00'],
-                ['texto' => 'cuanto cuesta el supletorio', 'tramite' => 'Examen supletorio', 'fecha' => '2026-10-08 11:00:00'],
-            ],
-        ])
-            ->assertSee('2 preguntas')
-            ->assertSee('puedo pedir beca?')
-            ->assertSee('Ninguno')
-            ->assertSee('Examen supletorio')
-            ->assertSee('08/10/2026 11:00');
+        $this->blade('<x-chat.documento :documento="$d" />', ['d' => ['nombre' => 'Copia', 'obligacion' => 'opcional']])
+            ->assertSee('Opcional');
+        $this->blade('<x-chat.documento :documento="$d" />', ['d' => ['nombre' => 'Copia', 'obligacion' => 'condicional']])
+            ->assertSee('Según tu caso');
+        $this->blade('<x-chat.documento :documento="$d" />', ['d' => ['nombre' => 'Copia', 'obligacion' => 'obligatorio']])
+            ->assertSee('Obligatorio')
+            ->assertSee('cb-etq-vino', false);
+    }
+
+    public function test_costo_y_plazo_sin_fechas_orientan_a_la_facultad(): void
+    {
+        $this->blade('<x-chat.datos-clave tipo="costo" />')->assertSee('Consulta con tu facultad')->assertDontSee('Por confirmar');
+        $this->blade('<x-chat.datos-clave tipo="plazo" />')->assertSee('Consulta con tu facultad')->assertDontSee('Por confirmar');
     }
 }

@@ -1,12 +1,15 @@
 @props([
     'tramite' => null,
     'modo' => 'pagina',
-    'simulado' => true,
+    'simulado' => false,
+    'urlMensaje' => null,
+    'facultad' => null,
 ])
 
 @php
     $flotante = $modo === 'flotante';
     $id = 'cb-chat-' . $modo;
+    $nombreFacultad = $facultad ?? 'Facultad de Ingeniería';
 @endphp
 
 @if ($flotante)
@@ -21,10 +24,10 @@
          id="{{ $id }}"
          data-chatbot
          data-tramite="{{ $tramite }}"
+         data-facultad="{{ $nombreFacultad }}"
          data-simulado="{{ $simulado ? '1' : '0' }}"
          data-url-catalogo="{{ url('/chatbot/catalogo') }}"
-         data-url-mensaje="{{ url('/chatbot/mensaje') }}"
-         data-url-historial="{{ url('/chatbot/historial') }}"
+         data-url-mensaje="{{ $urlMensaje ?? url('/chatbot/mensaje') }}"
          data-url-login="{{ url('/login') }}"
          data-csrf="{{ csrf_token() }}"
          aria-label="Asistente de trámites"
@@ -46,7 +49,7 @@
         <div class="cb-chat-cab">
             <div class="cb-chat-cab-txt">
                 <strong>Asistente de trámites</strong>
-                <span data-cb="cab-tramite">Facultad de Ingeniería</span>
+                <span data-cb="cab-tramite">{{ $nombreFacultad }}</span>
             </div>
             <button type="button" class="cb-btn-quieto" data-cb="nueva">Nueva consulta</button>
             @if ($flotante)
@@ -113,8 +116,6 @@
 
 @once
     <link rel="stylesheet" href="{{ asset('assets/chatbot/chatbot.css') }}">
-    @if ($simulado)
-        <script src="{{ asset('assets/chatbot/chatbot-simulado.js') }}" defer></script>
-    @endif
+
     <script src="{{ asset('assets/chatbot/chatbot.js') }}" defer></script>
 @endonce
