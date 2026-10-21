@@ -5,11 +5,13 @@ namespace App\Modules\Chatbot\Http\Controllers;
 use App\Http\Controllers\Controller;
 use App\Models\Conversacion;
 use App\Models\MensajeChat;
+use App\Models\TipoTramite;
 use App\Modules\Chatbot\Http\Requests\ChatbotMensajeRequest;
 use App\Services\Chatbot\ChatbotCatalogoService;
 use App\Services\Chatbot\ChatbotOrchestratorService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Schema;
 
 class ChatbotController extends Controller
 {
@@ -20,6 +22,7 @@ class ChatbotController extends Controller
     public function catalogo(ChatbotCatalogoService $catalogoService): JsonResponse
     {
         $catalogo = $catalogoService->obtenerCatalogo();
+
         return response()->json($catalogo, 200);
     }
 
@@ -47,11 +50,12 @@ class ChatbotController extends Controller
             try {
                 $mensajeUsuario = MensajeChat::create([
                     'conversacion_id' => $conversacion->id,
-                    'emisor'          => 'usuario',
-                    'texto'           => $textoUsuario,
-                    'intencion'       => $datosValidados['intencion'] ?? null,
-                    'tramite_id'      => $datosValidados['tramite_id'] ?? null,
-                    'resuelta'        => true,
+                    'emisor' => 'usuario',
+                    'texto' => $textoUsuario,
+                    'intencion' => $datosValidados['intencion'] ?? null,
+                    'tramite_id' => $datosValidados['tramite_id'] ?? null,
+                    'tipo_tramite_id' => $this->tipoTramiteId($datosValidados['tramite_id'] ?? null),
+                    'resuelta' => false,
                 ]);
             } catch (\Throwable $e) {
                 report($e);
@@ -62,13 +66,12 @@ class ChatbotController extends Controller
         $respuesta = $orchestrator->procesarMensaje($datosValidados);
         $tiempoMs = (int) round((hrtime(true) - $inicio) / 1e6);
 
-        $esNoEntendido = ($respuesta['tipo'] ?? '') === 'no_entendido';
-        $resuelta = !$esNoEntendido;
-
-        // Si el bot no entendió la pregunta, marcamos la pregunta del usuario como no resuelta
-        if ($esNoEntendido && $mensajeUsuario) {
+        $resuelta = ! in_array($respuesta['tipo'] ?? '', ['no_entendido', 'sesion_requerida'], true)
+            && ($respuesta['estado'] ?? '') !== 'requiere_datos';
+        if ($mensajeUsuario) {
             try {
-                $mensajeUsuario->update(['resuelta' => false]);
+                $mensajeUsuario->update(['resuelta' => $resuelta, 'tramite_id' => $respuesta['tramite_id'] ?? $datosValidados['tramite_id'] ?? null,
+                    'tipo_tramite_id' => $this->tipoTramiteId($respuesta['tramite_id'] ?? null)]);
             } catch (\Throwable $e) {
                 report($e);
             }
@@ -79,13 +82,14 @@ class ChatbotController extends Controller
             try {
                 MensajeChat::create([
                     'conversacion_id' => $conversacion->id,
-                    'emisor'          => 'bot',
-                    'texto'           => $respuesta['mensaje'] ?? 'Información solicitada.',
-                    'intencion'       => $respuesta['tipo'] ?? null,
-                    'tramite_id'      => $respuesta['tramite_id'] ?? $datosValidados['tramite_id'] ?? null,
-                    'resuelta'        => $resuelta,
-                    'tiempo_ms'       => $tiempoMs,
-                    'payload'         => $respuesta,
+                    'emisor' => 'bot',
+                    'texto' => $respuesta['mensaje'] ?? 'Información solicitada.',
+                    'intencion' => $respuesta['tipo'] ?? null,
+                    'tramite_id' => $respuesta['tramite_id'] ?? $datosValidados['tramite_id'] ?? null,
+                    'resuelta' => $resuelta,
+                    'tipo_tramite_id' => $this->tipoTramiteId($respuesta['tramite_id'] ?? null),
+                    'tiempo_ms' => $tiempoMs,
+                    'payload' => $respuesta,
                 ]);
             } catch (\Throwable $e) {
                 report($e);
@@ -119,11 +123,12 @@ class ChatbotController extends Controller
             }
 
             return Conversacion::create([
-                'user_id'    => $userId,
+                'user_id' => $userId,
                 'session_id' => $sessionId,
             ]);
         } catch (\Throwable $e) {
             report($e);
+
             return null;
         }
     }
@@ -133,21 +138,30 @@ class ChatbotController extends Controller
      */
     protected function resolverTextoPregunta(?string $preguntaId, ?string $tramiteId): ?string
     {
-        if (!$preguntaId) {
+        if (! $preguntaId) {
             return null;
         }
 
         $sufijo = str_contains($preguntaId, '__') ? explode('__', $preguntaId)[1] : $preguntaId;
 
         $etiquetas = [
-            'descripcion'  => '¿Qué es este trámite?',
-            'requisitos'   => '¿Qué requisitos tiene?',
-            'documentos'   => '¿Qué documentos necesito?',
-            'costo'        => '¿Cuánto cuesta?',
-            'plazo'        => '¿Hasta cuándo puedo pedirlo?',
-            'elegibilidad' => '¿Puedo solicitar este trámite?',
+            'descripcion' => '¿Qué es este trámite?',
+            'requisitos' => '¿Qué requisitos tiene?',
+            'documentos' => '¿Qué documentos necesito?',
+            'costo' => '¿Cuánto cuesta?',
+            'plazo' => '¿Hasta cuándo puedo pedirlo?',
+            'referencias' => 'Consultar referencias de GPA general y 365 días',
         ];
 
         return $etiquetas[$sufijo] ?? null;
+    }
+
+    private function tipoTramiteId(?string $codigo): ?int
+    {
+        if (! $codigo || ! Schema::hasTable('tipos_tramite')) {
+            return null;
+        }
+
+        return TipoTramite::where('codigo', $codigo)->value('id');
     }
 }

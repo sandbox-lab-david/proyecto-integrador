@@ -5,6 +5,8 @@ namespace Tests\Feature\Chatbot;
 use App\Models\Conversacion;
 use App\Models\User;
 use App\Modules\Chatbot\Http\Controllers\ChatbotController;
+use App\Services\Chatbot\Prolog\PrologClient;
+use App\Services\Chatbot\Prolog\PrologException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\Request;
 use Illuminate\Session\ArraySessionHandler;
@@ -16,12 +18,12 @@ class ChatbotControllerTest extends TestCase
 {
     use RefreshDatabase;
 
-    public function test_catalogo_retorna_version_2_y_listas(): void
+    public function test_catalogo_retorna_version_3_y_listas(): void
     {
         $response = $this->getJson('/chatbot/catalogo');
 
         $response->assertOk()
-            ->assertJsonPath('version', 2)
+            ->assertJsonPath('version', 3)
             ->assertJsonStructure([
                 'version',
                 'categorias',
@@ -51,7 +53,7 @@ class ChatbotControllerTest extends TestCase
     public function test_api_sin_sesion_tambien_guarda_la_interaccion_anonima(): void
     {
         $this->postJson('/api/chatbot/mensaje', [
-            'version' => 2,
+            'version' => 3,
             'texto' => 'consulta anónima por API',
         ])->assertOk();
 
@@ -82,7 +84,7 @@ class ChatbotControllerTest extends TestCase
 
     private function enviarPregunta(string $texto): void
     {
-        $this->postJson('/chatbot/mensaje', ['version' => 2, 'texto' => $texto])->assertOk();
+        $this->postJson('/chatbot/mensaje', ['version' => 3, 'texto' => $texto])->assertOk();
     }
 
     private function obtenerConversacionDeMetricas(?User $user): Conversacion
@@ -98,19 +100,27 @@ class ChatbotControllerTest extends TestCase
     public function test_mensaje_consulta_estado_solicitud_retorna_tipo_estado_solicitud(): void
     {
         $response = $this->postJson('/chatbot/mensaje', [
-            'version' => 2,
-            'texto'   => '¿Cómo va el estado de mi solicitud?',
+            'version' => 3,
+            'texto' => '¿Cómo va el estado de mi solicitud?',
         ]);
 
         $response->assertOk()
-            ->assertJsonPath('version', 2)
+            ->assertJsonPath('version', 3)
             ->assertJsonPath('tipo', 'estado_solicitud')
             ->assertJsonStructure([
                 'version',
                 'estado',
                 'tipo',
-                'solicitudes',
                 'acciones',
             ]);
+    }
+
+    public function test_motor_caido_deja_consulta_no_resuelta(): void
+    {
+        $m = $this->createMock(PrologClient::class);
+        $m->method('consultar')->willThrowException(PrologException::noDisponible());
+        $this->app->instance(PrologClient::class, $m);
+        $this->postJson('/chatbot/mensaje', ['version' => 3, 'texto' => 'requisitos de homologacion'])->assertStatus(503);
+        $this->assertDatabaseHas('mensajes_chat', ['emisor' => 'usuario', 'resuelta' => false]);
     }
 }

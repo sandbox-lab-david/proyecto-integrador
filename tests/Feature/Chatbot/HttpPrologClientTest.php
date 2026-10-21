@@ -10,16 +10,17 @@ use Tests\TestCase;
 
 class HttpPrologClientTest extends TestCase
 {
-    private const CONSULTA = ['version' => 2, 'tramite_id' => 'examen_recuperacion', 'intencion' => 'consultar_requisitos'];
-    private const EVALUAR = ['version' => 2, 'tramite_id' => 'examen_recuperacion', 'intencion' => 'evaluar_elegibilidad',
-        'fecha' => '2026-10-07', 'origen_datos' => 'manual', 'perfil' => ['materia_id' => 'MAT101', 'promedio' => 78]];
+    private const CONSULTA = ['version' => 3, 'tramite_id' => 'examen_recuperacion', 'intencion' => 'consultar_requisitos'];
+
+    private const EVALUAR = ['version' => 3, 'tramite_id' => 'examen_recuperacion', 'intencion' => 'comprobar_referencias',
+        'fecha' => '2026-10-07', 'origen_datos' => 'manual', 'perfil' => ['gpa_general' => 78]];
 
     private function ok(array $extra = []): array
     {
         return array_merge([
-            'version' => 2, 'kb_version' => 'demo-002', 'tramite_id' => 'examen_recuperacion',
+            'version' => 3, 'kb_version' => 'catalogo-informativo-001', 'tramite_id' => 'examen_recuperacion',
             'intencion' => 'consultar_requisitos', 'items' => ['Req 1'], 'documentos' => [],
-            'costo' => null, 'plazo' => null, 'resultado' => null, 'aviso' => null,
+            'costo' => null, 'plazo' => null, 'resultado' => null, 'comprobaciones' => [], 'aviso' => null,
         ], $extra);
     }
 
@@ -30,7 +31,11 @@ class HttpPrologClientTest extends TestCase
 
     private function codigo(callable $f): PrologException
     {
-        try { $f(); } catch (PrologException $e) { return $e; }
+        try {
+            $f();
+        } catch (PrologException $e) {
+            return $e;
+        }
         $this->fail('Debio lanzar PrologException');
     }
 
@@ -42,10 +47,10 @@ class HttpPrologClientTest extends TestCase
 
     public function test_evaluacion_valida(): void
     {
-        $r = $this->ok(['intencion' => 'evaluar_elegibilidad',
-            'resultado' => ['estado' => 'cumple', 'motivos' => [['codigo' => 'ok', 'texto' => 'Bien']]]]);
+        $r = $this->ok(['intencion' => 'comprobar_referencias',
+            'comprobaciones' => [['codigo' => 'gpa_general', 'texto' => 'Referencia: 75', 'datos' => ['referencia' => 75]]]]);
         Http::fake(['prolog.test/evaluar' => Http::response($r)]);
-        $this->assertSame('cumple', $this->cliente()->evaluar(self::EVALUAR)['resultado']['estado']);
+        $this->assertSame('gpa_general', $this->cliente()->evaluar(self::EVALUAR)['comprobaciones'][0]['codigo']);
     }
 
     public function test_motor_apagado_es_503(): void
@@ -70,7 +75,8 @@ class HttpPrologClientTest extends TestCase
 
     public function test_falta_una_clave_es_502(): void
     {
-        $r = $this->ok(); unset($r['aviso']);
+        $r = $this->ok();
+        unset($r['aviso']);
         Http::fake(['*' => Http::response($r)]);
         $this->assertSame(502, $this->codigo(fn () => $this->cliente()->consultar(self::CONSULTA))->status);
     }
@@ -84,7 +90,7 @@ class HttpPrologClientTest extends TestCase
 
     public function test_sobre_de_error_del_motor_se_conserva(): void
     {
-        Http::fake(['*' => Http::response(['version' => 2, 'error' => ['codigo' => 'datos_invalidos',
+        Http::fake(['*' => Http::response(['version' => 3, 'error' => ['codigo' => 'datos_invalidos',
             'mensaje' => 'Revisa los campos.', 'reintentable' => false, 'campos' => ['perfil.promedio' => ['x']]]], 422)]);
         $e = $this->codigo(fn () => $this->cliente()->evaluar(self::EVALUAR));
         $this->assertSame([422, 'datos_invalidos'], [$e->status, $e->codigo]);
@@ -93,7 +99,10 @@ class HttpPrologClientTest extends TestCase
     public function test_perfil_vacio_viaja_como_objeto(): void
     {
         Http::fake(['*' => Http::response($this->ok())]);
-        try { $this->cliente()->evaluar(['perfil' => []] + self::EVALUAR); } catch (PrologException) {}
+        try {
+            $this->cliente()->evaluar(['perfil' => []] + self::EVALUAR);
+        } catch (PrologException) {
+        }
         Http::assertSent(fn ($req) => str_contains($req->body(), '"perfil":{}'));
     }
 
@@ -106,7 +115,7 @@ class HttpPrologClientTest extends TestCase
 
     public function test_credencial_rechazada_es_500_de_configuracion(): void
     {
-        Http::fake(['*' => Http::response(['version' => 2, 'error' => ['codigo' => 'acceso_denegado',
+        Http::fake(['*' => Http::response(['version' => 3, 'error' => ['codigo' => 'acceso_denegado',
             'mensaje' => 'x', 'reintentable' => false, 'campos' => []]], 403)]);
         $e = $this->codigo(fn () => $this->cliente()->consultar(self::CONSULTA));
         $this->assertSame([500, 'error_interno'], [$e->status, $e->codigo]);
@@ -114,7 +123,7 @@ class HttpPrologClientTest extends TestCase
 
     public function test_503_por_limite_se_conserva_como_reintentable(): void
     {
-        Http::fake(['*' => Http::response(['version' => 2, 'error' => ['codigo' => 'motor_no_disponible',
+        Http::fake(['*' => Http::response(['version' => 3, 'error' => ['codigo' => 'motor_no_disponible',
             'mensaje' => 'Demasiadas peticiones', 'reintentable' => true, 'campos' => []]], 503)]);
         $e = $this->codigo(fn () => $this->cliente()->consultar(self::CONSULTA));
         $this->assertSame([503, true], [$e->status, $e->reintentable]);
@@ -125,7 +134,10 @@ class HttpPrologClientTest extends TestCase
     {
         $n = 0;
         Http::fake(function () use (&$n) {
-            if (++$n === 1) throw new ConnectionException('cURL error 7: Failed to connect');
+            if (++$n === 1) {
+                throw new ConnectionException('cURL error 7: Failed to connect');
+            }
+
             return Http::response($this->ok());
         });
         $this->assertSame(['Req 1'], $this->cliente()->consultar(self::CONSULTA)['items']);

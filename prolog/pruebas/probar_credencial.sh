@@ -4,7 +4,7 @@
 set -u
 PUERTO=8098; U="http://127.0.0.1:$PUERTO"; FALLOS=0
 KEY='clave-de-prueba-0123'
-B='{"version":2,"tramite_id":"examen_recuperacion","intencion":"consultar_requisitos"}'
+B='{"version":3,"tramite_id":"examen_recuperacion","intencion":"consultar_requisitos"}'
 ok()   { echo "OK    $1"; }
 fallo(){ echo "FALLO $1"; FALLOS=$((FALLOS+1)); }
 

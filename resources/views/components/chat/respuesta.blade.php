@@ -3,11 +3,7 @@
 @php
     $r = $respuesta;
     $acciones = $r['acciones'] ?? [];
-    $evaluacion = isset($r['resultado']) ? [
-        'resultado' => $r['resultado']['estado'] ?? null,
-        'motivos' => $r['resultado']['motivos'] ?? [],
-        'con_datos_verificados' => (bool) ($r['resultado']['con_datos_verificados'] ?? (($r['meta']['verificacion'] ?? null) === 'institucional')),
-    ] : null;
+    $evaluacion = ['comprobaciones'=>$r['comprobaciones'] ?? []];
 @endphp
 
 <div class="cb-respuesta" data-cb="respuesta">
