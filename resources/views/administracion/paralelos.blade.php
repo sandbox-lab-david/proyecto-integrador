@@ -1,8 +1,4 @@
-@extends('layouts.app')
-
-@section('titulo', 'Paralelos y docentes')
-
-@section('content')
+<x-layouts.app titulo="Paralelos y docentes" modulo="Administración académica" :menu="config('menu_administracion')">
     <p class="ui-antetitulo">Estructura académica</p>
     <h1 class="ui-titulo">Paralelos y docentes</h1>
     <p class="ui-texto-gris mt-chico">Cada paralelo es una materia ofertada en un periodo, con su docente. El portal del estudiante los usa para completar paralelo y docente automáticamente.</p>
@@ -101,4 +97,4 @@
             @endif
         </section>
     </div>
-@endsection
+</x-layouts.app>

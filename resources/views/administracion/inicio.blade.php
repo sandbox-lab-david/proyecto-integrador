@@ -1,8 +1,4 @@
-@extends('layouts.app')
-
-@section('titulo', 'Inicio')
-
-@section('content')
+<x-layouts.app titulo="Inicio" modulo="Administración académica" :menu="config('menu_administracion')">
     <p class="ui-antetitulo">Grupo 1 · Módulo de administración</p>
     <h1 class="ui-titulo">Administración académica</h1>
     <p class="ui-texto-gris mt-chico">Catálogos que usan los demás módulos: estructura institucional, periodos, materias, paralelos e importaciones del SIAC.</p>
@@ -49,4 +45,4 @@
             <p class="ui-texto-gris">Sube archivos del SIAC, revisa la vista previa y consulta el historial.</p>
         </a>
     </div>
-@endsection
+</x-layouts.app>

@@ -1,8 +1,4 @@
-@extends('layouts.app')
-
-@section('titulo', 'Importaciones SIAC')
-
-@section('content')
+<x-layouts.app titulo="Importaciones SIAC" modulo="Administración académica" :menu="config('menu_administracion')">
     <div class="flex flex-wrap items-end justify-between gap-normal">
         <div>
             <p class="ui-antetitulo">Datos</p>
@@ -54,4 +50,4 @@
             </form>
         </section>
     </div>
-@endsection
+</x-layouts.app>
