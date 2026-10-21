@@ -1,6 +1,6 @@
 :- encoding(utf8).
 % ============================================================================
-% Puente HTTP/JSON para el motor Prolog del chatbot (contrato JSON v2).
+% Puente HTTP/JSON para el motor Prolog del chatbot (contrato JSON v3).
 %
 %   Arranque:  swipl prolog/kb/servidor.pl                 (puerto 8081)
 %              swipl prolog/kb/servidor.pl --port=9000
@@ -40,7 +40,7 @@
 :- use_module(library(pairs)).
 :- use_module(library(random)).
 
-:- dynamic kb_cargada/1, kb_dir/1, apagando/0, ventana/3.
+:- dynamic kb_cargada/1, ruta_actual/1, kb_dir/1, apagando/0, ventana/3.
 
 :- prolog_load_context(directory, Dir), asserta(kb_dir(Dir)).
 
@@ -48,6 +48,7 @@
 
 :- http_handler(root(salud),    envolver(salud),    []).
 :- http_handler(root(consulta), envolver(consulta), []).
+:- http_handler(root(recargar), envolver(recargar), []).
 :- http_handler(root(evaluar),  envolver(evaluar),  []).
 
 intenciones_consulta([ consultar_requisitos, consultar_documentos,
@@ -145,7 +146,9 @@ esperar_vuelo(T0, Max) :-
 cargar_conocimiento :-
     retractall(kb_cargada(_)),
     kb_dir(Dir),
-    catch(( forall(member(F, [hechos, reglas]), cargar_archivo(Dir, F)),
+    catch(( cargar_archivo(Dir, reglas), ruta_arranque(Ruta),
+            load_files(user:Ruta, [if(true),silent(true)]),
+            retractall(ruta_actual(_)), assertz(ruta_actual(Ruta)),
             comprobar_predicados,
             obtener_kb_version(V) ),
           E,
@@ -300,12 +303,47 @@ contar(Peer, Id, C) :-
 % Manejadores
 % ----------------------------------------------------------------------------
 
+% Publicación autenticada, serializada con las consultas y con recuperación de versión.
+ruta_arranque(Ruta) :-
+    kb_dir(Dir), directory_file_path(Dir,'../../storage/prolog/activa',Puntero),
+    (getenv('PROLOG_HECHOS',R0) -> true
+    ; exists_file(Puntero) -> read_file_to_string(Puntero,R0,[])
+    ; directory_file_path(Dir,'hechos.pl',R0)),
+    absolute_file_name(R0,Ruta,[access(read)]).
+
+atender_recarga(Request) :-
+    http_read_json_dict(Request,B),
+    ( get_dict(version,B,3),get_dict(ruta,B,R0),string(R0),get_dict(kb_version,B,Esperada),string(Esperada),
+      absolute_file_name(R0,Ruta,[access(read)]), ruta_permitida(Ruta)
+    -> with_mutex(conocimiento, recargar_seguro(Ruta,Esperada,V)),
+       responder(_{version:3,kb_version:V,estado:listo},200)
+    ; responder_error(422,datos_invalidos,"Revisión inválida.",false,_{}) ).
+
+ruta_permitida(Ruta) :-
+    kb_dir(Dir),directory_file_path(Dir,'hechos.pl',Inicial),absolute_file_name(Inicial,Ruta),!.
+ruta_permitida(Ruta) :-
+    kb_dir(Dir),directory_file_path(Dir,'../../storage/prolog/revisiones',R0),
+    absolute_file_name(R0,Raiz,[file_type(directory),access(read)]),
+    atom_concat(Raiz,'/',Prefijo),sub_atom(Ruta,0,_,_,Prefijo),file_base_name(Ruta,'hechos.pl').
+
+recargar_seguro(Ruta,Esperada,V) :-
+    ruta_actual(Anterior),kb_cargada(VersionAnterior),
+    catch(( (unload_file(Anterior),load_files(user:Ruta,[if(true),silent(true)]),
+             comprobar_predicados,obtener_kb_version(V),V==Esperada)
+          -> true
+          ; throw(puente_error("La revisión no contiene la versión solicitada.")) ),
+          E,(unload_file(Ruta),load_files(user:Anterior,[if(true),silent(true)]),
+             retractall(kb_cargada(_)),assertz(kb_cargada(VersionAnterior)),throw(E))),
+    retractall(kb_cargada(_)),assertz(kb_cargada(V)),
+    retractall(ruta_actual(_)),assertz(ruta_actual(Ruta)).
+
 manejar_salud :-
     (   kb_cargada(V), \+ apagando
-    ->  responder(_{version:2, estado:listo, kb_version:V}, 200)
-    ;   responder(_{version:2, estado:no_listo, kb_version:null}, 503)
+    ->  responder(_{version:3, estado:listo, kb_version:V}, 200)
+    ;   responder(_{version:3, estado:no_listo, kb_version:null}, 503)
     ).
 
+atender_(recargar, Request) :- !, atender_recarga(Request).
 atender_(Op, Request) :-
     (   catch(http_read_json_dict(Request, Body), _, fail), is_dict(Body)
     ->  validar_y_ejecutar(Op, Body)
@@ -313,7 +351,8 @@ atender_(Op, Request) :-
                         false, _{})
     ).
 
-validar_y_ejecutar(Op, Body) :-
+validar_y_ejecutar(Op, Body) :- with_mutex(conocimiento, validar_bajo_bloqueo(Op,Body)).
+validar_bajo_bloqueo(Op, Body) :-
     errores_entrada(Op, Body, Errs),
     (   Errs \== []
     ->  campos_dict(Errs, Campos),
@@ -338,7 +377,7 @@ ejecutar(Op, Body) :-
     ;   throw(puente_error("Las reglas no produjeron respuesta."))
     ),
     normalizar_salida(Op, Salida0, Salida),
-    Resp = Salida.put(_{version:2, kb_version:KbV, tramite_id:Tramite, intencion:Intencion}),
+    Resp = Salida.put(_{version:3, kb_version:KbV, tramite_id:Tramite, intencion:Intencion}),
     responder(Resp, 200).
 
 error_inesperado(salida_invalida(Msg)) :- !,
@@ -366,7 +405,7 @@ responder(Dict, Status, Cabeceras) :-
 responder_error(Status, Codigo, Mensaje, Reintentable, Campos) :-
     responder_error(Status, Codigo, Mensaje, Reintentable, Campos, []).
 responder_error(Status, Codigo, Mensaje, Reintentable, Campos, Cabeceras) :-
-    responder(_{ version:2,
+    responder(_{ version:3,
                  error:_{ codigo:Codigo, mensaje:Mensaje,
                           reintentable:Reintentable, campos:Campos } },
               Status, Cabeceras).
@@ -390,8 +429,8 @@ error_entrada(Op, B, K, "Falta la clave.") :-
     claves_esperadas(Op, Ks), member(K, Ks), \+ get_dict(K, B, _).
 error_entrada(Op, B, K, "Clave no permitida por el contrato.") :-
     claves_esperadas(Op, Ks), dict_pairs(B, _, Ps), member(K-_, Ps), \+ memberchk(K, Ks).
-error_entrada(_, B, version, "Debe ser 2.") :-
-    get_dict(version, B, V), V \== 2.
+error_entrada(_, B, version, "Debe ser 3.") :-
+    get_dict(version, B, V), V \== 3.
 error_entrada(_, B, tramite_id, "Debe ser texto en minusculas, digitos o guion bajo.") :-
     get_dict(tramite_id, B, T), \+ id_valido(T).
 error_entrada(Op, B, intencion, "Intencion no valida para esta ruta.") :-
@@ -404,25 +443,30 @@ error_entrada(evaluar, B, perfil, "Debe ser un objeto.") :-
     get_dict(perfil, B, P), \+ is_dict(P).
 error_entrada(evaluar, B, Campo, Msg) :-
     get_dict(perfil, B, P), is_dict(P),
-    dict_pairs(P, _, Ps), member(K-V, Ps), V \== null,
+    dict_pairs(P, _, Ps), member(K-V, Ps),
     (   perfil_tipo(K, Tipo)
-    ->  \+ valor_valido(Tipo, V), mensaje_tipo(Tipo, Msg)
+    ->  V \== null, \+ valor_valido(Tipo, V), mensaje_tipo(Tipo, Msg)
     ;   Msg = "Campo no permitido en el perfil."
     ),
     atom_concat('perfil.', K, Campo).
 
+error_entrada(evaluar,B,'perfil.fecha_ultima_recuperacion',"La fecha del examen no puede ser futura.") :-
+    get_dict(perfil,B,P),is_dict(P),get_dict(fecha_ultima_recuperacion,P,F),fecha_iso_valida(F),get_dict(fecha,B,Hoy),fecha_iso_valida(Hoy),F @> Hoy.
+error_entrada(_,B,tramite_id,"El trámite no existe en el catálogo.") :- get_dict(tramite_id,B,T),string(T),atom_string(A,T),\+ user:tramite(A,_).
+
 intencion_valida(consulta, I) :-
     string(I), atom_string(A, I), intenciones_consulta(L), memberchk(A, L).
-intencion_valida(evaluar, "evaluar_elegibilidad").
+intencion_valida(evaluar, "comprobar_referencias").
 
-perfil_tipo(materia_id,       texto).
-perfil_tipo(tipo_solicitante, texto).
-perfil_tipo(promedio,         porcentaje).
-perfil_tipo(asistencia,       porcentaje).
+perfil_tipo(gpa_general, porcentaje).
+perfil_tipo(fecha_ultima_recuperacion, fecha).
+
+valor_valido(fecha,V) :- fecha_iso_valida(V).
 
 valor_valido(texto, V)      :- string(V), V \== "".
 valor_valido(porcentaje, V) :- number(V), V >= 0, V =< 100.
 
+mensaje_tipo(fecha,"Debe ser una fecha YYYY-MM-DD válida.").
 mensaje_tipo(texto,      "Debe ser texto no vacio.").
 mensaje_tipo(porcentaje, "Debe ser un numero entre 0 y 100.").
 
@@ -469,8 +513,9 @@ normalizar_salida(Op, S0, S) :-
     clave(S0, costo, C0),          costo(C0, C),
     clave(S0, plazo, P0),          plazo(P0, P),
     clave(S0, resultado, R0),      resultado(Op, R0, R),
+    clave(S0, comprobaciones, Cs), lista(comprobaciones,Cs), maplist(comprobacion,Cs),
     clave(S0, aviso, A0),          texto_o_nulo(aviso, A0, A),
-    S = _{items:Is, documentos:Ds, costo:C, plazo:P, resultado:R, aviso:A}.
+    S = _{items:Is, documentos:Ds, costo:C, plazo:P, resultado:R, comprobaciones:Cs, aviso:A}.
 
 lista(Ctx, X) :- ( is_list(X) -> true ; salida_error("'~w' debe ser lista", [Ctx]) ).
 
@@ -489,7 +534,8 @@ fecha_o_nula(Ctx, X, S) :-
     texto(Ctx, X, S),
     ( fecha_iso_valida(S) -> true ; salida_error("'~w' debe ser YYYY-MM-DD", [Ctx]) ).
 
-documento(D, _{id:Id, nombre:N, descripcion:De, obligatorio:O, formato:F, url:U}) :-
+documento(D, _{id:Id, nombre:N, descripcion:De, obligatorio:O, obligacion:Ob, formato:F, url:U}) :-
+    clave(D, obligacion, Ob), memberchk(Ob,["obligatorio","opcional","condicional"]),
     clave(D, id, I0),          texto(id, I0, Id),
     clave(D, nombre, N0),      texto(nombre, N0, N),
     clave(D, descripcion, E0), texto(descripcion, E0, De),
@@ -508,15 +554,6 @@ plazo(P0, _{texto:T, inicio:I, fin:F}) :-
     clave(P0, inicio, I0), fecha_o_nula(inicio, I0, I),
     clave(P0, fin, F0),    fecha_o_nula(fin, F0, F).
 
-resultado(consulta, null, null) :- !.
-resultado(consulta, _, _) :- !, salida_error("una consulta debe devolver resultado=null", []).
-resultado(evaluar, null, _) :- !, salida_error("una evaluacion no puede devolver resultado=null", []).
-resultado(evaluar, R0, _{estado:E, motivos:Ms}) :-
-    clave(R0, estado, E0), texto(estado, E0, E),
-    (   memberchk(E, ["cumple", "no_cumple", "requiere_revision"]) -> true
-    ;   salida_error("estado '~w' no admitido", [E]) ),
-    clave(R0, motivos, Ms0), lista(motivos, Ms0), maplist(motivo, Ms0, Ms).
-
-motivo(M0, _{codigo:C, texto:T}) :-
-    clave(M0, codigo, C0), texto(codigo, C0, C),
-    clave(M0, texto, T0),  texto(texto, T0, T).
+resultado(_, null, null) :- !.
+resultado(_, _, _) :- salida_error("Las referencias no devuelven dictámenes de elegibilidad",[]).
+comprobacion(C) :- clave(C,codigo,Cod),string(Cod),clave(C,texto,T),string(T),clave(C,datos,D),is_dict(D).

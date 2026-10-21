@@ -2,8 +2,13 @@
 
 namespace App\Providers;
 
+use App\Services\Chatbot\ChatbotCatalogoService;
 use App\Services\Chatbot\Prolog\HttpPrologClient;
 use App\Services\Chatbot\Prolog\PrologClient;
+use App\Services\Chatbot\PrologService;
+use App\Services\Solicitudes\IntegracionEnvio;
+use App\Services\Solicitudes\IntegracionEnvioInstitucional;
+use Illuminate\Contracts\Foundation\Application;
 use Illuminate\Support\ServiceProvider;
 
 class ChatbotServiceProvider extends ServiceProvider
@@ -17,16 +22,17 @@ class ChatbotServiceProvider extends ServiceProvider
      */
     public function register(): void
     {
+        $this->app->bind(IntegracionEnvio::class, IntegracionEnvioInstitucional::class);
         $this->app->bind(
             PrologClient::class,
             fn () => HttpPrologClient::desdeConfig()
         );
 
         $this->app->bind(
-            \App\Services\Chatbot\PrologService::class,
-            fn (\Illuminate\Contracts\Foundation\Application $app) => new \App\Services\Chatbot\PrologService(
-                $app->make(\App\Services\Chatbot\Prolog\PrologClient::class),
-                $app->make(\App\Services\Chatbot\ChatbotCatalogoService::class),
+            PrologService::class,
+            fn (Application $app) => new PrologService(
+                $app->make(PrologClient::class),
+                $app->make(ChatbotCatalogoService::class),
             )
         );
     }

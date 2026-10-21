@@ -5,11 +5,11 @@
         'obligatorio' => ['Obligatorio', 'cb-etq-vino'],
         'opcional' => ['Opcional', null],
         'condicional' => ['Según tu caso', null],
-        'por_confirmar' => ['Por confirmar', 'cb-etq-pendiente'],
+        'desconocido' => ['Consulta con tu facultad', null],
     ];
     $clave = $documento['obligacion'] ?? null;
     if (! isset($obligaciones[$clave])) {
-        $clave = ($documento['obligatorio'] ?? null) === true ? 'obligatorio' : 'por_confirmar';
+        $clave = ($documento['obligatorio'] ?? null) === true ? 'obligatorio' : 'desconocido';
     }
     [$etiqueta, $claseEtiqueta] = $obligaciones[$clave];
 @endphp

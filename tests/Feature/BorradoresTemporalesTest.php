@@ -61,7 +61,7 @@ class BorradoresTemporalesTest extends TestCase
         $this->guardar([
             'paso' => 3,
             'materias' => [['id' => 'calculo-demo', 'datos' => ['nota' => '58.5', 'estado' => 'reprobada']]],
-            'campos' => ['gpa_periodo' => '71', 'observacion' => 'Texto que no debe perderse'],
+            'campos' => ['gpa_general' => '71', 'observacion' => 'Texto que no debe perderse'],
         ])->assertOk()->assertJsonStructure(['guardado_at']);
 
         $borrador = $this->borradorDe('recuperacion');
@@ -82,12 +82,12 @@ class BorradoresTemporalesTest extends TestCase
 
     public function test_admite_un_borrador_incompleto(): void
     {
-        $this->guardar(['paso' => 1, 'celular' => '', 'campos' => ['gpa_periodo' => '']])->assertOk();
+        $this->guardar(['paso' => 1, 'celular' => '', 'campos' => ['gpa_general' => '']])->assertOk();
 
         $borrador = $this->borradorDe('recuperacion');
 
         $this->assertNull($borrador['celular']);
-        $this->assertNull($borrador['campos']['gpa_periodo']);
+        $this->assertNull($borrador['campos']['gpa_general']);
     }
 
     public function test_solo_guarda_los_campos_que_define_el_tramite(): void

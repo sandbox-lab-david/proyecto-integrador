@@ -21,7 +21,7 @@ class InterfazChatTest extends TestCase
 
         foreach (['bot', 'usuario', 'espera', 'respuesta', 'documento', 'solicitud', 'sugerencias', 'error', 'formulario',
             'campo-texto', 'campo-numero', 'campo-seleccion', 'campo-booleano', 'campo-fecha'] as $plantilla) {
-            $this->assertStringContainsString('data-plantilla="' . $plantilla . '"', $html);
+            $this->assertStringContainsString('data-plantilla="'.$plantilla.'"', $html);
         }
     }
 
@@ -61,49 +61,10 @@ class InterfazChatTest extends TestCase
             ->assertSee('Consultar chatbot');
     }
 
-    public function test_resultado_cumple_con_datos_declarados_es_orientativo(): void
+    public function test_componente_presenta_referencias_sin_dictamenes(): void
     {
-        $vista = $this->blade('<x-resultado-elegibilidad :evaluacion="$e" />', [
-            'e' => [
-                'resultado' => 'cumple',
-                'motivos' => [['codigo' => 'gpa_ok', 'texto' => 'Tu GPA de 82 supera el mínimo de 75.']],
-                'con_datos_verificados' => false,
-            ],
-        ]);
-
-        $vista->assertSee('Cumples los requisitos')
-            ->assertSee('cb-cumple', false)
-            ->assertSee('Tu GPA de 82 supera el mínimo de 75.')
-            ->assertSee('Resultado orientativo');
-    }
-
-    public function test_resultado_no_cumple_muestra_cada_motivo(): void
-    {
-        $this->blade('<x-resultado-elegibilidad :evaluacion="$e" />', [
-            'e' => ['resultado' => 'no_cumple', 'motivos' => ['Tu GPA es 71 y el mínimo es 75.', 'Hubo fraude académico.']],
-        ])
-            ->assertSee('Por ahora no cumples los requisitos')
-            ->assertSee('cb-no-cumple', false)
-            ->assertSee('Tu GPA es 71 y el mínimo es 75.')
-            ->assertSee('Hubo fraude académico.');
-    }
-
-    public function test_resultado_revision_manual_acepta_el_nombre_anterior(): void
-    {
-        $this->blade('<x-resultado-elegibilidad :evaluacion="$e" />', [
-            'e' => ['resultado' => 'requiere_revision', 'motivos' => [], 'con_datos_verificados' => true],
-        ])
-            ->assertSee('Este caso lo revisa la facultad')
-            ->assertSee('cb-revision', false);
-    }
-
-    public function test_resultado_con_datos_verificados_no_es_orientativo(): void
-    {
-        $html = (string) $this->blade('<x-resultado-elegibilidad :evaluacion="$e" />', [
-            'e' => ['resultado' => 'cumple', 'motivos' => [], 'con_datos_verificados' => true],
-        ]);
-
-        $this->assertMatchesRegularExpression('/data-cb="resultado-orientativo"\s+hidden/', $html);
+        $this->blade('<x-resultado-elegibilidad :evaluacion="$e" />', ['e' => ['comprobaciones' => [['texto' => 'Referencia GPA general: 75']]]])
+            ->assertSee('Referencia GPA general: 75')->assertDontSee('Cumples los requisitos')->assertDontSee('no cumples');
     }
 
     public function test_respuesta_muestra_documentos_costo_y_aviso(): void
@@ -139,8 +100,7 @@ class InterfazChatTest extends TestCase
             $this->blade('<x-chat.documento :documento="$d" />', [
                 'd' => ['nombre' => 'Respaldo del motivo'] + $obligacion,
             ])
-                ->assertSee('Por confirmar')
-                ->assertSee('cb-etq-pendiente', false)
+                ->assertSee('Consulta con tu facultad')
                 ->assertDontSee('Opcional')
                 ->assertDontSee('Obligatorio');
         }
@@ -157,52 +117,9 @@ class InterfazChatTest extends TestCase
             ->assertSee('cb-etq-vino', false);
     }
 
-    public function test_plazo_sin_fecha_se_muestra_por_confirmar(): void
+    public function test_costo_y_plazo_sin_fechas_orientan_a_la_facultad(): void
     {
-        $this->blade('<x-chat.datos-clave :plazo="$p" />', [
-            'p' => ['texto' => 'Consulta con la facultad la fecha límite.', 'inicio' => null, 'fin' => null],
-        ])
-            ->assertSee('Por confirmar')
-            ->assertSee('La define la facultad')
-            ->assertDontSee('Sin fecha');
+        $this->blade('<x-chat.datos-clave tipo="costo" />')->assertSee('Consulta con tu facultad')->assertDontSee('Por confirmar');
+        $this->blade('<x-chat.datos-clave tipo="plazo" />')->assertSee('Consulta con tu facultad')->assertDontSee('Por confirmar');
     }
-
-    public function test_consulta_de_costo_o_plazo_sin_dato_muestra_por_confirmar(): void
-    {
-        $html = (string) $this->blade('<x-chat.datos-clave tipo="costo" />');
-        $this->assertStringContainsString('Por confirmar', $html);
-        $this->assertStringContainsString('Lo confirma la facultad', $html);
-        $this->assertDoesNotMatchRegularExpression('/data-cb="dato-costo"\s+hidden/', $html);
-
-        $html = (string) $this->blade('<x-chat.datos-clave tipo="plazo" />');
-        $this->assertDoesNotMatchRegularExpression('/data-cb="dato-fin"\s+hidden/', $html);
-        $this->assertStringNotContainsString('Sin fecha', $html);
-    }
-
-    public function test_tramite_sin_evaluacion_automatica_no_parece_rechazo_ni_orientativo(): void
-    {
-        $html = (string) $this->blade('<x-resultado-elegibilidad :evaluacion="$e" />', [
-            'e' => ['resultado' => 'requiere_revision', 'motivos' => [
-                ['codigo' => 'evaluacion_no_disponible', 'texto' => 'No hay una evaluación automática implementada para este trámite.'],
-            ]],
-        ]);
-
-        $this->assertStringContainsString('Este trámite no tiene revisión automática', $html);
-        $this->assertStringContainsString('cb-sin-evaluacion', $html);
-        $this->assertMatchesRegularExpression('/data-cb="resultado-orientativo"\s+hidden/', $html);
-    }
-
-    public function test_evaluacion_parcial_lo_dice_en_el_titulo(): void
-    {
-        $html = (string) $this->blade('<x-resultado-elegibilidad :evaluacion="$e" />', [
-            'e' => ['resultado' => 'requiere_revision', 'motivos' => [
-                ['codigo' => 'promedio_ok', 'texto' => 'El promedio declarado (80) alcanza el mínimo de 75.'],
-                ['codigo' => 'condiciones_no_evaluadas', 'texto' => 'No se han comprobado los plazos aplicables.'],
-            ]],
-        ]);
-
-        $this->assertStringContainsString('data-cb="resultado-titulo">Solo se revisó una parte de los requisitos<', $html);
-        $this->assertDoesNotMatchRegularExpression('/data-cb="resultado-orientativo"\s+hidden/', $html);
-    }
-
 }

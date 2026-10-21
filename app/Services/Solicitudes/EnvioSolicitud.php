@@ -45,6 +45,7 @@ class EnvioSolicitud
                     if (! hash_equals($this->huellaEnvio($previa->detalle), $this->huellaEnvio($datos))) {
                         throw ValidationException::withMessages(['clave_envio' => 'Este envío ya se realizó con otros datos. Inicia una nueva solicitud para hacer otro envío.']);
                     }
+
                     return $previa;
                 }
 
@@ -53,6 +54,7 @@ class EnvioSolicitud
                     throw ValidationException::withMessages(['clave_envio' => 'El documento cambió. Descarga la versión actual y sube su PDF firmado.']);
                 }
                 $datos['envio_usuario_id'] = $usuario->getKey();
+
                 return $this->crearExpediente($usuario, $datos, $carpeta);
             }, 5);
         } catch (\Throwable $error) {
@@ -64,7 +66,9 @@ class EnvioSolicitud
         $tramite = $datos['tramite'];
         if (($this->documentos->buscar($tramite)['version'] ?? null) === $clave) {
             try {
-                foreach ($this->respaldos->delTramite($tramite) as $archivo) $this->respaldos->quitar($archivo['id']);
+                foreach ($this->respaldos->delTramite($tramite) as $archivo) {
+                    $this->respaldos->quitar($archivo['id']);
+                }
                 $this->firmados->quitar($tramite);
                 $this->documentos->quitar($tramite);
                 $this->borradores->descartar($tramite);
@@ -72,6 +76,7 @@ class EnvioSolicitud
                 report($error);
             }
         }
+
         return $solicitud;
     }
 
@@ -79,6 +84,7 @@ class EnvioSolicitud
     {
         $requisitos = $datos['requisitos'] ?? [];
         ksort($requisitos);
+
         return hash('sha256', $this->documentos->huella($datos).'|'.json_encode($requisitos, JSON_THROW_ON_ERROR));
     }
 
@@ -126,6 +132,7 @@ class EnvioSolicitud
             if (! $disco->exists($origen) || ! $disco->copy($origen, $destino)) {
                 throw new RuntimeException('No se pudo conservar un archivo del expediente. Vuelve a adjuntarlo.');
             }
+
             return $destino;
         };
         try {
@@ -139,7 +146,7 @@ class EnvioSolicitud
             for ($intento = 0; ; $intento++) {
                 try {
                     $solicitud = DB::transaction(function () use ($usuario, $datos, $contexto, $integracion, $word, $pdf, $firmado, $respaldos) {
-                        $gpa = $datos['campos']['gpa_periodo'] ?? $datos['campos']['gpa_general'] ?? null;
+                        $gpa = $datos['campos']['gpa_general'] ?? null;
                         $solicitud = Solicitud::create([
                             'codigo' => $this->solicitudes->siguienteCodigo(),
                             'carrera_estudiante_id' => $contexto['carrera_estudiante_id'],
@@ -183,19 +190,23 @@ class EnvioSolicitud
                         ]);
                         $integracion->enviar($solicitud, $usuario);
                         $solicitud->forceFill(['enviada_at' => now()])->save();
+
                         return $solicitud;
                     });
                     break;
                 } catch (QueryException $error) {
                     // Solo reintenta colisiones del identificador SOL; otros errores se propagan.
                     if ($intento >= 4 || ! in_array($error->getCode(), ['23000', '23505'], true)
-                        || ! str_contains($error->getMessage(), 'codigo')) throw $error;
+                        || ! str_contains($error->getMessage(), 'codigo')) {
+                        throw $error;
+                    }
                 }
             }
         } catch (\Throwable $error) {
             $disco->deleteDirectory($carpeta);
             throw $error;
         }
+
         return $solicitud;
     }
 }

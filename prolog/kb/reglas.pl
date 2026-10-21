@@ -1,226 +1,38 @@
 :- encoding(utf8).
-
-% ============================================================================
-% Reglas de consulta y evaluación para el chatbot (contrato JSON v2).
-% Conecta el servidor HTTP (servidor.pl) con la base de hechos (hechos.pl).
-% ============================================================================
-
 :- use_module(library(pairs)).
-:- use_module(library(lists)).
+:- use_module(library(date)).
 
-:- multifile consultar/3.
-:- multifile evaluar/5.
+% Todos los perfiles son argumentos locales de la consulta. No se almacenan hechos personales.
+base_respuesta(_{items:[],documentos:[],costo:null,plazo:null,resultado:null,comprobaciones:[],aviso:null}).
+consultar(consultar_descripcion,T,S) :- descripcion(T,D),base_respuesta(B),S=B.put(items,[D]).
+consultar(consultar_requisitos,T,S) :- findall(O-R,requisito(T,O,R),Ps),keysort(Ps,Orden),pairs_values(Orden,Rs),base_respuesta(B),S=B.put(items,Rs).
+consultar(consultar_documentos,T,S) :-
+    findall(O-_{id:I,nombre:N,descripcion:D,formato:F,url:Url,obligatorio:Ob,obligacion:OS},
+        (tramite_documento(T,O,Id,Oblig),documento_def(Id,N,D,F,Url0),(Url0==sin_url->Url=null;Url=Url0),atom_string(Id,I),atom_string(Oblig,OS),(Oblig==obligatorio->Ob=true;Ob=false)),Ps),
+    keysort(Ps,Orden),pairs_values(Orden,Ds),base_respuesta(B),S=B.put(documentos,Ds).
+consultar(consultar_costo,T,S) :- costo_texto(T,Texto),base_respuesta(B),S=B.put(items,[Texto]).
+consultar(consultar_plazo,T,S) :- plazo_texto(T,Texto),base_respuesta(B),S=B.put(plazo,_{texto:Texto,inicio:null,fin:null}).
 
-% ----------------------------------------------------------------------------
-% 1. CONSULTAS INFORMATIVAS: consultar(Intencion, Tramite, Salida)
-% Responde a las 5 intenciones oficiales del contrato v2.
-% ----------------------------------------------------------------------------
+evaluar(examen_recuperacion,P,Fecha,manual,S) :-
+    parametro(examen_recuperacion,gpa_general_minimo,Min),parametro(examen_recuperacion,intervalo_recuperacion_dias,Intervalo),
+    referencia_gpa(P,Min,G),referencia_dias(P,Fecha,Intervalo,D),base_respuesta(B),S=B.put(comprobaciones,[G,D]).
+evaluar(T,_,_,manual,S) :- T\==examen_recuperacion,base_respuesta(B),S=B.put(items,["Consulta los requisitos y documentos del trámite. La facultad revisa los antecedentes de tu solicitud."]).
 
-% Consulta de descripción general del trámite
-consultar(consultar_descripcion, Tramite, Salida) :-
-    (   descripcion(Tramite, Desc)
-    ->  Items = [Desc]
-    ;   Items = []
-    ),
-    obtener_aviso(Tramite, Aviso),
-    Salida = _{
-        items: Items,
-        documentos: [],
-        costo: null,
-        plazo: null,
-        resultado: null,
-        aviso: Aviso
-    }.
+referencia_gpa(P,Min,R) :-
+    (get_dict(gpa_general,P,G),G\==null -> number(G),G>=0,G=<100,
+      Dif is G-Min,format(string(Texto),"La referencia de GPA general es ~w. El GPA general que indicaste es ~w; la diferencia respecto a la referencia es ~w puntos.",[Min,G,Dif]),
+      Datos=_{referencia:Min,declarado:G,diferencia:Dif}
+    ; format(string(Texto),"La referencia de GPA general es ~w sobre 100. Puedes consultar los requisitos sin declarar tu GPA.",[Min]),Datos=_{referencia:Min,declarado:null,diferencia:null}),
+    R=_{codigo:"gpa_general",texto:Texto,datos:Datos}.
 
-% Consulta de requisitos ordenados
-consultar(consultar_requisitos, Tramite, Salida) :-
-    findall(Orden-Texto, requisito(Tramite, Orden, Texto), Pares),
-    (   Pares \== []
-    ->  keysort(Pares, Ordenados),
-        pairs_values(Ordenados, Items)
-    ;   Items = []
-    ),
-    obtener_aviso(Tramite, Aviso),
-    Salida = _{
-        items: Items,
-        documentos: [],
-        costo: null,
-        plazo: null,
-        resultado: null,
-        aviso: Aviso
-    }.
-
-% Consulta de documentos requeridos y respaldos sugeridos
-consultar(consultar_documentos, Tramite, Salida) :-
-    findall(Orden-DocDict, (
-        tramite_documento(Tramite, Orden, DocId, Obligacion),
-        documento_def(DocId, Nombre, Desc, Formato, Url0),
-        ( Url0 == sin_url -> Url = null ; Url = Url0 ),
-        ( Obligacion == obligatorio -> Oblig = true ; Oblig = false ),
-        atom_string(DocId, DocIdStr),
-        DocDict = _{
-            id: DocIdStr,
-            nombre: Nombre,
-            descripcion: Desc,
-            obligatorio: Oblig,
-            formato: Formato,
-            url: Url
-        }
-    ), Pares),
-    (   Pares \== []
-    ->  keysort(Pares, Ordenados),
-        pairs_values(Ordenados, Documentos)
-    ;   Documentos = []
-    ),
-    obtener_aviso(Tramite, Aviso),
-    Salida = _{
-        items: [],
-        documentos: Documentos,
-        costo: null,
-        plazo: null,
-        resultado: null,
-        aviso: Aviso
-    }.
-
-% Consulta de plazos
-consultar(consultar_plazo, Tramite, Salida) :-
-    (   plazo_texto(Tramite, TextoPlazo)
-    ->  Plazo = _{texto: TextoPlazo, inicio: null, fin: null}
-    ;   Plazo = null
-    ),
-    obtener_aviso(Tramite, Aviso),
-    Salida = _{
-        items: [],
-        documentos: [],
-        costo: null,
-        plazo: Plazo,
-        resultado: null,
-        aviso: Aviso
-    }.
-
-% Consulta de costos
-consultar(consultar_costo, Tramite, Salida) :-
-    (   costo(Tramite, Centavos, Moneda)
-    ->  Costo = _{centavos: Centavos, moneda: Moneda}
-    ;   Costo = null
-    ),
-    obtener_aviso(Tramite, Aviso),
-    Salida = _{
-        items: [],
-        documentos: [],
-        costo: Costo,
-        plazo: null,
-        resultado: null,
-        aviso: Aviso
-    }.
-
-% ----------------------------------------------------------------------------
-% 2. EVALUACIÓN DE ELEGIBILIDAD: evaluar(Tramite, Perfil, Fecha, Origen, Salida)
-% Evalúa los datos recibidos del estudiante según las reglas del reglamento.
-% ----------------------------------------------------------------------------
-
-% Contención de recuperación: el perfil actual no representa todas las
-% condiciones. Un promedio suficiente nunca basta para devolver cumple.
-evaluar(examen_recuperacion, Perfil, _Fecha, _Origen, Salida) :-
-    obtener_aviso(examen_recuperacion, Aviso),
-    promedio_recuperacion(Perfil, EstadoPromedio),
-    resultado_recuperacion(EstadoPromedio, Estado, Motivos),
-    Salida = _{
-        items: [],
-        documentos: [],
-        costo: null,
-        plazo: null,
-        resultado: _{
-            estado: Estado,
-            motivos: Motivos
-        },
-        aviso: Aviso
-    }.
-
-% Caso general para los demás trámites:
-evaluar(Tramite, _Perfil, _Fecha, _Origen, Salida) :-
-    Tramite \== examen_recuperacion,
-    obtener_aviso(Tramite, Aviso),
-    (   pendiente_validacion(Tramite, DetallePendiente)
-    ->  TextoMotivo = DetallePendiente
-    ;   observacion_conocimiento(Tramite, Observacion)
-    ->  TextoMotivo = Observacion
-    ;   descripcion(Tramite, Descripcion)
-    ->  TextoMotivo = Descripcion
-    ;   TextoMotivo = "Consulta los requisitos del trámite para conocer la información disponible."
-    ),
-    Salida = _{
-        items: [],
-        documentos: [],
-        costo: null,
-        plazo: null,
-        resultado: _{
-            estado: "requiere_revision",
-            motivos: [
-                _{codigo: "evaluacion_no_disponible", texto: "No hay una evaluación automática implementada para este trámite. Esta respuesta no determina cumplimiento ni incumplimiento."},
-                _{codigo: "orientacion_tramite", texto: TextoMotivo}
-            ]
-        },
-        aviso: Aviso
-    }.
-
-% ----------------------------------------------------------------------------
-% Predicados auxiliares
-% ----------------------------------------------------------------------------
-
-% Alias históricos solo para llamadas directas: el puente recibe promedio.
-% null equivale a dato ausente, igual que en perfil_sin_nulos/2 del puente.
-% No se elige silenciosamente un alias si otro contiene un valor inválido
-% o contradictorio. La comparación numérica acepta 80 y 80.0 como iguales.
-promedio_recuperacion(Perfil, Estado) :-
-    (   is_dict(Perfil)
-    ->  findall(V, (member(K, [promedio, period_gpa, gpa]),
-                   get_dict(K, Perfil, V), V \== null), Valores),
-        (   Valores == []
-        ->  Estado = ausente
-        ;   \+ maplist(promedio_valido, Valores)
-        ->  Estado = invalido
-        ;   Valores = [Primero|Resto],
-            (   maplist(promedio_igual(Primero), Resto)
-            ->  Estado = valido(Primero)
-            ;   Estado = contradictorio
-            )
-        )
-    ;   Estado = perfil_invalido
-    ).
-
-promedio_valido(V) :- number(V), catch((V >= 0, V =< 100), _, fail).
-promedio_igual(A, B) :- A =:= B.
-
-resultado_recuperacion(valido(Promedio), Estado, Motivos) :-
-    (   Promedio < 75
-    ->  Estado = "no_cumple",
-        format(string(Msg), "El promedio declarado (~w) es inferior al mínimo de 75. Los datos son declarados, no verificados institucionalmente.", [Promedio]),
-        Motivos = [_{codigo: "promedio_insuficiente", texto: Msg}]
-    ;   Estado = "requiere_revision",
-        format(string(Msg), "El promedio declarado (~w) alcanza el mínimo de 75; esto solo comprueba el promedio, no la elegibilidad completa.", [Promedio]),
-        Motivos = [
-            _{codigo: "promedio_ok", texto: Msg},
-            _{codigo: "condiciones_no_evaluadas", texto: "No se han comprobado la materia reprobada, ausencia de fraude, historial de recuperación, cantidad de materias ni plazos aplicables. El perfil actual no permite completar esas comprobaciones."}
-        ]
-    ).
-resultado_recuperacion(ausente, "requiere_revision", [
-    _{codigo: "promedio_ausente", texto: "Falta el promedio declarado para comprobar el mínimo de 75. No se puede determinar la elegibilidad completa."}
-]).
-resultado_recuperacion(invalido, "requiere_revision", [
-    _{codigo: "promedio_invalido", texto: "El promedio debe ser un número entre 0 y 100; no se evalúa un valor inválido."}
-]).
-resultado_recuperacion(contradictorio, "requiere_revision", [
-    _{codigo: "promedio_contradictorio", texto: "Se recibieron valores distintos para el promedio y sus alias; deben corregirse antes de evaluar."}
-]).
-resultado_recuperacion(perfil_invalido, "requiere_revision", [
-    _{codigo: "perfil_invalido", texto: "El perfil debe ser un objeto de datos declarados."}
-]).
-
-obtener_aviso(Tramite, Aviso) :-
-    (   pendiente_validacion(Tramite, AvisoTexto)
-    ->  Aviso = AvisoTexto
-    ;   observacion_conocimiento(Tramite, ObsTexto)
-    ->  Aviso = ObsTexto
-    ;   Aviso = null
-    ).
+fecha_dias(F,Stamp) :- split_string(F,"-","",[Ys,Ms,Ds]),maplist(number_string,[Y,M,D],[Ys,Ms,Ds]),
+    date_time_stamp(date(Y,M,D,0,0,0,0,-,-),Stamp),stamp_date_time(Stamp,date(Y,M,D,_,_,_,_,_,_),0).
+referencia_dias(P,Fecha,Intervalo,R) :-
+    (get_dict(fecha_ultima_recuperacion,P,F),F\==null -> fecha_dias(F,Inicio),fecha_dias(Fecha,Hoy),Inicio=<Hoy,
+      Dias is floor((Hoy-Inicio)/86400),Restantes is max(0,Intervalo-Dias),Fin is Inicio+Intervalo*86400,
+      stamp_date_time(Fin,FinUTC,0),format_time(string(Completa),"%Y-%m-%d",FinUTC,posix),
+      format(string(Texto),"Desde el último examen que indicaste han transcurrido ~w días. El intervalo de ~w días se completa el ~s; quedan ~w días.",[Dias,Intervalo,Completa,Restantes]),
+      Datos=_{intervalo:Intervalo,fecha_declarada:F,dias_transcurridos:Dias,dias_restantes:Restantes,fecha_cumplimiento:Completa}
+    ; format(string(Texto),"El intervalo es de ~w días desde la fecha del último examen de recuperación. Si no conoces la fecha, consulta tus antecedentes con la facultad.",[Intervalo]),
+      Datos=_{intervalo:Intervalo,fecha_declarada:null,dias_transcurridos:null,dias_restantes:null,fecha_cumplimiento:null}),
+    R=_{codigo:"intervalo_recuperacion",texto:Texto,datos:Datos}.

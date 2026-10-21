@@ -12,7 +12,7 @@
 <div {{ $attributes->class('cb-datos') }} data-cb="datos" @if (! $verCosto && ! $verPlazo) hidden @endif>
     <div class="cb-dato" data-cb="dato-costo" @if (! $verCosto) hidden @endif>
         <span>Costo</span>
-        <strong data-cb="costo-valor">{{ $monto ?? 'Por confirmar' }}</strong>
+        <strong data-cb="costo-valor">{{ $monto ?? 'Consulta con tu facultad' }}</strong>
         <small data-cb="costo-moneda" @if (! $costo) hidden @endif>{{ $costo['moneda'] ?? 'USD' }}</small>
         <small data-cb="costo-nota" @if ($costo) hidden @endif>Lo confirma la facultad</small>
     </div>
@@ -22,7 +22,7 @@
     </div>
     <div class="cb-dato" data-cb="dato-fin" @if (! $verPlazo) hidden @endif>
         <span>Hasta</span>
-        <strong data-cb="plazo-fin">{{ $fecha($fin) ?? 'Por confirmar' }}</strong>
+        <strong data-cb="plazo-fin">{{ $fecha($fin) ?? 'Consulta con tu facultad' }}</strong>
         <small data-cb="plazo-fin-nota" @if ($fin) hidden @endif>La define la facultad</small>
     </div>
     <div class="cb-dato cb-dato-ancho" data-cb="dato-plazo" @if (! ($plazo['texto'] ?? null)) hidden @endif>
