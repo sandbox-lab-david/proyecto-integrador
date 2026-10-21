@@ -11,6 +11,14 @@ use Illuminate\View\View;
 
 class PasswordResetLinkController extends Controller
 {
+    private const MENSAJES = [
+        Password::RESET_LINK_SENT => 'Te enviamos un enlace para cambiar tu contraseña. Revisa tu correo.',
+        Password::PASSWORD_RESET => 'Tu contraseña se cambió. Ya puedes iniciar sesión.',
+        Password::INVALID_USER => 'No encontramos una cuenta con ese correo.',
+        Password::INVALID_TOKEN => 'El enlace para cambiar la contraseña ya no es válido. Pide uno nuevo.',
+        Password::RESET_THROTTLED => 'Espera un momento antes de pedir otro enlace.',
+    ];
+
     /**
      * Display the password reset link request view.
      */
@@ -28,6 +36,9 @@ class PasswordResetLinkController extends Controller
     {
         $request->validate([
             'email' => ['required', 'email'],
+        ], [
+            'email.required' => 'Escribe tu correo institucional.',
+            'email.email' => 'El correo no tiene un formato válido.',
         ]);
 
         // We will send the password reset link to this user. Once we have attempted
@@ -38,8 +49,8 @@ class PasswordResetLinkController extends Controller
         );
 
         return $status == Password::RESET_LINK_SENT
-                    ? back()->with('status', __($status))
+                    ? back()->with('status', self::MENSAJES[$status] ?? __($status))
                     : back()->withInput($request->only('email'))
-                        ->withErrors(['email' => __($status)]);
+                        ->withErrors(['email' => self::MENSAJES[$status] ?? __($status)]);
     }
 }

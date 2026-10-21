@@ -1,8 +1,4 @@
-@extends('layouts.app')
-
-@section('titulo', 'Vista previa de importación')
-
-@section('content')
+<x-layouts.app titulo="Vista previa de importación" modulo="Administración académica" :menu="config('menu_administracion')">
     @php
         $badges = ['valido' => 'ui-badge-exito', 'duplicado' => 'ui-badge-alerta', 'error' => 'ui-badge-peligro'];
         $nombres = ['valido' => 'Válida', 'duplicado' => 'Duplicada', 'error' => 'Con error'];
@@ -54,4 +50,4 @@
         <a href="{{ route('cargas.index') }}" class="ui-btn ui-btn-secundario">Cancelar</a>
         <button type="submit" class="ui-btn ui-btn-primario" @disabled($resumen['correctas'] == 0)>Guardar {{ $resumen['correctas'] }} filas válidas</button>
     </form>
-@endsection
+</x-layouts.app>

@@ -1,8 +1,4 @@
-@extends('layouts.app')
-
-@section('titulo', 'Periodos académicos')
-
-@section('content')
+<x-layouts.app titulo="Periodos académicos" modulo="Administración académica" :menu="config('menu_administracion')">
     <p class="ui-antetitulo">Estructura académica</p>
     <h1 class="ui-titulo">Periodos académicos</h1>
     <p class="ui-texto-gris mt-chico">Solo puede haber un periodo activo a la vez: al marcar uno nuevo como activo, el anterior se desactiva.</p>
@@ -99,4 +95,4 @@
             @endif
         </section>
     </div>
-@endsection
+</x-layouts.app>
