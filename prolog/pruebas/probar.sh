@@ -51,17 +51,17 @@ if [ -n "${PROLOG_KB_VERSION_ESPERADA:-}" ]; then
 fi
 
 req "1. consulta informativa" 200 '"resultado": *null' "${H[@]}" \
-  -d '{"version":2,"tramite_id":"examen_recuperacion","intencion":"consultar_requisitos"}' "$U/consulta"
-req "2. evaluacion con datos faltantes" 200 '"estado": *"(cumple|no_cumple|requiere_revision)"' "${H[@]}" \
-  -d '{"version":2,"tramite_id":"examen_recuperacion","intencion":"evaluar_elegibilidad","fecha":"2026-10-07","origen_datos":"manual","perfil":{"materia_id":"MAT101"}}' "$U/evaluar"
-req "3. evaluacion con datos ficticios" 200 '"estado": *"(cumple|no_cumple|requiere_revision)"' "${H[@]}" \
-  -d '{"version":2,"tramite_id":"examen_recuperacion","intencion":"evaluar_elegibilidad","fecha":"2026-10-07","origen_datos":"manual","perfil":{"materia_id":"MAT101","promedio":78}}' "$U/evaluar"
+  -d '{"version":3,"tramite_id":"examen_recuperacion","intencion":"consultar_requisitos"}' "$U/consulta"
+req "2. evaluacion con datos faltantes" 200 '"comprobaciones":' "${H[@]}" \
+  -d '{"version":3,"tramite_id":"examen_recuperacion","intencion":"comprobar_referencias","fecha":"2026-10-07","origen_datos":"manual","perfil":{}}' "$U/evaluar"
+req "3. evaluacion con datos ficticios" 200 '"comprobaciones":' "${H[@]}" \
+  -d '{"version":3,"tramite_id":"examen_recuperacion","intencion":"comprobar_referencias","fecha":"2026-10-07","origen_datos":"manual","perfil":{"gpa_general":78}}' "$U/evaluar"
 req "4. entrada invalida" 422 '"codigo": *"datos_invalidos"' "${H[@]}" \
-  -d '{"version":2,"tramite_id":"examen_recuperacion","intencion":"evaluar_elegibilidad","fecha":"2026-02-30","origen_datos":"manual","perfil":{"promedio":150}}' "$U/evaluar"
+  -d '{"version":3,"tramite_id":"examen_recuperacion","intencion":"comprobar_referencias","fecha":"2026-02-30","origen_datos":"manual","perfil":{"gpa_general":150}}' "$U/evaluar"
 req "5. GET en /consulta" 405 '"codigo": *"datos_invalidos"' "${H[@]}" "$U/consulta"
 
 if [ -n "$KEY" ]; then
-  B='{"version":2,"tramite_id":"examen_recuperacion","intencion":"consultar_requisitos"}'
+  B='{"version":3,"tramite_id":"examen_recuperacion","intencion":"consultar_requisitos"}'
   req "6. sin credencial" 403 '"codigo": *"acceso_denegado"' -H 'Content-Type: application/json' -d "$B" "$U/consulta"
   req "7. credencial incorrecta" 403 '"codigo": *"acceso_denegado"' -H 'Content-Type: application/json' -H 'X-Api-Key: incorrecta-xxxxxxxx' -d "$B" "$U/consulta"
 else

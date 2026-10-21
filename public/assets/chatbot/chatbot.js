@@ -22,7 +22,7 @@
         condicional: { texto: 'Según tu caso', clase: null },
         por_confirmar: { texto: 'Por confirmar', clase: 'cb-etq-pendiente' },
     };
-    const POR_CONFIRMAR = 'Por confirmar';
+    const POR_CONFIRMAR = 'Consulta con tu facultad';
 
     const ERROR_SUAVE = ['sesion_requerida', 'tiempo_agotado', 'sin_conexion'];
     const ICONO_ERROR = { sesion_requerida: 'i', tiempo_agotado: '↻', sin_conexion: '↻' };
@@ -33,18 +33,11 @@
     const normalizar = (s) => (s || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().trim();
     const formatearFecha = (f) => (f ? fechaLarga.format(new Date(`${f}T00:00:00Z`)) : null);
     const urlSegura = (u) => (typeof u === 'string' && (/^\/(?!\/)/.test(u) || /^https:\/\//i.test(u)) ? u : null);
-    const errorSobre = (codigo, mensaje, reintentable) => ({ version: 2, error: { codigo, mensaje, reintentable, campos: {} } });
+    const errorSobre = (codigo, mensaje, reintentable) => ({ version: 3, error: { codigo, mensaje, reintentable, campos: {} } });
 
     const obligacionDe = (d) => {
         if (OBLIGACIONES[d.obligacion]) return d.obligacion;
-        return d.obligatorio === true ? 'obligatorio' : 'por_confirmar';
-    };
-
-    const estadoResultado = (resultado) => {
-        const codigos = (resultado.motivos || []).map((m) => (m && m.codigo) || '');
-        if (codigos.includes('evaluacion_no_disponible')) return 'sin_evaluacion';
-        if (resultado.estado === 'requiere_revision' && codigos.includes('condiciones_no_evaluadas')) return 'parcial';
-        return resultado.estado === 'requiere_revision' ? 'revision_manual' : resultado.estado;
+        return d.obligatorio === true ? 'obligatorio' : 'opcional';
     };
 
     const memoria = {
@@ -179,7 +172,7 @@
                 if (!texto || this.ocupado) return;
                 this.entrada.value = '';
                 this.agregarUsuario(texto);
-                this.enviar({ version: 2, texto, tramite_id: this.tramite ? this.tramite.id : null });
+                this.enviar({ version: 3, texto, tramite_id: this.tramite ? this.tramite.id : null });
             });
 
             this.parte('nueva').addEventListener('click', () => this.nuevaConsulta());
@@ -313,7 +306,7 @@
         preguntar(p) {
             this.agregarUsuario(p.texto);
             this.enviar({
-                version: 2,
+                version: 3,
                 pregunta_id: p.id,
                 tramite_id: p.tramite_id,
                 intencion: p.intencion,
@@ -488,7 +481,12 @@
 
             this.pintarDocumentos(nodo, resp.documentos || []);
             this.pintarDatos(nodo, resp.costo, resp.plazo, resp.tipo);
-            this.pintarResultado(this.parte('resultado', nodo), resp.resultado, resp.meta);
+            this.pintarResultado(this.parte('resultado', nodo), null, resp.meta);
+            if ((resp.comprobaciones || []).length) {
+                const lista = document.createElement('ul');
+                resp.comprobaciones.forEach((c) => { const li = document.createElement('li'); li.textContent = c.texto; lista.append(li); });
+                this.parte('resultado', nodo).before(lista);
+            }
             this.pintarSolicitudes(nodo, resp.solicitudes || []);
             this.llenar(nodo, 'aviso-texto', resp.aviso);
             this.parte('aviso', nodo).hidden = !resp.aviso;
@@ -554,25 +552,7 @@
             }
         }
 
-        pintarResultado(caja, resultado, meta) {
-            caja.hidden = !resultado;
-            if (!resultado) return;
-            const estado = estadoResultado(resultado);
-
-            this.parte('resultado-caja', caja).className = `cb-resultado ${caja.getAttribute(`data-clase-${estado}`) || ''}`;
-            this.parte('resultado-icono', caja).textContent = caja.getAttribute(`data-icono-${estado}`) || '';
-            this.parte('resultado-titulo', caja).textContent = caja.getAttribute(`data-titulo-${estado}`) || '';
-
-            const motivos = this.parte('resultado-motivos', caja);
-            motivos.classList.toggle('cb-motivos', estado !== 'cumple');
-            (resultado.motivos || []).forEach((m) => {
-                const li = document.createElement('li');
-                li.textContent = typeof m === 'string' ? m : m.texto;
-                motivos.append(li);
-            });
-
-            this.parte('resultado-orientativo', caja).hidden = estado === 'sin_evaluacion' || !!(meta && meta.verificacion === 'institucional');
-        }
+        pintarResultado(caja) { caja.hidden = true; }
 
         pintarSolicitudes(nodo, solicitudes) {
             const lista = this.parte('solicitudes', nodo);
@@ -637,7 +617,7 @@
                 this.marcarErrores(form, {});
                 control.bloquear();
                 this.agregarUsuario(resumen || 'Datos enviados', 'Datos declarados por mí');
-                this.enviar({ ...payload, origen_datos: this.origenPara(payload), datos_usuario: valores }, { formulario: control });
+                this.enviar({ ...payload, origen_datos: this.origenPara(payload), datos_usuario: valores, mostrar_referencias: true }, { formulario: control });
             });
 
             const primero = form.querySelector('[data-cb="campo-control"]');
@@ -692,7 +672,7 @@
             }
 
             if (tipo === 'fecha') {
-                controles[0].max = new Date().toISOString().slice(0, 10);
+                controles[0].max = c.max || new Date().toISOString().slice(0, 10);
             }
 
             return el;

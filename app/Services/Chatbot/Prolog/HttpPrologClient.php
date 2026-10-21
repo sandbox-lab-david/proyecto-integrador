@@ -2,7 +2,9 @@
 
 namespace App\Services\Chatbot\Prolog;
 
+use App\Services\Catalogo\CatalogoTramites;
 use Illuminate\Http\Client\ConnectionException;
+use Illuminate\Http\Client\Response;
 use Illuminate\Support\Facades\Http;
 
 /**
@@ -16,11 +18,10 @@ final class HttpPrologClient implements PrologClient
         private readonly string $baseUrl,
         private readonly float $timeout = 3.0,
         private readonly float $connectTimeout = 1.0,
-        private readonly RespuestaMotorValidator $validator = new RespuestaMotorValidator(),
+        private readonly RespuestaMotorValidator $validator = new RespuestaMotorValidator,
         private readonly string $apiKey = '',
         private readonly int $intentos = 2,
-    ) {
-    }
+    ) {}
 
     public static function desdeConfig(): self
     {
@@ -29,6 +30,7 @@ final class HttpPrologClient implements PrologClient
             throw new PrologException(500, 'error_interno',
                 'PROLOG_API_KEY es obligatoria en produccion.');
         }
+
         return new self(
             (string) config('chatbot.prolog.url', 'http://127.0.0.1:8081'),
             (float) config('chatbot.prolog.timeout', 3.0),
@@ -47,8 +49,9 @@ final class HttpPrologClient implements PrologClient
     {
         // Un perfil vacio debe viajar como {} y no como [].
         if (isset($entrada['perfil']) && $entrada['perfil'] === []) {
-            $entrada['perfil'] = new \stdClass();
+            $entrada['perfil'] = new \stdClass;
         }
+
         return $this->enviar('/evaluar', $entrada, true);
     }
 
@@ -57,11 +60,12 @@ final class HttpPrologClient implements PrologClient
     {
         $resp = $this->llamar(fn ($http) => $http->get('/salud'));
         $json = $resp->json();
-        if (!is_array($json) || ($json['version'] ?? null) !== 2 || !isset($json['estado'])) {
+        if (! is_array($json) || ($json['version'] ?? null) !== 3 || ! isset($json['estado'])) {
             throw PrologException::respuestaInvalida('/salud con formato inesperado');
         }
+
         return ['listo' => $json['estado'] === 'listo' && $resp->status() === 200,
-                'kb_version' => $json['kb_version'] ?? null];
+            'kb_version' => $json['kb_version'] ?? null];
     }
 
     private function enviar(string $ruta, array $entrada, bool $esEvaluacion): array
@@ -72,10 +76,16 @@ final class HttpPrologClient implements PrologClient
 
         if ($resp->status() === 200) {
             $json = $resp->json();
-            if (!is_array($json)) {
+            if (! is_array($json)) {
                 throw PrologException::respuestaInvalida('el cuerpo no es un objeto JSON');
             }
-            return $this->validator->validar($json, $entrada, $esEvaluacion);
+            $validada = $this->validator->validar($json, $entrada, $esEvaluacion);
+            $esperada = app(CatalogoTramites::class)->publicado()['version'];
+            if ($validada['kb_version'] !== $esperada) {
+                throw PrologException::noDisponible();
+            }
+
+            return $validada;
         }
 
         $this->lanzarErrorDelMotor($resp->status(), $resp->json());
@@ -87,7 +97,7 @@ final class HttpPrologClient implements PrologClient
      * es seguro. Un timeout no se reintenta para respetar el presupuesto de tiempo,
      * y un 503 del motor (sobrecarga/limite) tampoco, para no empeorarlo.
      */
-    private function llamar(callable $peticion): \Illuminate\Http\Client\Response
+    private function llamar(callable $peticion): Response
     {
         $maximo = max(1, $this->intentos);
 
@@ -100,6 +110,7 @@ final class HttpPrologClient implements PrologClient
                 if ($this->apiKey !== '') {
                     $http = $http->withHeaders(['X-Api-Key' => $this->apiKey]);
                 }
+
                 return $peticion($http);
             } catch (ConnectionException $e) {
                 $msg = $e->getMessage();
@@ -124,7 +135,7 @@ final class HttpPrologClient implements PrologClient
 
         $err = is_array($json) ? ($json['error'] ?? null) : null;
         $valido = is_array($err)
-            && ($json['version'] ?? null) === 2
+            && ($json['version'] ?? null) === 3
             && is_string($err['codigo'] ?? null)
             && is_string($err['mensaje'] ?? null)
             && is_bool($err['reintentable'] ?? null)

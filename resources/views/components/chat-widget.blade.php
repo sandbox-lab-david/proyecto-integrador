@@ -1,7 +1,7 @@
 @props([
     'tramite' => null,
     'modo' => 'pagina',
-    'simulado' => true,
+    'simulado' => false,
     'urlMensaje' => null,
     'facultad' => null,
 ])
@@ -116,8 +116,6 @@
 
 @once
     <link rel="stylesheet" href="{{ asset('assets/chatbot/chatbot.css') }}">
-    @if ($simulado)
-        <script src="{{ asset('assets/chatbot/chatbot-simulado.js') }}" defer></script>
-    @endif
+
     <script src="{{ asset('assets/chatbot/chatbot.js') }}" defer></script>
 @endonce

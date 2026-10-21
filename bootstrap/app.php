@@ -1,10 +1,14 @@
 <?php
 
+use App\Http\Middleware\VerificarRol;
+use App\Http\Middleware\SoloEstudiante;
+use App\Services\Chatbot\Prolog\PrologException;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
-use App\Http\Middleware\VerificarRol;
-use App\Http\Middleware\SoloEstudiante;
+use Illuminate\Http\Request;
+use Illuminate\Validation\ValidationException;
+use Symfony\Component\HttpKernel\Exception\HttpExceptionInterface;
 
 return Application::configure(basePath: dirname(__DIR__))
     ->withRouting(
@@ -21,24 +25,24 @@ return Application::configure(basePath: dirname(__DIR__))
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
-        $exceptions->render(function (\Throwable $e, \Illuminate\Http\Request $request) {
+        $exceptions->render(function (Throwable $e, Request $request) {
             if ($request->is('chatbot/*') || $request->is('api/chatbot/*')) {
                 $statusCode = 500;
                 $codigo = 'error_interno';
                 $reintentable = false;
                 $campos = [];
 
-                if ($e instanceof \Illuminate\Validation\ValidationException) {
+                if ($e instanceof ValidationException) {
                     $statusCode = 422;
                     $codigo = 'datos_invalidos';
                     $reintentable = false;
                     $campos = $e->errors();
-                } elseif ($e instanceof \App\Services\Chatbot\Prolog\PrologException) {
+                } elseif ($e instanceof PrologException) {
                     $statusCode = $e->status;
                     $codigo = $e->codigo;
                     $reintentable = $e->reintentable;
                     $campos = $e->campos;
-                } elseif ($e instanceof \Symfony\Component\HttpKernel\Exception\HttpExceptionInterface) {
+                } elseif ($e instanceof HttpExceptionInterface) {
                     $statusCode = $e->getStatusCode();
                     $codigo = match ($statusCode) {
                         422 => 'datos_invalidos',
@@ -71,12 +75,12 @@ return Application::configure(basePath: dirname(__DIR__))
                     'reintentable' => $reintentable,
                 ];
 
-                if (!empty($campos)) {
+                if (! empty($campos)) {
                     $errorPayload['campos'] = $campos;
                 }
 
                 return response()->json([
-                    'version' => 2,
+                    'version' => 3,
                     'error' => $errorPayload,
                 ], $statusCode);
             }
