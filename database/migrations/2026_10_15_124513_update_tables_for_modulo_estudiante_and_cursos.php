@@ -8,19 +8,11 @@ return new class extends Migration
 {
     public function up(): void
     {
-        // 1. Ajustar tabla rol_trabajador (Llave compuesta trabajador_id + rol_id)
+        // Conservar las asignaciones existentes por código al introducir la relación con roles.
         Schema::table('rol_trabajador', function (Blueprint $table) {
-            if (Schema::hasColumn('rol_trabajador', 'id')) {
-                $table->dropColumn('id');
-            }
-            if (Schema::hasColumn('rol_trabajador', 'rol')) {
-                $table->dropColumn('rol');
-            }
             if (!Schema::hasColumn('rol_trabajador', 'rol_id')) {
-                $table->unsignedBigInteger('rol_id');
+                $table->unsignedBigInteger('rol_id')->nullable();
             }
-            // Definir llave primaria compuesta
-            $table->primary(['trabajador_id', 'rol_id']);
         });
 
         // 2. Ajustar tabla carrera_estudiante
