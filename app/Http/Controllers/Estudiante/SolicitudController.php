@@ -3,23 +3,26 @@
 namespace App\Http\Controllers\Estudiante;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Estudiante\EnviarSolicitudRequest;
 use App\Http\Requests\Estudiante\GenerarDocumentoRequest;
 use App\Services\Archivos\FirmadosTemporales;
 use App\Services\Archivos\RespaldosTemporales;
+use App\Services\Documentos\WordService;
 use App\Services\Solicitudes\BorradoresTemporales;
+use App\Services\Solicitudes\CatalogoFacultades;
+use App\Services\Solicitudes\DatosFormularioSolicitud;
+use App\Services\Solicitudes\DocumentoSolicitud;
+use App\Services\Solicitudes\DocumentosTemporales;
+use App\Services\Solicitudes\EnvioSolicitud;
+use App\Services\Solicitudes\IntegracionEnvio;
 use App\Services\Solicitudes\SeguimientoSolicitudes;
 use App\Services\Solicitudes\SolicitudesSinTerminar;
 use App\Services\Solicitudes\SolicitudService;
 use App\Services\Solicitudes\TramitesSimulados;
-use App\Services\Solicitudes\DocumentoSolicitud;
-use App\Services\Solicitudes\DocumentosTemporales;
-use App\Services\Solicitudes\IntegracionEnvio;
-use App\Services\Solicitudes\EnvioSolicitud;
-use App\Services\Solicitudes\DatosFormularioSolicitud;
-use App\Services\Solicitudes\CatalogoFacultades;
-use App\Http\Requests\Estudiante\EnviarSolicitudRequest;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Gate;
+use Illuminate\Support\Str;
 use Illuminate\View\View;
 
 class SolicitudController extends Controller
@@ -32,6 +35,7 @@ class SolicitudController extends Controller
         abort_unless($request->user(), 401, 'Inicia sesión para enviar una solicitud.');
         $datos = $request->validated();
         $solicitud = $envio->enviar($request->user(), $datos);
+
         return response()->json(['codigo' => $solicitud->codigo, 'url' => route('solicitudes.index')], 201);
     }
 
@@ -78,23 +82,22 @@ class SolicitudController extends Controller
     ) {
         $datos = $request->validated();
 
-
         try {
             $documento = $documentos->generarWord($datos);
             $contenidoDescarga = $documento;
             $formato = $datos['formato'] ?? 'docx';
             if ($formato === 'pdf') {
-                $carpeta = storage_path('app/private/descargas/'.\Illuminate\Support\Str::uuid());
-                \Illuminate\Support\Facades\File::ensureDirectoryExists($carpeta);
+                $carpeta = storage_path('app/private/descargas/'.Str::uuid());
+                File::ensureDirectoryExists($carpeta);
                 $rutaPdf = null;
                 try {
                     file_put_contents($carpeta.'/documento.docx', $documento);
-                    $rutaPdf = app(\App\Services\Documentos\WordService::class)->convertirAPdf($carpeta.'/documento.docx');
+                    $rutaPdf = app(WordService::class)->convertirAPdf($carpeta.'/documento.docx');
                     $contenidoDescarga = file_get_contents($rutaPdf);
                 } finally {
-                    \Illuminate\Support\Facades\File::deleteDirectory($carpeta);
+                    File::deleteDirectory($carpeta);
                     if ($rutaPdf) {
-                        \Illuminate\Support\Facades\File::deleteDirectory(dirname($rutaPdf));
+                        File::deleteDirectory(dirname($rutaPdf));
                     }
                 }
             }
@@ -133,6 +136,7 @@ class SolicitudController extends Controller
         $tramite = $tramites->buscar($codigoTramite);
 
         abort_if($tramite === null, 404);
+        $codigoTramite = substr($tramite['ficha'], strrpos($tramite['ficha'], '.') + 1);
 
         return view('estudiante.formulario-solicitud', [
             'codigoTramite' => $codigoTramite,
