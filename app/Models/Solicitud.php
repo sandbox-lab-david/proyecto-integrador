@@ -68,7 +68,7 @@ class Solicitud extends Model
     public function scopeDeFacultad(Builder $query, int $facultadId): Builder
     {
         return $query->whereHas(
-            'carreraEstudiante.carreraModalidad.carrera',
+            'carreraEstudiante.carrera',
             fn (Builder $carrera) => $carrera->where('facultad_id', $facultadId)
         );
     }
@@ -76,7 +76,7 @@ class Solicitud extends Model
     public function scopeDeCarrera(Builder $query, int $carreraId): Builder
     {
         return $query->whereHas(
-            'carreraEstudiante.carreraModalidad',
+            'carreraEstudiante',
             fn (Builder $carreraModalidad) => $carreraModalidad->where('carrera_id', $carreraId)
         );
     }
@@ -106,7 +106,7 @@ class Solicitud extends Model
     {
         return $query->whereHas(
             'carreraEstudiante',
-            fn (Builder $carreraEstudiante) => $carreraEstudiante->where('estudiante_id', $estudianteId)
+            fn (Builder $carreraEstudiante) => $carreraEstudiante->whereHas('estudiante', fn ($q) => $q->whereKey($estudianteId))
         );
     }
 
@@ -179,7 +179,7 @@ class Solicitud extends Model
 
     public function evaluacionesElegibilidad(): HasMany
     {
-        return $this->hasMany(EvaluacionElegibilidad::class);
+        return $this->hasMany(ComprobacionInformativa::class);
     }
 
     // Modelos de G2
