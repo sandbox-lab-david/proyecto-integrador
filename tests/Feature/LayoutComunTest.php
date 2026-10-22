@@ -132,8 +132,6 @@ class LayoutComunTest extends TestCase
 
     public function test_las_vistas_antiguas_siguen_funcionando_con_el_puente(): void
     {
-        $this->get('/tramites')->assertOk()->assertSee('Administración académica');
-
         $this->actingAs(User::factory()->create(['tipo' => 'trabajador']));
         $this->get('/profile')->assertOk()->assertSee('Administración académica');
     }

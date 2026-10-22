@@ -2,29 +2,27 @@
 
 namespace Database\Seeders;
 
-use Illuminate\Database\Console\Seeds\WithoutModelEvents;
-use Illuminate\Database\Seeder;
 use App\Models\Facultad;
+use Illuminate\Database\Seeder;
 
 class FacultadSeeder extends Seeder
 {
-    /**
-     * Run the database seeds.
-     */
+    public const FACULTADES = [
+        'ING' => 'Ingeniería',
+        'ARQ' => 'Arquitectura y Diseño',
+        'COM' => 'Ciencias de la Comunicación',
+        'SAL' => 'Ciencias de la Salud “Dr. Enrique Ortega Moreira”',
+        'DER' => 'Derecho, Política y Desarrollo',
+        'ENE' => 'Emprendimiento, Negocios y Economía',
+        'EIN' => 'Estudios Internacionales',
+        'TUR' => 'Turismo y Hospitalidad',
+        'HUM' => 'Humanidades',
+    ];
+
     public function run(): void
     {
-        Facultad::create([
-            'codigo' => 'ING',
-            'nombre' => 'Sistemas, Telecomunicaciones y Electrónica',
-            'correo_notificaciones' => 'asistente_sistemas@uees.edu.ec',
-            'activo' => true,
-        ]);
-
-        Facultad::create([
-            'codigo' => 'MED',
-            'nombre' => 'Ciencias Médicas',
-            'correo_notificaciones' => 'asistente_medicina@uees.edu.ec',
-            'activo' => true,
-        ]);
+        foreach (self::FACULTADES as $codigo => $nombre) {
+            Facultad::create(['codigo' => $codigo, 'nombre' => $nombre, 'activo' => true]);
+        }
     }
 }

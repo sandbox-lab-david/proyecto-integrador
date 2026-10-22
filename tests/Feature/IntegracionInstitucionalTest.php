@@ -4,7 +4,10 @@ namespace Tests\Feature;
 
 use App\Models\Carrera;
 use App\Models\CarreraEstudiante;
+use App\Models\CarreraModalidad;
+use App\Models\Estudiante;
 use App\Models\HistorialSolicitud;
+use App\Models\Modalidad;
 use App\Models\Periodo;
 use App\Models\Solicitud;
 use App\Models\Trabajador;
@@ -38,7 +41,9 @@ class IntegracionInstitucionalTest extends TestCase
         $f = DB::table('facultades')->insertGetId(['codigo' => 'ING', 'nombre' => 'Ingeniería', 'activo' => true]);
         $c = Carrera::create(['facultad_id' => $f, 'codigo' => 'COM', 'nombre' => 'Ingeniería en Computación', 'nivel' => 'grado', 'activo' => true]);
         $p = Periodo::create(['codigo' => 'ACTUAL', 'nombre' => 'Período actual', 'tipo' => 'ordinario', 'fecha_inicio' => today()->subDays(10), 'fecha_fin' => today()->addDays(30), 'semana_primer_parcial' => 4, 'activo' => true]);
-        $i = CarreraEstudiante::create(['user_id' => $u->id, 'carrera_id' => $c->id, 'periodo_id' => $p->id, 'estado' => 'activo']);
+        $e = Estudiante::create(['user_id' => $u->id, 'codigo' => '2026000001', 'nombres' => 'Estudiante', 'apellidos' => 'Prueba', 'correo' => $u->email]);
+        $cm = CarreraModalidad::create(['carrera_id' => $c->id, 'modalidad_id' => Modalidad::create(['nombre' => 'Presencial'])->id]);
+        $i = CarreraEstudiante::create(['estudiante_id' => $e->id, 'carrera_modalidad_id' => $cm->id, 'estado' => 'activo']);
 
         return [$u, $i, ['tramite' => 'recuperacion', 'carrera' => 'Ingeniería en Computación', 'periodo' => 'ACTUAL']];
     }
@@ -90,7 +95,7 @@ class IntegracionInstitucionalTest extends TestCase
         $this->actingAs($u);
         $materiaId = DB::table('materias')->insertGetId(['codigo' => 'BD401', 'nombre' => 'Bases de datos', 'creditos' => 3]);
         $curso = \App\Models\Curso::create(['materia_id' => $materiaId,
-            'periodo_id' => $inscripcion->periodo_id, 'paralelo' => 'A']);
+            'periodo_id' => Periodo::where('codigo', 'ACTUAL')->value('id'), 'paralelo' => 'A']);
         $catalogo = app(TramitesSimulados::class);
         foreach (array_keys(DocumentoSolicitud::PLANTILLAS) as $codigo) {
             $def = $catalogo->buscar($codigo);
@@ -160,9 +165,9 @@ class IntegracionInstitucionalTest extends TestCase
         $s = Solicitud::create($ctx + ['codigo' => 'SOL-DIRECTOR', 'detalle' => $datos, 'declaracion_veracidad' => true]);
         $director = User::factory()->create(['tipo' => 'trabajador']);
         $t = Trabajador::create(['user_id' => $director->id, 'codigo' => 'DIR-1', 'nombres' => 'Director', 'apellidos' => 'Prueba', 'correo' => $director->email, 'activo' => true]);
-        $id = DB::table('director_carreras')->insertGetId(['trabajador_id' => $t->id, 'carrera_id' => $i->carrera_id, 'fecha_inicio' => today()->subDays(20)]);
+        $id = DB::table('directores_carrera')->insertGetId(['trabajador_id' => $t->id, 'carrera_id' => $i->carrera_id, 'fecha_inicio' => today()->subDays(20)]);
         $this->assertTrue(app(SolicitudPolicy::class)->view($director, $s));
-        DB::table('director_carreras')->where('id', $id)->update(['fecha_fin' => today()->subDays(10)]);
+        DB::table('directores_carrera')->where('id', $id)->update(['fecha_fin' => today()->subDays(10)]);
         $this->assertFalse(app(SolicitudPolicy::class)->view($director, $s));
         DB::table('rol_trabajador')->insert(['trabajador_id' => $t->id, 'rol' => 'admin']);
         $this->assertTrue(app(AutorizacionService::class)->tieneRol($director, 'admin'));

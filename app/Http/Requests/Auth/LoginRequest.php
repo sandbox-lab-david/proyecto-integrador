@@ -59,6 +59,14 @@ class LoginRequest extends FormRequest
             ]);
         }
 
+        if (! Auth::user()->activo) {
+            Auth::guard('web')->logout();
+
+            throw ValidationException::withMessages([
+                'email' => 'Tu cuenta está desactivada. Comunícate con la administración académica.',
+            ]);
+        }
+
         RateLimiter::clear($this->throttleKey());
     }
 

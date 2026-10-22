@@ -8,36 +8,53 @@
         <a href="{{ route('cargas.index') }}" class="ui-btn ui-btn-primario">Nueva carga</a>
     </div>
 
-    @if (empty($historial) || count($historial) === 0)
-        <div class="ui-vacio mt-amplio">Todavía no hay cargas registradas.</div>
+    <form method="GET" action="{{ route('cargas.historial') }}" class="flex flex-wrap gap-medio items-center mt-amplio mb-medio">
+        <label for="entidad" class="ui-sr-oculto">Tipo</label>
+        <select id="entidad" name="entidad" class="ui-control w-auto">
+            <option value="">Todos los tipos</option>
+            @foreach ($titulos as $entidad => $titulo)
+                <option value="{{ $entidad }}" @selected(request('entidad') === $entidad)>{{ $titulo }}</option>
+            @endforeach
+        </select>
+        <button type="submit" class="ui-btn ui-btn-secundario">Filtrar</button>
+    </form>
+
+    @if ($importaciones->isEmpty())
+        <div class="ui-vacio">Todavía no hay cargas registradas.</div>
     @else
-        <div class="ui-tabla-caja mt-amplio">
+        <div class="ui-tabla-caja">
             <table class="ui-tabla">
                 <thead>
                     <tr>
                         <th>N.º</th>
                         <th>Archivo</th>
-                        <th>Tipo</th>
-                        <th>Fecha</th>
-                        <th>Usuario</th>
+                        <th>Fecha y usuario</th>
+                        <th>Estado</th>
                         <th>Creadas</th>
-                        <th>Errores</th>
+                        <th>Actualizadas</th>
+                        <th>Rechazadas</th>
                     </tr>
                 </thead>
                 <tbody>
-                    @foreach ($historial as $item)
+                    @foreach ($importaciones as $item)
                         <tr>
-                            <td class="font-semibold">#{{ $item->id }}</td>
-                            <td>{{ $item->nombre_archivo }}</td>
-                            <td>{{ ucfirst($item->tipo_carga) }}</td>
-                            <td class="whitespace-nowrap">{{ $item->created_at->format('d/m/Y H:i') }}</td>
-                            <td>{{ $item->user->name ?? 'Sistema' }}</td>
-                            <td><span class="ui-badge ui-badge-exito">{{ $item->filas_creadas }}</span></td>
+                            <td class="font-semibold"><a class="ui-enlace" href="{{ route('cargas.detalle', $item) }}">#{{ $item->id }}</a></td>
                             <td>
-                                @if ($item->filas_errores > 0)
-                                    <a href="{{ route('cargas.reporte-errores', $item->id) }}" class="ui-btn ui-btn-secundario ui-btn-chico">Descargar errores ({{ $item->filas_errores }})</a>
+                                {{ $item->nombreArchivo() }}
+                                <span class="block text-chico text-gris">{{ $titulos[$item->entidad] ?? $item->entidad }}</span>
+                            </td>
+                            <td class="text-chico">
+                                {{ $item->created_at->timezone('America/Guayaquil')->format('d/m/Y H:i') }}
+                                <span class="block text-gris">{{ $item->user->name ?? '—' }}</span>
+                            </td>
+                            <td>@include('administracion.cargas.estado', ['estado' => $item->estado])</td>
+                            <td>{{ $item->creadas }}</td>
+                            <td>{{ $item->actualizadas }}</td>
+                            <td>
+                                @if ($item->rechazadas)
+                                    <a class="ui-enlace" href="{{ route('cargas.detalle', $item) }}">{{ $item->rechazadas }}</a>
                                 @else
-                                    <span class="text-chico text-gris">Sin errores</span>
+                                    0
                                 @endif
                             </td>
                         </tr>
@@ -45,5 +62,6 @@
                 </tbody>
             </table>
         </div>
+        {{ $importaciones->links('administracion.partes.paginacion') }}
     @endif
 </x-layouts.app>

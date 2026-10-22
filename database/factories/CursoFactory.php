@@ -22,10 +22,9 @@ class CursoFactory extends Factory
     public function definition(): array
     {
         return [
-            // factory() le dice: "Si no me das un ID de materia, crea una materia nueva y asígnala"
             'materia_id' => Materia::factory(), 
             'periodo_id' => Periodo::factory(),
-            'profesor_id' => Trabajador::factory(),
+            'profesor_id' => Trabajador::factory()->conRol('docente'),
             'paralelo' => $this->faker->bothify('?##'), 
             'cupo' => $this->faker->numberBetween(20, 50),
         ];

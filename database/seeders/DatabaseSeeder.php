@@ -2,7 +2,6 @@
 
 namespace Database\Seeders;
 
-use App\Models\User;
 use Illuminate\Database\Console\Seeds\WithoutModelEvents;
 use Illuminate\Database\Seeder;
 
@@ -17,15 +16,12 @@ class DatabaseSeeder extends Seeder
             RolSeeder::class,
             FacultadSeeder::class,
             CarreraSeeder::class,
+            ModalidadSeeder::class,
+            CategoriaMateriaSeeder::class,
+            MallaSeeder::class,
             PeriodoSeeder::class,
             UsuarioDemoSeeder::class,
-        //CursoSeeder::Class,
-            // Aquí agregarán luego FacultadSeeder, PeriodoSeeder, etc.
-        ]);
-
-        User::factory()->create([
-            'name' => 'Test User',
-            'email' => 'test@example.com',
+            CursoSeeder::class,
         ]);
 
         // Grupo 3

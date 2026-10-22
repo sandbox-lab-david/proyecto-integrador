@@ -2,10 +2,84 @@
 
 ## Contenido
 
+- [Instalación](#instalación) — aporte del Grupo 1, para todos
 - [Chatbot (Módulo 4): servidor Prolog](#chatbot-módulo-4-servidor-prolog) — Grupo 4
 - [Marco común de las páginas (layout)](#marco-común-de-las-páginas-layout--grupo-1) — Grupo 1
 - [Acceso, registro y roles](#acceso-registro-y-roles--grupo-1) — Grupo 1
 - [Cómo agregar una pantalla o un módulo](#cómo-agregar-una-pantalla-o-un-módulo--grupo-1) — Grupo 1
+- [Módulo 1: Administración académica](#módulo-1-administración-académica--grupo-1) — Grupo 1
+
+## Instalación
+
+> Aporte del Grupo 1. Cada módulo explica abajo lo que necesita aparte (por ejemplo, el servidor Prolog del Módulo 4).
+
+### Requisitos
+
+| Programa | Versión | Nota |
+|---|---|---|
+| PHP | 8.2 o superior | Con las extensiones `pdo_pgsql`, `mbstring`, `xml`, `zip` y **`gd`** (las dos últimas las pide Laravel Excel) |
+| Composer | 2 | |
+| Node.js | 20.19 o superior (o 22.12+) | Lo pide Vite 7 |
+| PostgreSQL | 14 o superior | Las pruebas usan SQLite en memoria; no necesitan PostgreSQL |
+
+**XAMPP en Windows:** `gd` y `zip` vienen apagadas. Abran `C:\xampp\php\php.ini`, quiten el `;` de `;extension=gd` y de `;extension=zip`, guarden y abran una terminal nueva. Comprueben con:
+
+```bash
+php -m | findstr /i "gd zip"
+```
+
+### Pasos
+
+```bash
+git clone https://github.com/sandbox-lab-david/proyecto-integrador.git
+cd proyecto-integrador
+git checkout develop
+
+composer install
+npm install
+
+cp .env.example .env          # en Windows (cmd): copy .env.example .env
+php artisan key:generate
+```
+
+En `.env`, pongan los datos de su PostgreSQL (`DB_DATABASE`, `DB_USERNAME`, `DB_PASSWORD`) y creen esa base vacía. Después:
+
+```bash
+php artisan migrate:fresh --seed   # crea las tablas y los datos de prueba (borra lo que haya)
+npm run build
+php artisan serve
+```
+
+Abran <http://localhost:8000> y entren con `admin@uees.edu.ec` / `password123`. Los demás usuarios de prueba están en [Acceso, registro y roles](#acceso-registro-y-roles--grupo-1).
+
+### Para trabajar en el día a día
+
+```bash
+composer run dev
+```
+
+Levanta a la vez el servidor, **la cola** (`queue:listen`), los registros y Vite. Si prefieren terminales separadas: `php artisan serve`, `php artisan queue:work` y `npm run dev`.
+
+- **La cola** hace falta para importar archivos grandes del SIAC (más de 500 filas) y para algunas notificaciones.
+- **Correos:** con `MAIL_MAILER=log` (lo que trae `.env.example`) los correos no se envían: se guardan en `storage/logs/laravel.log`, incluidos los enlaces para crear contraseña. Para enviarlos de verdad, configuren `MAIL_MAILER=smtp` y los datos de su servidor de correo (`MAIL_HOST`, `MAIL_PORT`, `MAIL_USERNAME`, `MAIL_PASSWORD`, `MAIL_FROM_ADDRESS`).
+
+### Pruebas
+
+```bash
+php artisan test
+```
+
+Dos pruebas del catálogo del Módulo 4 necesitan SWI-Prolog instalado; sin él, fallan solo esas dos.
+
+### Problemas comunes
+
+| Error | Solución |
+|---|---|
+| `requires ext-gd` o `ext-zip` al correr Composer | Activen las extensiones (ver "XAMPP en Windows" arriba) |
+| `Failed to open stream: Permission denied` en `vendor/` (Windows) | Cierren `php artisan serve`, `npm run dev`, la cola y Apache. Abran la terminal como administrador y corran `composer clear-cache` y `composer install`. Si sigue fallando, antes de `composer install` pongan `$env:COMPOSER_MAX_PARALLEL_HTTP=1` (PowerShell) o `set COMPOSER_MAX_PARALLEL_HTTP=1` (cmd) |
+| `Vite manifest not found` | `npm run build` |
+| La página muestra un error después de traer cambios | `php artisan optimize:clear` y, si hubo migraciones nuevas, `php artisan migrate` |
+| Una importación grande se queda en "Procesando" | Falta la cola: `php artisan queue:work` |
 
 ## Chatbot (Módulo 4): servidor Prolog
 
@@ -228,13 +302,7 @@ El inicio de sesión del proyecto usa **Laravel Breeze**: sus controladores est�
 
 ### Después de traer estos cambios
 
-Se quitaron paquetes y migraciones, así que cada grupo debe correr:
-
-```bash
-composer install
-php artisan migrate:fresh --seed
-npm run build
-```
+Cada grupo debe correr lo de la sección [Instalación](#instalación): como mínimo `composer install`, `php artisan migrate:fresh --seed` y `npm run build`.
 
 ### Usuarios de prueba
 
@@ -255,7 +323,10 @@ npm run build
 /dashboard ──► revisa quién es y lo manda a su módulo (tabla de arriba)
 ```
 
-- **Registro (`/register`):** solo para estudiantes, con correo `@uees.edu.ec`. La cuenta se crea siempre como `estudiante`. El personal no se registra: su cuenta la crea el administrador.
+- **No hay registro público.** Las cuentas se crean así (RF-1.6):
+  - **Estudiantes:** al importarlos del SIAC (Administración académica → Importaciones SIAC). La primera vez, el estudiante pulsa **"¿Primera vez? … Crea tu contraseña"** en el login, escribe su correo y recibe un enlace.
+  - **Personal:** el administrador lo registra en **Personal** con "Puede entrar al sistema", y le llega el enlace para crear su contraseña.
+- **Cuentas desactivadas:** no pueden iniciar sesión y ven el aviso "Tu cuenta está desactivada".
 - **Roles:** un usuario `trabajador` tiene su registro en `trabajadores` y uno o más roles en `rol_trabajador`. Se consultan con `AutorizacionService::tieneRol($usuario, 'asistente')` (C15). Roles válidos: `admin`, `asistente`, `director`, `docente`, `consulta`.
 - **A dónde llega cada rol** se decide en `app/Http/Controllers/Acceso/PanelController.php`. Si su grupo publica una nueva página de inicio para un rol, pidan al Grupo 1 que la agregue ahí.
 - **Sin permiso:** cualquier `abort(403)` o ruta con `rol:` muestra `resources/views/errors/403.blade.php`, en español y con el marco común.
@@ -363,3 +434,33 @@ Usuarios: ver la tabla de [Acceso, registro y roles](#acceso-registro-y-roles--g
 - No copiar el marco ni crear una barra propia.
 - No revisar roles a mano en la vista (`if ($usuario->rol == ...)`): usen `rol:` en la ruta y `roles` en el menú.
 - No editar `PanelController`, `menu_administracion.php` ni los componentes del marco: se piden al Grupo 1 (regla 4 del Excel).
+
+## Módulo 1: Administración académica · Grupo 1
+
+Catálogos que usan los demás módulos, personal e importación del SIAC. Todo está en `/administracion` y solo entra el rol `admin`.
+
+| Sección | Pantallas |
+|---|---|
+| Estructura académica | Facultades · Carreras · Mallas · Periodos académicos · Materias · Paralelos y docentes |
+| Personas | Personal · Directores de carrera · Cuentas de acceso · Roles |
+| Datos | Importaciones SIAC (plantillas, vista previa, historial y errores en CSV) |
+
+### Documentación
+
+| Documento | Para quién |
+|---|---|
+| [API interna (C32–C35)](docs/grupo-1-api.md) | Grupos que llenan listas con JavaScript |
+| [Contratos del Grupo 1](docs/grupo-1-contratos.md) | Todos los grupos: servicios, middleware, componentes, enums y factories |
+| [Manual corto por perfil](docs/grupo-1-manual.md) | Administrador, personal y estudiantes |
+| [Modelo de datos](docs/grupo-1-modelo-datos.md) | Diagrama de las 19 tablas del Grupo 1 |
+
+### Archivos principales
+
+| Qué | Dónde |
+|---|---|
+| Pantallas | `app/Http/Controllers/Administracion/` y `resources/views/administracion/` |
+| Servicios (contratos) | `app/Services/Academico/` |
+| Importador | `app/Services/Academico/ImportacionService.php`, `app/Services/Academico/Importadores/` y `app/Jobs/ProcesarImportacion.php` |
+| Archivos de ejemplo para importar | `database/data/ejemplos/` |
+| Menú | `config/menu_administracion.php` (Inicio arma sus tarjetas con este mismo archivo) |
+| Pruebas | `tests/Feature/` (`ContratosAcademicosTest`, `ContratosPendientesTest`, `DatosDePruebaTest`, `EstructuraAcademicaTest`, `PersonasTest`, `ImportacionTest`, `PendientesG1Test`, `AccesoYRolesTest`, `LayoutComunTest`) |

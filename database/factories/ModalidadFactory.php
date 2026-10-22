@@ -12,7 +12,7 @@ class ModalidadFactory extends Factory
     public function definition(): array
     {
         return [
-            'nombre' => $this->faker->randomElement(['Presencial', 'En Línea', 'Híbrida']),
+            'nombre' => $this->faker->unique()->randomElement(['Presencial', 'Semipresencial', 'En línea', 'Híbrida', 'A distancia', 'Dual']),
         ];
     }
 }

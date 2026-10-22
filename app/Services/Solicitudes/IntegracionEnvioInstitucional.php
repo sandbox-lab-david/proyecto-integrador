@@ -2,13 +2,13 @@
 
 namespace App\Services\Solicitudes;
 
-use App\Models\CarreraEstudiante;
 use App\Models\EstadoSolicitud;
 use App\Models\HistorialSolicitud;
 use App\Models\Periodo;
 use App\Models\Solicitud;
 use App\Models\TipoTramite;
 use App\Models\User;
+use App\Services\Academico\EstudianteService;
 use App\Services\Catalogo\CatalogoTramites;
 use Illuminate\Validation\ValidationException;
 
@@ -19,9 +19,12 @@ class IntegracionEnvioInstitucional implements IntegracionEnvio
         if (! $usuario->activo || $usuario->tipo !== 'estudiante') {
             abort(403, 'Se requiere una cuenta de estudiante activa.');
         }
-        $carreras = CarreraEstudiante::with('carrera')->where('user_id', $usuario->id)->where('estado', 'activo')->whereHas('carrera', fn ($q) => $q->where('activo', true))->get();
+        $estudiante = $usuario->estudiante;
+        $carreras = $estudiante
+            ? app(EstudianteService::class)->carrerasActivas($estudiante->id)->filter(fn ($i) => $i->carreraModalidad?->carrera?->activo)
+            : collect();
         $nombre = fn ($v) => mb_strtolower(trim($v));
-        $coincidentes = $carreras->filter(fn ($i) => $nombre($i->carrera->nombre) === $nombre($datos['carrera']));
+        $coincidentes = $carreras->filter(fn ($i) => $nombre($i->carreraModalidad->carrera->nombre) === $nombre($datos['carrera']));
         if ($coincidentes->count() !== 1) {
             throw ValidationException::withMessages(['carrera' => 'La carrera declarada debe coincidir con una inscripción activa de tu cuenta.']);
         }

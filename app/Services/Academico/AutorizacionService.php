@@ -2,7 +2,9 @@
 
 namespace App\Services\Academico;
 
+use App\Models\Carrera;
 use App\Models\Trabajador;
+use Illuminate\Database\Eloquent\Collection;
 use App\Models\User;
 use App\Models\DirectorCarrera;
 use App\Services\Solicitudes\ReglasCampoSolicitud;
@@ -10,45 +12,52 @@ use Illuminate\Support\Facades\DB;
 
 class AutorizacionService
 {
-    // ==== C17: Carreras que dirige
-    public function carrerasQueDirige($trabajadorId)
+    // C17
+    public function carrerasQueDirige(Trabajador|int $trabajador): Collection
     {
-        return DirectorCarrera::where('trabajador_id', $trabajadorId)
-            ->with('carrera')
-            ->get()
-            ->pluck('carrera');
+        $trabajadorId = $trabajador instanceof Trabajador ? $trabajador->id : $trabajador;
+
+        return Carrera::whereIn('id', $this->vigentes(DirectorCarrera::query())->where('trabajador_id', $trabajadorId)->select('carrera_id'))
+            ->orderBy('nombre')
+            ->get();
     }
 
-    // ==== C18: Encuentra qué profesor/trabajador es el director actual de una carrera.
-    public function directorDeCarrera(int $carreraId)
+    // C18
+    public function directorDeCarrera(int $carreraId): ?Trabajador
     {
+        $asignacion = $this->vigentes(DirectorCarrera::query())
+            ->where('carrera_id', $carreraId)
+            ->orderByDesc('fecha_inicio')
+            ->first();
 
-        /*
-        // = STUB =
-            return (object)[
-                'id' => 50,
-                'nombres' => 'Dra. María',
-                'apellidos' => 'Gómez',
-                'correo' => 'mgomez@uees.edu.ec'
-            ];
-        */
-
-        // Busca en la tabla Trabajadores aquel que tenga una relación vigente de director con la carrera indicada
-        return Trabajador::whereHas('directoresCarrera', function ($query) use ($carreraId) {
-            $query->where('carrera_id', $carreraId)
-                ->whereNull('fecha_fin'); // Si fecha_fin es nula, significa que sigue en el cargo
-        })->first();
-
+        return $asignacion?->trabajador;
     }
 
-    // ===C19
-    public function asistentesDeFacultad(int $facultadId)
+    private function vigentes($consulta)
     {
+        $hoy = now(ReglasCampoSolicitud::zonaHoraria())->toDateString();
 
-        return collect([]);
+        return $consulta->whereDate('fecha_inicio', '<=', $hoy)
+            ->where(fn ($q) => $q->whereNull('fecha_fin')->orWhereDate('fecha_fin', '>=', $hoy));
     }
 
-    // ==== C15
+    // C16
+    public function facultadesDe(Trabajador $trabajador): Collection
+    {
+        return $trabajador->facultades()->orderBy('nombre')->get();
+    }
+
+    // C19
+    public function asistentesDeFacultad(int $facultadId): Collection
+    {
+        return Trabajador::conRol('asistente')
+            ->where('activo', true)
+            ->whereHas('facultades', fn ($q) => $q->where('facultades.id', $facultadId))
+            ->orderBy('apellidos')
+            ->get();
+    }
+
+    // C15
     public function tieneRol(User $u, string|array $codigos): bool
     {
         $codigos = (array) $codigos;
@@ -70,6 +79,7 @@ class AutorizacionService
             ->exists();
     }
 
+    // C20
     public function puedeVerCarrera(User $usuario, int $carreraId): bool
     {
         $trabajador = $usuario->trabajador;
@@ -81,11 +91,23 @@ class AutorizacionService
             return true;
         }
 
-        $hoy = now(ReglasCampoSolicitud::zonaHoraria())->toDateString();
-
-        return DB::table('director_carreras')
+        return $this->vigentes(DirectorCarrera::query())
             ->where('trabajador_id', $trabajador->id)->where('carrera_id', $carreraId)
-            ->whereDate('fecha_inicio', '<=', $hoy)
-            ->where(fn ($q) => $q->whereNull('fecha_fin')->orWhereDate('fecha_fin', '>=', $hoy))->exists();
+            ->exists();
+    }
+
+    // C20
+    public function puedeVerFacultad(User $usuario, int $facultadId): bool
+    {
+        $trabajador = $usuario->trabajador;
+        if (! $usuario->activo || ! $trabajador?->activo) {
+            return false;
+        }
+
+        if ($this->tieneRol($usuario, 'admin')) {
+            return true;
+        }
+
+        return $trabajador->facultades()->where('facultades.id', $facultadId)->exists();
     }
 }

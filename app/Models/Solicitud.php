@@ -76,7 +76,7 @@ class Solicitud extends Model
     public function scopeDeCarrera(Builder $query, int $carreraId): Builder
     {
         return $query->whereHas(
-            'carreraEstudiante',
+            'carreraEstudiante.carreraModalidad',
             fn (Builder $carreraModalidad) => $carreraModalidad->where('carrera_id', $carreraId)
         );
     }

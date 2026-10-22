@@ -2,10 +2,13 @@
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
 class Carrera extends Model
 {
+    use HasFactory;
+
     protected $table = 'carreras';
 
     protected $fillable = [
@@ -19,5 +22,10 @@ class Carrera extends Model
     public function modalidades()
     {
         return $this->belongsToMany(Modalidad::class, 'carrera_modalidad');
+    }
+
+    public function mallas()
+    {
+        return $this->hasMany(Malla::class);
     }
 }

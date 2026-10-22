@@ -3,96 +3,80 @@
 namespace App\Http\Controllers\Administracion;
 
 use App\Http\Controllers\Controller;
-
-use Illuminate\Http\Request;
-use App\Models\DirectorCarrera;
 use App\Models\Carrera;
+use App\Models\DirectorCarrera;
 use App\Models\Trabajador;
+use App\Services\Solicitudes\ReglasCampoSolicitud;
+use Illuminate\Http\Request;
+use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\DB;
 
 class DirectorCarreraController extends Controller
 {
-    /**
-     * Display a listing of the resource.
-     */
-    public function index()
-    {
-        $directores = DirectorCarrera::with('carrera', 'trabajador')->paginate(10);
+    use MensajesValidacion;
 
-        return view('directores_carrera.index', compact('directores'));
+    public function index(Request $request)
+    {
+        $hoy = now(ReglasCampoSolicitud::zonaHoraria())->toDateString();
+
+        $asignaciones = DirectorCarrera::with(['carrera', 'trabajador'])
+            ->when($request->filled('buscar'), fn ($q) => $q->whereHas('carrera', fn ($c) => $this->buscar($c, $request->input('buscar'), ['codigo', 'nombre'])))
+            ->when($request->input('estado') === 'vigentes', fn ($q) => $q->where(fn ($v) => $v->whereNull('fecha_fin')->orWhereDate('fecha_fin', '>=', $hoy)))
+            ->orderByRaw('CASE WHEN fecha_fin IS NULL THEN 0 ELSE 1 END')
+            ->orderByDesc('fecha_inicio')
+            ->paginate(15)
+            ->withQueryString();
+
+        return view('administracion.directores', [
+            'asignaciones' => $asignaciones,
+            'carreras' => Carrera::where('activo', true)->orderBy('nombre')->get(),
+            'directores' => Trabajador::conRol('director')->where('activo', true)->orderBy('apellidos')->get(),
+            'hoy' => $hoy,
+        ]);
     }
 
-    /**
-     * Show the form for creating a new resource.
-     */
-    public function create()
-    {
-        $carrera = Carrera::where('activo', true)->get();
-        $trabajador = Trabajador::where('activo', true)->get();
-
-        return view('directores_carrera.create', compact('carrera', 'trabajador'));
-    }
-
-    /**
-     * Store a newly created resource in storage.
-     */
     public function store(Request $request)
     {
-
-        $request->validate([
+        $datos = $request->validate([
             'carrera_id' => 'required|exists:carreras,id',
-            'trabajador_id' => 'required|exists:trabajadores,id',
+            'trabajador_id' => ['required', function ($atributo, $valor, $falla) {
+                if (! Trabajador::conRol('director')->where('activo', true)->whereKey($valor)->exists()) {
+                    $falla('Elige a una persona activa con el rol de director.');
+                }
+            }],
             'fecha_inicio' => 'required|date',
-            'fecha_fin' => 'nullable|date|after_or_equal:fecha_inicio',
-        ]);
+        ], $this->mensajes());
 
-        DirrectorCarrera::create($request->all());
+        $inicio = Carbon::parse($datos['fecha_inicio']);
 
-        return redirect()->route('directores_carrera.index')->with('Success', 'Director de Carrera creado exitosamente');
+        $posterior = DirectorCarrera::where('carrera_id', $datos['carrera_id'])->whereDate('fecha_inicio', '>=', $inicio)->exists();
+        if ($posterior) {
+            return back()->withInput()->withErrors(['fecha_inicio' => 'Esta carrera ya tiene un director que empieza en esa fecha o después.']);
+        }
+
+        DB::transaction(function () use ($datos, $inicio) {
+            DirectorCarrera::where('carrera_id', $datos['carrera_id'])
+                ->where(fn ($q) => $q->whereNull('fecha_fin')->orWhereDate('fecha_fin', '>=', $inicio))
+                ->update(['fecha_fin' => $inicio->copy()->subDay()->toDateString()]);
+
+            DirectorCarrera::create($datos);
+        });
+
+        $director = Trabajador::find($datos['trabajador_id']);
+        $carrera = Carrera::find($datos['carrera_id']);
+
+        return redirect()->route('administracion.directores')
+            ->with('exito', "{$director->nombres} {$director->apellidos} dirige {$carrera->nombre} desde el {$inicio->format('d/m/Y')}.");
     }
 
-    /**
-     * Display the specified resource.
-     */
-    public function show(string $id)
+    public function terminar(Request $request, DirectorCarrera $asignacion)
     {
-        //
-    }
+        $datos = $request->validate([
+            'fecha_fin' => 'required|date|after_or_equal:'.$asignacion->fecha_inicio->toDateString(),
+        ], $this->mensajes(['after_or_equal' => 'La fecha de fin no puede ser anterior al inicio.']));
 
-    /**
-     * Show the form for editing the specified resource.
-     */
-    public function edit(DirectorCarrera $directorCarrera)
-    {
-        $carreras = Carrera::where('activo', true)->get();
-        $trabajadores = Trabajador::where('activo', true)->get();
+        $asignacion->update($datos);
 
-        return view ('directores_carrera.update', compact('directorCarrera', 'carreras', 'trabajadores'));
-    }
-
-    /**
-     * Update the specified resource in storage.
-     */
-    public function update(Request $request, DirectorCarrera $directorCarrera)
-    {
-        $request->validate([
-            'carrera_id' => 'required|exists:carreras,id',
-            'trabajador_id' => 'required|exists:trabajadores,id',
-            'fecha_inicio' => 'required|date',
-            'fecha_fin' => 'nullable|date|after_or_equal:fecha_inicio',
-        ]);
-
-        $directorCarrera->update($request->all());
-
-        return redirect()->route('directores_carrera.index')->with('success', 'Registro actualizado correctamente');
-    }
-
-    /**
-     * Remove the specified resource from storage.
-     */
-    public function destroy(DirectorCarrera $directorCarrera)
-    {
-        $directorCarrera->delete();
-
-        return redirect()->route('directores_carrera.index')->with('success', 'Registro de director eliminado permanentemente');
+        return back()->with('exito', "Se cerró la etapa de {$asignacion->trabajador->nombres} {$asignacion->trabajador->apellidos} en {$asignacion->carrera->nombre}.");
     }
 }
