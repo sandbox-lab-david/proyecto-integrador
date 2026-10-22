@@ -109,13 +109,11 @@ No modificar los archivos compartidos de `config`, `app/Providers`, los manifies
 ni los componentes del layout de G1. El README del PR #12 permite el menú propio
 de G2 en `config/menu_estudiante.php`.
 
-## Preparación para el PR #12 de G1
+## Integración con el marco de G1 (PR #12)
 
-Las vistas activas de G2 usan `estudiante.layouts.marco`. Cuando está disponible
-`components.layouts.app`, el puente consume ese componente con el módulo
-«Portal del estudiante» y `config('menu_estudiante')`. Mientras esta rama no haya
-integrado el PR, utiliza el layout anterior sin copiar los componentes de G1.
-Se retiraron las barras duplicadas de nuestras páginas y se conservan los
+Las vistas activas de G2 usan `estudiante.layouts.marco`, que consume el
+componente `<x-layouts.app>` de G1 con el módulo «Portal del estudiante» y
+`config('menu_estudiante')`, sin copiar sus componentes. Se retiraron las barras duplicadas de nuestras páginas y se conservan los
 estilos de las fichas, el chatbot y el acceso a notificaciones.
 
 Las rutas de fichas, formularios, borradores, respaldos, firmados y seguimiento
@@ -166,19 +164,15 @@ si se debe añadir un dato declarado de período para el documento, separado del
 general. No renombrar el dato de Prolog ni cambiar `gpa_declarado` sin acordar su
 significado y comprobar ambos contratos.
 
-Esta preparación no integra ramas, instala dependencias, ejecuta seeders ni
-modifica tablas. La verificación del marco #12 usó copias temporales de sus tres
-componentes, sin escribirlos en `resources/views/components` del proyecto.
+Esta rama ya integra el PR #12 (Breeze como único login, sin Fortify). No
+ejecuta seeders ni modifica tablas de otros grupos.
 
 ## Cambios de integración autorizados
 
-- El menú de `layouts/app.blade.php` incorpora «Catálogo de trámites» y «Mis
-  solicitudes» por solicitud expresa. Conserva sus opciones y diseño anteriores.
-- `2026_10_21_230000_completar_tipo_y_activo_en_users.php` agrega únicamente las
-  columnas faltantes en bases que ejecutaron la migración original antes del pull.
-  No modifica el archivo original ni borra usuarios. Si las columnas existen,
-  conserva sus valores; la reversión no elimina columnas de la migración de G1.
-  Coordinar esta reparación con G1 al integrar las ramas.
+- G2 no modifica `layouts/app.blade.php` ni la tabla `users`: el menú del portal
+  vive en `config/menu_estudiante.php` y las columnas `tipo` y `activo` las crea
+  la migración original de G1. Una base local creada antes del PR #12 se
+  actualiza con `php artisan migrate:fresh --seed` (borra los datos locales).
 - El chatbot flotante recibe el trámite tanto desde una ficha como desde las
   rutas directas del formulario. Sus respuestas siguen usando el servicio de G4.
 - Las pruebas de datos personales verifican el llenado manual solicitado. La
