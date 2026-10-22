@@ -32,7 +32,7 @@ use Tests\TestCase;
 
 class IntegracionInstitucionalTest extends TestCase
 {
-    use ArchivosDePrueba, RefreshDatabase;
+    use ArchivosDePrueba, RefreshDatabase, RequisitosPrologPrueba;
 
     private function preparar(): array
     {
@@ -93,6 +93,9 @@ class IntegracionInstitucionalTest extends TestCase
         Storage::fake('local');
         [$u,$inscripcion,$base] = $this->preparar();
         $this->actingAs($u);
+        $materiaId = DB::table('materias')->insertGetId(['codigo' => 'BD401', 'nombre' => 'Bases de datos', 'creditos' => 3]);
+        $curso = \App\Models\Curso::create(['materia_id' => $materiaId,
+            'periodo_id' => $inscripcion->periodo_id, 'paralelo' => 'A']);
         $catalogo = app(TramitesSimulados::class);
         foreach (array_keys(DocumentoSolicitud::PLANTILLAS) as $codigo) {
             $def = $catalogo->buscar($codigo);
@@ -121,6 +124,11 @@ class IntegracionInstitucionalTest extends TestCase
                 $materiaDatos = $valores($def['campos_materia']);
             }
             $datos = CatalogoFacultades::normalizar(array_replace($base, ['tramite' => $codigo, 'nombre' => $u->name, 'correo' => $u->email, 'codigo' => '2026000012', 'cedula' => '0912345678', 'celular' => '0991234567', 'facultad' => 'Ingeniería', 'modalidad' => 'Presencial', 'campos' => $campos, 'declaracion' => true, 'materias' => $def['max_materias'] > 0 ? [['id' => 'fila-1', 'codigo' => 'MAT101', 'nombre' => 'Materia de prueba', 'periodo' => '2025-I', 'paralelo' => 'A', 'docente' => 'Docente de prueba', 'datos' => $materiaDatos]] : []]));
+            $datos['origen_materias'] = 'catalogo';
+            if ($def['max_materias'] > 0) {
+                $datos['materias'][0]['id'] = (string) $curso->id;
+            }
+            $datos = array_replace($datos, app(\App\Services\Solicitudes\MateriasSolicitud::class)->entrada($datos));
             $temporales = app(DocumentosTemporales::class);
             $temporales->guardar($codigo, app(DocumentoSolicitud::class)->generarWord($datos), $datos);
             $datos['clave_envio'] = $temporales->buscar($codigo)['version'];
@@ -135,6 +143,13 @@ class IntegracionInstitucionalTest extends TestCase
             }
             $primera = $this->postJson(route('solicitudes.enviar'), $datos)->assertCreated()->json();
             $this->assertSame($primera, $this->postJson(route('solicitudes.enviar'), $datos)->assertCreated()->json());
+            $expediente = Solicitud::where('codigo', $primera['codigo'])->firstOrFail();
+            if ($def['max_materias'] > 0) {
+                $this->assertSame($curso->id, $expediente->materias()->firstOrFail()->curso_id, $codigo);
+                $this->assertSame('Bases de datos', $expediente->detalle['materias'][0]['nombre'], $codigo);
+            } else {
+                $this->assertSame(0, $expediente->materias()->count(), $codigo);
+            }
             // Respeta el límite real de envíos por minuto sin desactivar el middleware.
             $this->travel(61)->seconds();
         }

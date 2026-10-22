@@ -12,7 +12,7 @@ use Tests\TestCase;
  */
 class BorradoresTemporalesTest extends TestCase
 {
-    use ArchivosDePrueba;
+    use ArchivosDePrueba, MateriasCatalogoPrueba;
 
     public function test_guardar_borradores_no_consume_el_limite_de_documentos(): void
     {

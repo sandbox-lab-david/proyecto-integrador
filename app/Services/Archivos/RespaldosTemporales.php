@@ -34,8 +34,9 @@ class RespaldosTemporales
      *
      * @throws ArchivoRechazado
      */
-    public function agregar(UploadedFile $archivo, string $tramite): array
+    public function agregar(UploadedFile $archivo, string $tramite, ?string $requisito = null): array
     {
+        $clave = \App\Services\Solicitudes\ContextoCorreccion::clave($tramite);
         if (count($this->todos()) >= self::MAXIMO_POR_SESION) {
             throw new ArchivoRechazado(
                 'Ya subiste '.self::MAXIMO_POR_SESION.' archivos. Quita alguno para agregar otro.'
@@ -45,7 +46,11 @@ class RespaldosTemporales
         $guardado = $this->archivos->guardar($archivo, $this->carpeta());
         $id = pathinfo($guardado['ruta'], PATHINFO_FILENAME);
 
-        $this->sesion->put(self::SESION.'.archivos.'.$id, $guardado + ['tramite' => $tramite]);
+        if ($requisito !== null) {
+            $guardado['requisito'] = $requisito;
+        }
+
+        $this->sesion->put(self::SESION.'.archivos.'.$id, $guardado + ['tramite' => $clave]);
 
         return $this->publico($id, $guardado);
     }
@@ -66,7 +71,8 @@ class RespaldosTemporales
      */
     public function delTramite(string $tramite): array
     {
-        $propios = array_filter($this->todos(), fn (array $respaldo) => $respaldo['tramite'] === $tramite);
+        $clave = \App\Services\Solicitudes\ContextoCorreccion::clave($tramite);
+        $propios = array_filter($this->todos(), fn (array $respaldo) => $respaldo['tramite'] === $clave);
 
         return array_map($this->publico(...), array_keys($propios), $propios);
     }
@@ -99,6 +105,7 @@ class RespaldosTemporales
             'nombre_original' => $respaldo['nombre_original'],
             'mime' => $respaldo['mime'],
             'tamano_bytes' => $respaldo['tamano_bytes'],
+            ...(isset($respaldo['requisito']) ? ['requisito' => $respaldo['requisito']] : []),
         ];
     }
 

@@ -32,11 +32,12 @@ class FirmadosTemporales
      */
     public function guardar(UploadedFile $archivo, string $tramite): array
     {
+        $clave = \App\Services\Solicitudes\ContextoCorreccion::clave($tramite);
         $guardado = $this->archivos->guardar($archivo, $this->respaldos->carpeta(), ['pdf']);
 
         // El anterior se borra solo cuando el nuevo ya quedó guardado.
         $this->quitar($tramite);
-        $this->sesion->put(self::SESION.'.'.$tramite, $guardado + [
+        $this->sesion->put(self::SESION.'.'.$clave, $guardado + [
             'documento_hash' => $this->documentos->buscar($tramite)['hash_datos'] ?? null,
             'documento_version' => $this->documentos->buscar($tramite)['version'] ?? null,
         ]);
@@ -49,7 +50,7 @@ class FirmadosTemporales
      */
     public function buscar(string $tramite): ?array
     {
-        return $this->sesion->get(self::SESION, [])[$tramite] ?? null;
+        return $this->sesion->get(self::SESION, [])[\App\Services\Solicitudes\ContextoCorreccion::clave($tramite)] ?? null;
     }
 
     /**
@@ -73,7 +74,7 @@ class FirmadosTemporales
         }
 
         $this->archivos->eliminar($firmado['ruta']);
-        $this->sesion->forget(self::SESION.'.'.$tramite);
+        $this->sesion->forget(self::SESION.'.'.\App\Services\Solicitudes\ContextoCorreccion::clave($tramite));
     }
 
     private function publico(array $firmado): array

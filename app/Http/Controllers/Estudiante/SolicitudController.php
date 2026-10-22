@@ -3,40 +3,82 @@
 namespace App\Http\Controllers\Estudiante;
 
 use App\Http\Controllers\Controller;
-use App\Http\Requests\Estudiante\EnviarSolicitudRequest;
 use App\Http\Requests\Estudiante\GenerarDocumentoRequest;
 use App\Services\Archivos\FirmadosTemporales;
 use App\Services\Archivos\RespaldosTemporales;
-use App\Services\Documentos\WordService;
 use App\Services\Solicitudes\BorradoresTemporales;
-use App\Services\Solicitudes\CatalogoFacultades;
-use App\Services\Solicitudes\DatosFormularioSolicitud;
-use App\Services\Solicitudes\DocumentoSolicitud;
-use App\Services\Solicitudes\DocumentosTemporales;
-use App\Services\Solicitudes\EnvioSolicitud;
-use App\Services\Solicitudes\IntegracionEnvio;
 use App\Services\Solicitudes\SeguimientoSolicitudes;
 use App\Services\Solicitudes\SolicitudesSinTerminar;
 use App\Services\Solicitudes\SolicitudService;
 use App\Services\Solicitudes\TramitesSimulados;
+use App\Services\Solicitudes\DocumentoSolicitud;
+use App\Services\Solicitudes\DocumentosTemporales;
+use App\Services\Solicitudes\IntegracionEnvio;
+use App\Services\Solicitudes\EnvioSolicitud;
+use App\Services\Solicitudes\DatosFormularioSolicitud;
+use App\Services\Solicitudes\CatalogoFacultades;
+use App\Http\Requests\Estudiante\EnviarSolicitudRequest;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Gate;
-use Illuminate\Support\Str;
 use Illuminate\View\View;
 
 class SolicitudController extends Controller
 {
     public function enviar(EnviarSolicitudRequest $request, TramitesSimulados $catalogo, EnvioSolicitud $envio)
     {
+        abort_if($request->filled('solicitud_correccion'), 422, 'Usa la opción de reenviar la solicitud observada.');
         if (! app()->bound(IntegracionEnvio::class)) {
             return response()->json(['message' => 'El envío está pendiente de integrar autenticación, catálogo académico y estados de revisión. Tus datos y archivos siguen guardados temporalmente.'], 503);
         }
         abort_unless($request->user(), 401, 'Inicia sesión para enviar una solicitud.');
         $datos = $request->validated();
-        $solicitud = $envio->enviar($request->user(), $datos);
-
+        try {
+            $solicitud = $envio->enviar($request->user(), $datos);
+        } catch (\App\Services\Chatbot\Prolog\PrologException $error) {
+            report($error);
+            return response()->json(['message' => 'No se pudieron verificar los requisitos en Prolog. No se envió la solicitud; tus archivos se conservan.'], 503);
+        }
         return response()->json(['codigo' => $solicitud->codigo, 'url' => route('solicitudes.index')], 201);
+    }
+
+    public function editar(Request $request, int $solicitud, BorradoresTemporales $borradores): View
+    {
+        $expediente = \App\Models\Solicitud::findOrFail($solicitud);
+        Gate::authorize('update', $expediente);
+        $datos = $expediente->detalle ?? [];
+        $codigo = $datos['tramite'] ?? null;
+        abort_unless(is_string($codigo) && app(TramitesSimulados::class)->buscar($codigo), 409, 'No se reconoce el trámite original.');
+        $request->query->set('tramite', $codigo);
+        $request->query->set('solicitud_correccion', $solicitud);
+        if ($borradores->buscar($codigo) === null) {
+            $borradores->guardar($codigo, \Illuminate\Support\Arr::only($datos, [
+                'nombre', 'codigo', 'cedula', 'facultad', 'carrera', 'modalidad', 'periodo', 'correo', 'celular', 'campos',
+            ]) + [
+                'paso' => 1, 'requisitos' => [],
+                'materias' => array_map(fn ($materia) => \Illuminate\Support\Arr::only($materia, ['id', ...array_keys(DatosFormularioSolicitud::MATERIA), 'datos']), $datos['materias'] ?? []),
+            ]);
+            $request->session()->put('correcciones_base.'.$solicitud, EnvioSolicitud::revision($expediente));
+        }
+        return app()->call([$this, 'create'], ['request' => $request]);
+    }
+
+    public function reenviar(EnviarSolicitudRequest $request, int $solicitud, TramitesSimulados $catalogo, EnvioSolicitud $envio)
+    {
+        $expediente = \App\Models\Solicitud::findOrFail($solicitud);
+        Gate::authorize('update', $expediente);
+        abort_unless((int) $request->input('solicitud_correccion') === $solicitud, 422);
+        if (! app()->bound(IntegracionEnvio::class)) {
+            return response()->json(['message' => 'El reenvío está pendiente del adaptador de estados de revisión. Tu corrección sigue guardada como borrador.'], 503);
+        }
+        $datos = $request->validated();
+        try {
+            $guardada = $envio->enviar($request->user(), $datos, $expediente, $request->session()->get('correcciones_base.'.$solicitud));
+        } catch (\App\Services\Chatbot\Prolog\PrologException $error) {
+            report($error);
+            return response()->json(['message' => 'No se pudieron verificar los requisitos en Prolog. La corrección no se envió.'], 503);
+        }
+        $request->session()->forget('correcciones_base.'.$solicitud);
+        return response()->json(['codigo' => $guardada->codigo, 'url' => route('solicitudes.index')]);
     }
 
     /**
@@ -50,7 +92,7 @@ class SolicitudController extends Controller
             // null: el seguimiento todavía no se puede consultar y la vista lo dice.
             'solicitudes' => SeguimientoSolicitudes::disponible()
                 ? app(SeguimientoSolicitudes::class)->delEstudianteActual()
-                : null,
+                : app(\App\Services\Solicitudes\SolicitudesPropias::class)->consultar(auth()->user()),
         ]);
     }
 
@@ -82,22 +124,23 @@ class SolicitudController extends Controller
     ) {
         $datos = $request->validated();
 
+
         try {
             $documento = $documentos->generarWord($datos);
             $contenidoDescarga = $documento;
             $formato = $datos['formato'] ?? 'docx';
             if ($formato === 'pdf') {
-                $carpeta = storage_path('app/private/descargas/'.Str::uuid());
-                File::ensureDirectoryExists($carpeta);
+                $carpeta = sys_get_temp_dir().DIRECTORY_SEPARATOR.'uees-descarga-'.\Illuminate\Support\Str::uuid();
+                \Illuminate\Support\Facades\File::ensureDirectoryExists($carpeta);
                 $rutaPdf = null;
                 try {
                     file_put_contents($carpeta.'/documento.docx', $documento);
-                    $rutaPdf = app(WordService::class)->convertirAPdf($carpeta.'/documento.docx');
+                    $rutaPdf = app(\App\Services\Documentos\WordService::class)->convertirAPdf($carpeta.'/documento.docx');
                     $contenidoDescarga = file_get_contents($rutaPdf);
                 } finally {
-                    File::deleteDirectory($carpeta);
+                    \Illuminate\Support\Facades\File::deleteDirectory($carpeta);
                     if ($rutaPdf) {
-                        File::deleteDirectory(dirname($rutaPdf));
+                        \Illuminate\Support\Facades\File::deleteDirectory(dirname($rutaPdf));
                     }
                 }
             }
@@ -138,15 +181,42 @@ class SolicitudController extends Controller
         abort_if($tramite === null, 404);
         $codigoTramite = substr($tramite['ficha'], strrpos($tramite['ficha'], '.') + 1);
 
+        $requisitosMotor = app(\App\Services\Solicitudes\RequisitosSolicitud::class)->paraVista($codigoTramite);
+        $tramite['documentos'] = $requisitosMotor['documentos'];
+        $tramite['aviso'] = $requisitosMotor['aviso'];
+        $tramite['documentos_orientativos'] = false;
+
+        $expedienteCorreccion = null;
+        $observacionesCorreccion = null;
+        if ($request->filled('solicitud_correccion')) {
+            $expedienteCorreccion = \App\Models\Solicitud::findOrFail((int) $request->input('solicitud_correccion'));
+            Gate::authorize('update', $expedienteCorreccion);
+            if (SeguimientoSolicitudes::disponible()
+                && method_exists(\App\Services\Flujo\EstadoSolicitudService::class, 'lineaDeTiempo')) {
+                $observacionesCorreccion = app(SeguimientoSolicitudes::class)->observaciones($expedienteCorreccion);
+            }
+        }
+
+        $borrador = $borradores->buscar($codigoTramite);
+        if ($borrador) {
+            $borrador = CatalogoFacultades::normalizar($borrador);
+            $borrador = array_replace($borrador, app(\App\Services\Solicitudes\MateriasSolicitud::class)
+                ->entrada($borrador + ['origen_materias' => 'catalogo']));
+        }
+
         return view('estudiante.formulario-solicitud', [
+            'solicitudCorreccion' => $expedienteCorreccion,
+            'observacionesCorreccion' => $observacionesCorreccion,
+            'requisitosMotor' => $requisitosMotor,
             'codigoTramite' => $codigoTramite,
             'tramite' => $tramite,
-            'datosCuenta' => DatosFormularioSolicitud::cuenta($request->user()),
+            'datosCuenta' => [],
             'camposPersonales' => DatosFormularioSolicitud::PERSONALES,
             'camposMateriaManual' => DatosFormularioSolicitud::MATERIA,
+            'materias' => app(\App\Services\Solicitudes\MateriasSolicitud::class)->todas(),
             'catalogoFacultades' => CatalogoFacultades::todas(),
             'respaldosSubidos' => $respaldos->delTramite($codigoTramite),
-            'borrador' => ($borrador = $borradores->buscar($codigoTramite)) ? CatalogoFacultades::normalizar($borrador) : null,
+            'borrador' => $borrador,
             'firmado' => $firmados->delTramite($codigoTramite),
             'versionDocumento' => $temporales->buscar($codigoTramite)['version'] ?? null,
             'envioDisponible' => app()->bound(IntegracionEnvio::class) && $request->user() !== null,

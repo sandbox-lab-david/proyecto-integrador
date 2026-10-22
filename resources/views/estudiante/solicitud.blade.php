@@ -1,23 +1,17 @@
 {{--
     Seguimiento de una solicitud guardada (RF-2.13). Usa el badge de estado (C68)
-    y la línea de tiempo (C69) de G3 y sus modelos, que todavía no están en
-    develop: el controlador responde 404 hasta entonces y esta vista no se ha ejecutado.
-
-    Los dos van como componentes dinámicos porque Blade busca los componentes al
-    compilar: con la etiqueta directa, «view:cache» falla mientras G3 no los publique.
+    y la línea de tiempo (C69) publicados por G3. El controlador comprueba
+    los permisos antes de renderizar; las observaciones internas no se muestran.
 --}}
-<!DOCTYPE html>
-<html lang="es">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Solicitud {{ $solicitud->codigo }} | Portal del estudiante</title>
+@extends('estudiante.layouts.marco')
+@section('titulo', 'Seguimiento de solicitud')
+
+@section('content')
+<div class="portal-estudiante">
+    @include('estudiante.partials.estilo-layout')
 
     @include('estudiante.partials.estilo-ficha')
     @include('estudiante.partials.estilo-seguimiento')
-</head>
-<body>
-    @include('estudiante.partials.encabezado-ficha')
 
     <main>
         <a class="volver" href="{{ route('solicitudes.index') }}">
@@ -40,6 +34,13 @@
         </div>
 
         <div class="contenido">
+            @can('update', $solicitud)
+                <section class="panel">
+                    <h2>Tu solicitud necesita correcciones</h2>
+                    <p>Revisa las observaciones de la facultad antes de editar los datos y actualizar los documentos.</p>
+                    <a class="boton-fila" href="{{ route('solicitudes.edit', $solicitud) }}">Corregir solicitud →</a>
+                </section>
+            @endcan
             @php
                 $resolucion = $solicitud->resolucion;
             @endphp
@@ -119,5 +120,5 @@
         </div>
     </main>
     @include('estudiante.partials.chatbot-flotante')
-</body>
-</html>
+</div>
+@endsection

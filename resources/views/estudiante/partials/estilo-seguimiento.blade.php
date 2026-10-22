@@ -1,4 +1,5 @@
 <style>
+    @scope (.portal-estudiante) {
         .lista-solicitudes,
         .lista-observaciones {
             list-style: none;
@@ -141,4 +142,5 @@
                 grid-template-columns: 1fr;
             }
         }
-    </style>
+    }
+</style>

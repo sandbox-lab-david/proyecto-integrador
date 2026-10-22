@@ -1,4 +1,5 @@
 <style>
+    @scope (.portal-estudiante) {
         * {
             box-sizing: border-box;
         }
@@ -431,4 +432,5 @@
                 font-size: 20px;
             }
         }
-    </style>
+    }
+</style>

@@ -11,6 +11,8 @@ use Tests\TestCase;
 
 class FacultadCarreraSolicitudTest extends TestCase
 {
+    use SesionEstudiantePrueba;
+
     protected function setUp(): void
     {
         parent::setUp();

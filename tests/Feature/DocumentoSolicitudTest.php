@@ -12,6 +12,8 @@ use ZipArchive;
 
 class DocumentoSolicitudTest extends TestCase
 {
+    use MateriasCatalogoPrueba;
+
     public static function tramites(): array
     {
         return array_map(fn ($codigo) => [$codigo], array_keys(DocumentoSolicitud::PLANTILLAS));

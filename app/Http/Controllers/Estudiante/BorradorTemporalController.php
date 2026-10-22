@@ -40,6 +40,7 @@ class BorradorTemporalController extends Controller
 
         $borrador = $this->borradores->guardar($tramite, Arr::only($datos, array_keys(DatosFormularioSolicitud::PERSONALES)) + [
             'paso' => (int) $datos['paso'],
+            'origen_materias' => $datos['origen_materias'] ?? null,
             'celular' => $datos['celular'] ?? null,
             'materias' => array_map(fn (array $materia) => Arr::only($materia, array_keys(DatosFormularioSolicitud::MATERIA)) + [
                 'id' => $materia['id'],

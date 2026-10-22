@@ -9,11 +9,13 @@ use ZipArchive;
 
 class DocumentoRecuperacionTest extends TestCase
 {
+    use MateriasCatalogoPrueba;
+
     public function test_llena_la_plantilla_sin_modificar_el_original(): void
     {
         $plantilla = storage_path('app/private/plantillas/EXAMEN DE RECUPERACION_.docx');
         $hash = hash_file('sha256', $plantilla);
-        $destino = storage_path('app/private/verificacion-'.\Illuminate\Support\Str::uuid().'.docx');
+        $destino = sys_get_temp_dir().DIRECTORY_SEPARATOR.'uees-verificacion-'.\Illuminate\Support\Str::uuid().'.docx';
         try {
             app(DocumentoRecuperacion::class)->llenar([
                 'nombre' => 'Ana & Pérez', 'codigo' => '2026000012',

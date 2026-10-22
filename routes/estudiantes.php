@@ -10,6 +10,10 @@ use Illuminate\Support\Facades\Route;
 
 require __DIR__.'/notificaciones.php';
 
+Route::redirect('/estudiante/acceso', '/login')->name('estudiante.acceso');
+
+Route::middleware(['auth', 'estudiante'])->group(function () {
+
 Route::post('/estudiante/solicitudes/documento', [SolicitudController::class, 'documento'])
     ->middleware('throttle:10,1,documentos-estudiante:')->name('solicitudes.documento');
 
@@ -69,11 +73,6 @@ Route::get(
     '/estudiante/solicitudes/supletorio/nueva',
     [SolicitudController::class, 'create']
 )->defaults('tramite', 'supletorio')->name('estudiante.solicitudes.supletorio.crear');
-
-Route::view(
-    '/estudiante/acceso',
-    'estudiante.login'
-)->name('estudiante.acceso');
 
 Route::view(
     '/estudiante/tramites/retiro-materia',
@@ -152,6 +151,13 @@ Route::get('/estudiante/solicitudes', [SolicitudController::class, 'index'])
 Route::get('/estudiante/solicitudes/{solicitud}', [SolicitudController::class, 'show'])
     ->whereNumber('solicitud')->name('solicitudes.show');
 
+Route::get('/estudiante/solicitudes/{solicitud}/corregir', [SolicitudController::class, 'editar'])
+    ->whereNumber('solicitud')->middleware('auth')->name('solicitudes.edit');
+
+Route::post('/estudiante/solicitudes/{solicitud}/reenviar', [SolicitudController::class, 'reenviar'])
+    ->whereNumber('solicitud')->middleware(['auth', 'throttle:10,1,correcciones-estudiante:'])
+    ->block(30, 30)->name('solicitudes.reenviar');
+
 // Respaldos del paso 3 mientras la solicitud todavía no existe: carpeta temporal de la sesión.
 Route::post('/estudiante/respaldos-temporales', [RespaldoTemporalController::class, 'store'])
     ->middleware('throttle:60,1,respaldos-estudiante:')->name('respaldos-temporales.store');
@@ -180,5 +186,8 @@ Route::delete('/estudiante/firmados-temporales/{tramite}', [FirmadoTemporalContr
     ->where('tramite', '[a-z0-9_-]+')->name('firmados-temporales.destroy');
 
 // Archivos privados con enlace firmado (ArchivoService::urlTemporal y <x-visor-documento>).
+});
+
+// Este visor también lo consume el personal de revisión mediante enlaces firmados.
 Route::get('/archivos/ver', [ArchivoController::class, 'ver'])
     ->middleware('signed')->name('archivos.ver');

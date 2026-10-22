@@ -11,6 +11,25 @@ use Illuminate\Http\UploadedFile;
  */
 trait ArchivosDePrueba
 {
+    /** Evita que OneDrive bloquee archivos de pruebas al limpiar el disco simulado. */
+    protected function discoTemporal(): void
+    {
+        $original = $this->app->storagePath();
+        $temporal = sys_get_temp_dir().DIRECTORY_SEPARATOR.'uees-prueba-'.\Illuminate\Support\Str::uuid();
+        $this->app->useStoragePath($temporal);
+        try {
+            \Illuminate\Support\Facades\Storage::fake('local');
+        } finally {
+            $this->app->useStoragePath($original);
+        }
+        $this->beforeApplicationDestroyed(function () use ($temporal) {
+            $prefijo = str_replace('\\', '/', sys_get_temp_dir()).'/uees-prueba-';
+            if (str_starts_with(str_replace('\\', '/', $temporal), $prefijo)) {
+                \Illuminate\Support\Facades\File::deleteDirectory($temporal);
+            }
+        });
+    }
+
     /** @var list<string> */
     private array $temporales = [];
 
