@@ -4,7 +4,10 @@ namespace Tests\Feature;
 
 use App\Models\Carrera;
 use App\Models\CarreraEstudiante;
+use App\Models\CarreraModalidad;
+use App\Models\Estudiante;
 use App\Models\HistorialSolicitud;
+use App\Models\Modalidad;
 use App\Models\Periodo;
 use App\Models\Solicitud;
 use App\Models\Trabajador;
@@ -38,7 +41,9 @@ class IntegracionInstitucionalTest extends TestCase
         $f = DB::table('facultades')->insertGetId(['codigo' => 'ING', 'nombre' => 'Ingeniería', 'activo' => true]);
         $c = Carrera::create(['facultad_id' => $f, 'codigo' => 'COM', 'nombre' => 'Ingeniería en Computación', 'nivel' => 'grado', 'activo' => true]);
         $p = Periodo::create(['codigo' => 'ACTUAL', 'nombre' => 'Período actual', 'tipo' => 'ordinario', 'fecha_inicio' => today()->subDays(10), 'fecha_fin' => today()->addDays(30), 'semana_primer_parcial' => 4, 'activo' => true]);
-        $i = CarreraEstudiante::create(['user_id' => $u->id, 'carrera_id' => $c->id, 'periodo_id' => $p->id, 'estado' => 'activo']);
+        $e = Estudiante::create(['user_id' => $u->id, 'codigo' => '2026000001', 'nombres' => 'Estudiante', 'apellidos' => 'Prueba', 'correo' => $u->email]);
+        $cm = CarreraModalidad::create(['carrera_id' => $c->id, 'modalidad_id' => Modalidad::create(['nombre' => 'Presencial'])->id]);
+        $i = CarreraEstudiante::create(['estudiante_id' => $e->id, 'carrera_modalidad_id' => $cm->id, 'estado' => 'activo']);
 
         return [$u, $i, ['tramite' => 'recuperacion', 'carrera' => 'Ingeniería en Computación', 'periodo' => 'ACTUAL']];
     }

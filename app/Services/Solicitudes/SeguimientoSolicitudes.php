@@ -32,7 +32,7 @@ class SeguimientoSolicitudes
             return new Collection;
         }
 
-        return Solicitud::whereHas('carreraEstudiante', fn ($q) => $q->where('user_id', auth()->id()))
+        return Solicitud::whereHas('carreraEstudiante.estudiante', fn ($q) => $q->where('user_id', auth()->id()))
             ->with(['tipoTramite', 'estadoSolicitud'])->latest('id')->get();
     }
 
