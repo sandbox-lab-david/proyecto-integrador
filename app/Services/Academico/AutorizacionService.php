@@ -94,7 +94,7 @@ class AutorizacionService
 
         $hoy = now(ReglasCampoSolicitud::zonaHoraria())->toDateString();
 
-        return DB::table('director_carreras')
+        return DB::table('directores_carrera')
             ->where('trabajador_id', $trabajador->id)->where('carrera_id', $carreraId)
             ->whereDate('fecha_inicio', '<=', $hoy)
             ->where(fn ($q) => $q->whereNull('fecha_fin')->orWhereDate('fecha_fin', '>=', $hoy))->exists();

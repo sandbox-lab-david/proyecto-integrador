@@ -5,6 +5,8 @@ use App\Http\Controllers\RevisionController; // ===== Grupo 3
 use App\Http\Controllers\Administracion\CarreraController;
 use App\Http\Controllers\Administracion\FacultadController;
 use App\Http\Controllers\Administracion\MallaController;
+use App\Http\Controllers\Administracion\RolController;
+use App\Http\Controllers\Administracion\TrabajadorController;
 use App\Http\Controllers\Administracion\DirectorCarreraController;
 use App\Http\Controllers\Administracion\UserController;
 use App\Http\Controllers\Administracion\ImportacionesController;
@@ -100,9 +102,21 @@ Route::middleware(['auth', 'rol:admin'])->group(function () {
         Route::get('/reporte-errores/{id}', 'descargarReporteErrores')->name('reporte-errores');
     });
 
-    Route::resource('users', UserController::class);
+    Route::get('/personal', [TrabajadorController::class, 'index'])->name('administracion.personal');
+    Route::post('/personal', [TrabajadorController::class, 'store'])->name('administracion.personal.store');
+    Route::get('/personal/{trabajador}/editar', [TrabajadorController::class, 'index'])->name('administracion.personal.editar');
+    Route::put('/personal/{trabajador}', [TrabajadorController::class, 'update'])->name('administracion.personal.update');
+    Route::patch('/personal/{trabajador}/estado', [TrabajadorController::class, 'cambiarEstado'])->name('administracion.personal.estado');
 
-    Route::resource('directores_carrera', DirectorCarreraController::class);
+    Route::get('/directores', [DirectorCarreraController::class, 'index'])->name('administracion.directores');
+    Route::post('/directores', [DirectorCarreraController::class, 'store'])->name('administracion.directores.store');
+    Route::patch('/directores/{asignacion}/terminar', [DirectorCarreraController::class, 'terminar'])->name('administracion.directores.terminar');
+
+    Route::get('/cuentas', [UserController::class, 'index'])->name('administracion.cuentas');
+    Route::patch('/cuentas/{usuario}/estado', [UserController::class, 'cambiarEstado'])->name('administracion.cuentas.estado');
+    Route::post('/cuentas/{usuario}/enlace', [UserController::class, 'enviarEnlace'])->name('administracion.cuentas.enlace');
+
+    Route::get('/roles', [RolController::class, 'index'])->name('administracion.roles');
 
     Route::resource('importaciones', ImportacionesController::class)->only(['index', 'show', 'destroy']);
 });

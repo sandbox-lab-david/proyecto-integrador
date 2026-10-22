@@ -150,9 +150,9 @@ class IntegracionInstitucionalTest extends TestCase
         $s = Solicitud::create($ctx + ['codigo' => 'SOL-DIRECTOR', 'detalle' => $datos, 'declaracion_veracidad' => true]);
         $director = User::factory()->create(['tipo' => 'trabajador']);
         $t = Trabajador::create(['user_id' => $director->id, 'codigo' => 'DIR-1', 'nombres' => 'Director', 'apellidos' => 'Prueba', 'correo' => $director->email, 'activo' => true]);
-        $id = DB::table('director_carreras')->insertGetId(['trabajador_id' => $t->id, 'carrera_id' => $i->carrera_id, 'fecha_inicio' => today()->subDays(20)]);
+        $id = DB::table('directores_carrera')->insertGetId(['trabajador_id' => $t->id, 'carrera_id' => $i->carrera_id, 'fecha_inicio' => today()->subDays(20)]);
         $this->assertTrue(app(SolicitudPolicy::class)->view($director, $s));
-        DB::table('director_carreras')->where('id', $id)->update(['fecha_fin' => today()->subDays(10)]);
+        DB::table('directores_carrera')->where('id', $id)->update(['fecha_fin' => today()->subDays(10)]);
         $this->assertFalse(app(SolicitudPolicy::class)->view($director, $s));
         DB::table('rol_trabajador')->insert(['trabajador_id' => $t->id, 'rol' => 'admin']);
         $this->assertTrue(app(AutorizacionService::class)->tieneRol($director, 'admin'));

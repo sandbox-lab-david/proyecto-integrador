@@ -20,7 +20,7 @@ class InicioController extends Controller
             'Periodos' => Periodo::count(),
             'Materias' => Materia::count(),
             'Paralelos' => Curso::count(),
-            'Docentes' => Trabajador::count(),
+            'Docentes' => Trabajador::conRol('docente')->where('activo', true)->count(),
         ];
 
         $periodoActivo = Periodo::where('activo', true)->first();

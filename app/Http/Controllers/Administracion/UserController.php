@@ -3,103 +3,46 @@
 namespace App\Http\Controllers\Administracion;
 
 use App\Http\Controllers\Controller;
-
 use App\Models\User;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Hash;
-
+use Illuminate\Support\Facades\Password;
 
 class UserController extends Controller
 {
-    /**
-     * Display a listing of the resource.
-     */
-    public function index()
+    use MensajesValidacion;
+
+    public function index(Request $request)
     {
-        $users = User::paginate(10); // Paginamos de 10 en 10 como pide el proyecto
-        
-        return view('users.index', compact('users'));
+        $cuentas = $this->buscar(User::with(['trabajador', 'estudiante']), $request->input('buscar'), ['name', 'email'])
+            ->when($request->filled('tipo'), fn ($q) => $q->where('tipo', $request->input('tipo')))
+            ->orderBy('name')
+            ->paginate(15)
+            ->withQueryString();
+
+        return view('administracion.cuentas', compact('cuentas'));
     }
 
-    /**
-     * Show the form for creating a new resource.
-     */
-    public function create()
+    public function cambiarEstado(User $usuario)
     {
-        return view ('users.create');
-    }
-
-    /**
-     * Store a newly created resource in storage.
-     */
-    public function store(Request $request)
-    {
-        $request->validate([
-            'name' => 'required|string|max:255',
-            'email' => 'required|string|email|max:255|unique:users',
-            'password' => 'required|string|min:8|confirmed',
-            'tipo' => 'required|in:estudiante,trabajador',
-        ]);
-
-        Users::create([
-            'name' => $request->name,
-            'email' => $request->email,
-            'password'=> Hash::make($request->password),
-            'tipo' => $request->tipo,
-            'activo' => true,
-        ]);
-
-        return redirect()->route('users.index')->with('success', 'Usuario creado exitosamente');
-    }
-
-    /**
-     * Display the specified resource.
-     */
-    public function show(string $id)
-    {
-        //
-    }
-
-    /**
-     * Show the form for editing the specified resource.
-     */
-    public function edit(user $user)
-    {
-        return view('users.edit', compact('user'));
-    }
-
-    /**
-     * Update the specified resource in storage.
-     */
-    public function update(Request $request, user $user)
-    {
-        $request->validate([
-            'name'=> 'required|string|max:255',
-            'email'=> 'required|string|email|max:255|unique:users,email,' . $user->id,
-            'password'=> 'required|string|max:255|confirmed',
-            'tipo'=> 'required|in:estudiante,trabajador',
-        ]);
-
-        $user->name = $request->name;
-        $user->email = $request->email;
-        $user->tipo = $request->tipo;
-
-        if ($request->filled('password')){
-            $user->password = Hash::make($request->password);
+        if ($usuario->is(auth()->user())) {
+            return back()->with('error', 'No puedes desactivar tu propia cuenta.');
         }
 
-        $user->save();
+        $usuario->update(['activo' => ! $usuario->activo]);
 
-        return redirect->route('user.index')->with('Success', 'Usuario actualizado correctamente');
+        return back()->with('exito', "Cuenta de {$usuario->email} ".($usuario->activo ? 'activada.' : 'desactivada. Ya no podrá iniciar sesión.'));
     }
 
-    /**
-     * Remove the specified resource from storage.
-     */
-    public function destroy(user $user)
+    public function enviarEnlace(User $usuario)
     {
-        $user->update(['activo' => false]);
+        if (! $usuario->activo) {
+            return back()->with('error', "Activa primero la cuenta de {$usuario->email}.");
+        }
 
-        return redirect->route('user.index')->with('Succes', 'Usuario desactivado correctamente');
+        $estado = Password::sendResetLink(['email' => $usuario->email]);
+
+        return $estado === Password::RESET_LINK_SENT
+            ? back()->with('exito', "Se envió a {$usuario->email} un enlace para restablecer la contraseña. Vence en ".config('auth.passwords.users.expire').' minutos.')
+            : back()->with('error', 'Ya se envió un enlace hace poco. Espera un minuto antes de enviar otro.');
     }
 }

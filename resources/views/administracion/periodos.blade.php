@@ -73,7 +73,7 @@
                                 <th>Nombre</th>
                                 <th>Tipo</th>
                                 <th>Fechas</th>
-                                <th>1.er parcial</th>
+                                <th>Parcial</th>
                                 <th>Estado</th>
                                 <th><span class="ui-sr-oculto">Acciones</span></th>
                             </tr>
@@ -93,15 +93,17 @@
                                             <span class="ui-badge">Inactivo</span>
                                         @endif
                                     </td>
-                                    <td class="whitespace-nowrap text-right">
-                                        <a href="{{ route('administracion.periodos.editar', $periodo) }}" class="ui-btn ui-btn-quieto ui-btn-chico">Editar</a>
-                                        @unless ($periodo->activo)
-                                            <form method="POST" action="{{ route('administracion.periodos.activar', $periodo) }}" class="inline">
-                                                @csrf
-                                                @method('PATCH')
-                                                <button type="submit" class="ui-btn ui-btn-quieto ui-btn-chico">Activar</button>
-                                            </form>
-                                        @endunless
+                                    <td>
+                                        <div class="flex flex-col items-end gap-chico">
+                                            <a href="{{ route('administracion.periodos.editar', $periodo) }}" class="ui-btn ui-btn-quieto ui-btn-chico">Editar</a>
+                                            @unless ($periodo->activo)
+                                                <form method="POST" action="{{ route('administracion.periodos.activar', $periodo) }}">
+                                                    @csrf
+                                                    @method('PATCH')
+                                                    <button type="submit" class="ui-btn ui-btn-quieto ui-btn-chico">Activar</button>
+                                                </form>
+                                            @endunless
+                                        </div>
                                     </td>
                                 </tr>
                             @endforeach
