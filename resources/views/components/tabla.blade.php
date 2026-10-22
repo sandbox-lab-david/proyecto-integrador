@@ -1,24 +1,24 @@
-@props(['columnas' => [], 'paginacion' => null])
+@props(['columnas' => [], 'paginacion' => null, 'vacio' => 'No hay registros.'])
 
-<div class="overflow-x-auto">
-    <table class="min-w-full divide-y divide-gray-200 text-sm">
-        <thead>
-            <tr>
-                @foreach ($columnas as $columna)
-                    <th class="px-4 py-2 text-left font-semibold text-gray-700">
-                        {{ $columna }}
-                    </th>
-                @endforeach
-            </tr>
-        </thead>
-        <tbody class="divide-y divide-gray-100">
-            {{ $slot }}
-        </tbody>
-    </table>
-</div>
+@if ($slot->isEmpty())
+    <div class="ui-vacio">{{ $vacio }}</div>
+@else
+    <div {{ $attributes->merge(['class' => 'ui-tabla-caja']) }}>
+        <table class="ui-tabla">
+            <thead>
+                <tr>
+                    @foreach ($columnas as $columna)
+                        <th>{{ $columna }}</th>
+                    @endforeach
+                </tr>
+            </thead>
+            <tbody>
+                {{ $slot }}
+            </tbody>
+        </table>
+    </div>
+@endif
 
 @if ($paginacion)
-    <div class="mt-4">
-        {{ $paginacion->links() }}
-    </div>
+    {{ $paginacion->links('administracion.partes.paginacion') }}
 @endif

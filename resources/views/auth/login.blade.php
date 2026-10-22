@@ -33,9 +33,7 @@
         </div>
     </form>
 
-    @if (Route::has('register'))
-        <p class="ui-texto-gris text-chico mt-amplio">
-            ¿Eres estudiante y no tienes cuenta? <a class="ui-enlace" href="{{ route('register') }}">Regístrate aquí</a>
-        </p>
-    @endif
+    <p class="ui-texto-gris text-chico mt-amplio">
+        ¿Primera vez? Tu cuenta ya existe con tu correo institucional. <a class="ui-enlace" href="{{ route('password.request') }}">Crea tu contraseña</a>
+    </p>
 </x-guest-layout>

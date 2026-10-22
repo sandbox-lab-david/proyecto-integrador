@@ -2,10 +2,13 @@
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
 class Importacion extends Model
 {
+    use HasFactory;
+
     public const ESTADOS = ['pendiente', 'procesando', 'completada', 'fallida'];
 
     protected $table = 'importaciones';

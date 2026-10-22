@@ -21,7 +21,7 @@ class CarreraModalidadFactory extends Factory
     {
         return [
         'carrera_id'   => Carrera::factory(),
-        'modalidad_id' => Modalidad::factory(),
+        'modalidad_id' => fn () => Modalidad::query()->inRandomOrder()->value('id') ?? Modalidad::factory(),
         ];
     }
 }

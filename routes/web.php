@@ -33,21 +33,6 @@ Route::view('/estilos', 'estilos')->name('estilos');
 
 require __DIR__.'/chatbot.php';
 require __DIR__.'/estudiantes.php';
-Route::get('/tramites', function () {
-    return view('tramites.index');
-})->name('tramites.index');
-
-Route::get('/tramites/configurar', function () {
-    return view('tramites.configurar');
-});
-
-Route::get('/tramites/plantillas', function () {
-    return view('tramites.plantillas');
-});
-
-Route::get('/app', function () {
-    return view('layouts.app');
-});
 
 // ===== Grupo 1: Administración académica =====
 Route::middleware(['auth', 'rol:admin'])->group(function () {

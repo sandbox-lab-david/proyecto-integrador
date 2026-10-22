@@ -2,10 +2,13 @@
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
 class MallaMateria extends Model
 {
+    use HasFactory;
+
     protected $table = 'malla_materia';
 
     protected $fillable = ['malla_id', 'materia_id', 'nivel'];

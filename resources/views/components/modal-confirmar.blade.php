@@ -2,35 +2,22 @@
     'id',
     'accion',
     'metodo' => 'POST',
-    'boton'  => 'Confirmar',
+    'boton' => 'Confirmar',
     'titulo' => '¿Estás seguro?',
 ])
 
-<button type="button"
-        onclick="document.getElementById('{{ $id }}').showModal()"
-        class="px-3 py-1.5 rounded-lg bg-red-600 text-white text-sm hover:bg-red-700">
+<button type="button" onclick="document.getElementById('{{ $id }}').showModal()" {{ $attributes->merge(['class' => 'ui-btn ui-btn-peligro ui-btn-chico']) }}>
     {{ $boton }}
 </button>
 
-<dialog id="{{ $id }}" class="rounded-lg p-6 w-full max-w-md backdrop:bg-black/50">
-    <h2 class="text-lg font-semibold mb-2">{{ $titulo }}</h2>
+<dialog id="{{ $id }}" class="ui-modal" aria-labelledby="{{ $id }}-titulo">
+    <h2 id="{{ $id }}-titulo">{{ $titulo }}</h2>
+    <p>{{ $slot }}</p>
 
-    <div class="text-gray-700 mb-6">
-        {{ $slot }}
-    </div>
-
-    <form method="POST" action="{{ $accion }}" class="flex justify-end gap-2">
+    <form method="POST" action="{{ $accion }}" class="ui-acciones">
         @csrf
         @method($metodo)
-
-        <button type="button"
-                onclick="this.closest('dialog').close()"
-                class="px-3 py-1.5 rounded-lg border border-gray-300 text-sm">
-            Cancelar
-        </button>
-        <button type="submit"
-                class="px-3 py-1.5 rounded-lg bg-red-600 text-white text-sm hover:bg-red-700">
-            {{ $boton }}
-        </button>
+        <button type="button" onclick="this.closest('dialog').close()" class="ui-btn ui-btn-quieto">Cancelar</button>
+        <button type="submit" class="ui-btn ui-btn-peligro">{{ $boton }}</button>
     </form>
 </dialog>

@@ -9,35 +9,19 @@ use Illuminate\Database\Eloquent\Collection;
 
 class EstudianteService
 {
-    
-    //=== C11: Devuelve el objeto Estudiante del usuario que inició sesión.
+    // C11
     public function estudianteActual()
-    {   
-    /*
-    // = STUB =
-    return (object)[
-            'id' => 101, 
-            'nombres' => 'Juan', 
-            'apellidos' => 'Pérez', 
-            'codigo' => '2023123456'
-        ];
-    */
+    {
+        $user = Auth::user();
 
-
-        // Obtiene el usuario de la sesión actual de Laravel
-        $user = Auth::user(); 
-        
-        // Verifica que el usuario exista y que sea de tipo 'estudiante'
         if ($user && $user->tipo === 'estudiante') {
-            // Retorna la relación 'estudiante' que definiste en tu modelo User
-            return $user->estudiante; 
+            return $user->estudiante;
         }
-        
-        return null; // Si es un profesor o no ha iniciado sesión, devuelve nulo
-        
+
+        return null;
     }
 
-    //=== C12: Perfil del estudiante con sus carreras activas
+    // C12
     public function perfil(int $estudianteId): array
     {
         $estudiante = Estudiante::findOrFail($estudianteId);
@@ -68,7 +52,7 @@ class EstudianteService
         return $modelo?->only($campos);
     }
 
-    //=== C13: Devuelve las inscripciones activas del estudiante, con carrera, modalidad y malla.
+    // C13
     public function carrerasActivas(int $estudianteId): Collection
     {
         return CarreraEstudiante::with(['carreraModalidad.carrera', 'carreraModalidad.modalidad', 'malla'])
@@ -77,7 +61,7 @@ class EstudianteService
                                 ->get();
     }
 
-    //===C14 
+    // C14
     public function actualizarContacto(Estudiante $estudiante, string $celular): void
     {
         $estudiante->update(['celular' => $celular]);

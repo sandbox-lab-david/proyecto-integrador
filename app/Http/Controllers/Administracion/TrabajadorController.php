@@ -100,7 +100,7 @@ class TrabajadorController extends Controller
             'nombres' => 'required|string|max:255',
             'apellidos' => 'required|string|max:255',
             'correo' => [
-                'required', 'email', 'max:255',
+                'required', 'email', 'ends_with:@uees.edu.ec', 'max:255',
                 Rule::unique('trabajadores', 'correo')->ignore($trabajador),
                 Rule::unique('users', 'email')->ignore($trabajador?->user_id),
             ],
@@ -110,6 +110,7 @@ class TrabajadorController extends Controller
             'facultades.*' => 'integer|exists:facultades,id',
         ], $this->mensajes([
             'correo.unique' => 'Ya hay una persona o una cuenta con este correo.',
+            'correo.ends_with' => 'Usa el correo institucional @uees.edu.ec.',
             'codigo.unique' => 'Ya hay una persona con este código.',
             'roles.required' => 'Marca al menos un rol.',
             'roles.min' => 'Marca al menos un rol.',

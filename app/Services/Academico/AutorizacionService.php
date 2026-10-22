@@ -12,7 +12,7 @@ use Illuminate\Support\Facades\DB;
 
 class AutorizacionService
 {
-    // ==== C17: Carreras que dirige
+    // C17
     public function carrerasQueDirige(Trabajador|int $trabajador): Collection
     {
         $trabajadorId = $trabajador instanceof Trabajador ? $trabajador->id : $trabajador;
@@ -22,7 +22,7 @@ class AutorizacionService
             ->get();
     }
 
-    // ==== C18: Director vigente de una carrera
+    // C18
     public function directorDeCarrera(int $carreraId): ?Trabajador
     {
         $asignacion = $this->vigentes(DirectorCarrera::query())
@@ -41,13 +41,13 @@ class AutorizacionService
             ->where(fn ($q) => $q->whereNull('fecha_fin')->orWhereDate('fecha_fin', '>=', $hoy));
     }
 
-    // ==== C16: Facultades donde está asignado un trabajador
+    // C16
     public function facultadesDe(Trabajador $trabajador): Collection
     {
         return $trabajador->facultades()->orderBy('nombre')->get();
     }
 
-    // ===C19: Asistentes activas de una facultad
+    // C19
     public function asistentesDeFacultad(int $facultadId): Collection
     {
         return Trabajador::conRol('asistente')
@@ -57,7 +57,7 @@ class AutorizacionService
             ->get();
     }
 
-    // ==== C15
+    // C15
     public function tieneRol(User $u, string|array $codigos): bool
     {
         $codigos = (array) $codigos;
@@ -79,7 +79,7 @@ class AutorizacionService
             ->exists();
     }
 
-    // ==== C20
+    // C20
     public function puedeVerCarrera(User $usuario, int $carreraId): bool
     {
         $trabajador = $usuario->trabajador;
@@ -96,7 +96,7 @@ class AutorizacionService
             ->exists();
     }
 
-    // ==== C20: Es administrador o trabaja en esa facultad
+    // C20
     public function puedeVerFacultad(User $usuario, int $facultadId): bool
     {
         $trabajador = $usuario->trabajador;
