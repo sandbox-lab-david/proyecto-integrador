@@ -3,132 +3,152 @@
 namespace App\Http\Controllers\Administracion;
 
 use App\Http\Controllers\Controller;
+use App\Jobs\ProcesarImportacion;
+use App\Models\Importacion;
+use App\Services\Academico\ImportacionService;
+use App\Services\Academico\Importadores\Plantilla;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
+use Maatwebsite\Excel\Facades\Excel;
 
 class CargaController extends Controller
 {
-    /**
-     * Muestra el formulario inicial de carga y descarga de plantillas.
-     */
+    use MensajesValidacion;
+
+    public function __construct(private ImportacionService $servicio) {}
+
     public function index()
     {
-        return view('administracion.cargas.index');
-    }
-
-    /**
-     * Procesa temporalmente el archivo subido para generar la vista previa.
-     */
-    public function preview(Request $request)
-    {
-        $request->validate([
-            'tipo_carga' => 'required|string',
-            'archivo_excel' => 'required|file|mimes:xlsx,xls,csv|max:10240',
-        ]);
-
-        $tipoCarga = $request->input('tipo_carga');
-        $file = $request->file('archivo_excel');
-
-        // Guardar archivo temporalmente para procesar en la previsualización
-        $path = $file->storeAs('temp_imports', Str::uuid() . '.' . $file->getClientOriginalExtension());
-
-        // Ejemplo de estructura procesada (puedes adaptarlo con Maatwebsite/Excel o League/CSV)
-        // Aquí simulamos la lectura y validación de las filas del archivo
-        $filasProcesadas = [
-            [
-                'num_fila' => 2,
-                'codigo' => 'EST-001',
-                'nombre' => 'Juan Pérez',
-                'estado' => 'valido', // 'valido', 'duplicado', 'error'
-                'observacion' => 'Listo para registrar',
-            ],
-            [
-                'num_fila' => 3,
-                'codigo' => 'EST-002',
-                'nombre' => 'María López',
-                'estado' => 'duplicado',
-                'observacion' => 'El código ya existe en el sistema',
-            ],
-            [
-                'num_fila' => 4,
-                'codigo' => 'INVALIDO',
-                'nombre' => 'Carlos Ruiz',
-                'estado' => 'error',
-                'observacion' => 'Formato de correo electrónico o cédula incorrecto',
-            ],
-        ];
-
-        // Resumen de las filas analizadas
-        $resumen = [
-            'correctas' => collect($filasProcesadas)->where('estado', 'valido')->count(),
-            'duplicados' => collect($filasProcesadas)->where('estado', 'duplicado')->count(),
-            'errores' => collect($filasProcesadas)->where('estado', 'error')->count(),
-        ];
-
-        $batchId = Str::uuid()->toString();
-
-        return view('administracion.cargas.preview', [
-            'tipoCarga' => $tipoCarga,
-            'filas' => $filasProcesadas,
-            'resumen' => $resumen,
-            'batchId' => $batchId,
+        return view('administracion.cargas.index', [
+            'importadores' => collect(ImportacionService::IMPORTADORES)->map(fn ($clase, $entidad) => $this->servicio->importador($entidad)),
+            'pendientes' => Importacion::where('estado', 'pendiente')->where('user_id', auth()->id())->latest()->get(),
         ]);
     }
 
-    /**
-     * Confirma la inserción definitiva de los registros válidos en la base de datos.
-     */
-    public function procesar(Request $request)
+    public function subir(Request $request)
     {
-        $batchId = $request->input('batch_id');
+        $datos = $request->validate([
+            'entidad' => 'required|in:'.implode(',', array_keys(ImportacionService::IMPORTADORES)),
+            'archivo' => 'required|file|extensions:xlsx,xls,csv|max:10240',
+        ], $this->mensajes([
+            'entidad.required' => 'Elige qué vas a importar.',
+            'archivo.required' => 'Elige el archivo.',
+            'archivo.extensions' => 'El archivo debe ser .xlsx, .xls o .csv.',
+            'archivo.max' => 'El archivo no puede pasar de 10 MB.',
+        ]));
 
-        // Aquí ejecutas la lógica para insertar únicamente las filas válidas
-        // en las tablas correspondientes según el tipo de carga.
+        $archivo = $request->file('archivo');
+        $nombre = Str::slug(pathinfo($archivo->getClientOriginalName(), PATHINFO_FILENAME)) ?: 'archivo';
+        $ruta = $archivo->storeAs('importaciones/'.Str::uuid(), $nombre.'.'.strtolower($archivo->getClientOriginalExtension()), 'local');
 
-        return redirect()->route('cargas.historial')
-            ->with('success', 'La carga de datos se procesó correctamente.');
+        $importacion = Importacion::create([
+            'entidad' => $datos['entidad'],
+            'archivo_ruta' => $ruta,
+            'user_id' => auth()->id(),
+            'estado' => 'pendiente',
+        ]);
+
+        return redirect()->route('cargas.vista-previa', $importacion);
     }
 
-    /**
-     * Muestra la tabla con el historial de cargas realizadas.
-     */
-    public function historial()
+    public function vistaPrevia(Importacion $importacion)
     {
-        // Si ya tienen una tabla/modelo de historial (ej: CargaHistorial), pueden usar:
-        // $historial = CargaHistorial::with('user')->latest()->get();
-        
-        $historial = []; // Reemplazar con la consulta Eloquent cuando la tabla esté definida
-
-        return view('administracion.cargas.historial', compact('historial'));
-    }
-
-    /**
-     * Permite descargar las plantillas .xlsx vacías.
-     */
-    public function descargarPlantilla($tipo)
-    {
-        $fileName = "plantilla_{$tipo}.xlsx";
-        $filePath = "plantillas/{$fileName}";
-
-        if (Storage::disk('public')->exists($filePath)) {
-            return Storage::disk('public')->download($filePath);
+        if ($importacion->estado !== 'pendiente') {
+            return redirect()->route('cargas.detalle', $importacion);
         }
 
-        return back()->with('error', "La plantilla para {$tipo} aún no está disponible.");
+        $analisis = $this->servicio->analizar($importacion);
+        $importacion->update(['total_filas' => $analisis['resumen']['total']]);
+
+        return view('administracion.cargas.preview', [
+            'importacion' => $importacion,
+            'importador' => $this->servicio->importador($importacion->entidad),
+            'analisis' => $analisis,
+            'filas' => collect($analisis['filas'])->sortBy(fn ($f) => $f['estado'] === 'error' ? 0 : 1)->take(200),
+        ]);
     }
 
-    /**
-     * Genera y descarga el archivo con las filas que dieron error.
-     */
-    public function descargarReporteErrores($id)
+    public function procesar(Importacion $importacion)
     {
-        // Lógica para recuperar el reporte de errores de la carga $id
-        $fileName = "reporte_errores_carga_{$id}.csv";
+        abort_unless($importacion->estado === 'pendiente', 409, 'Esta importación ya se procesó.');
 
-        return response()->streamDownload(function () {
-            echo "Fila,Codigo,Error\n";
-            echo "4,INVALIDO,Formato de correo electrónico o cédula incorrecto\n";
-        }, $fileName);
+        if ($importacion->total_filas > ImportacionService::LIMITE_INMEDIATO) {
+            $importacion->update(['estado' => 'procesando']);
+            ProcesarImportacion::dispatch($importacion);
+
+            return redirect()->route('cargas.detalle', $importacion)
+                ->with('exito', "El archivo tiene {$importacion->total_filas} filas: se está procesando en segundo plano. Actualiza esta página en unos minutos.");
+        }
+
+        ProcesarImportacion::dispatchSync($importacion);
+        $importacion->refresh();
+
+        return redirect()->route('cargas.detalle', $importacion)
+            ->with($importacion->estado === 'completada' ? 'exito' : 'error', $importacion->estado === 'completada'
+                ? "Importación terminada: {$importacion->creadas} creadas, {$importacion->actualizadas} actualizadas, {$importacion->rechazadas} rechazadas."
+                : 'La importación no se pudo completar. Revisa el detalle.');
+    }
+
+    public function cancelar(Importacion $importacion)
+    {
+        abort_unless($importacion->estado === 'pendiente', 409, 'Solo se puede cancelar una importación que todavía no se procesó.');
+
+        Storage::disk('local')->deleteDirectory(dirname($importacion->archivo_ruta));
+        $importacion->delete();
+
+        return redirect()->route('cargas.index')->with('exito', 'Importación cancelada. No se guardó nada.');
+    }
+
+    public function historial(Request $request)
+    {
+        $importaciones = Importacion::with('user')
+            ->where('estado', '!=', 'pendiente')
+            ->when($request->filled('entidad'), fn ($q) => $q->where('entidad', $request->input('entidad')))
+            ->latest()
+            ->paginate(15)
+            ->withQueryString();
+
+        return view('administracion.cargas.historial', [
+            'importaciones' => $importaciones,
+            'titulos' => collect(ImportacionService::IMPORTADORES)->map(fn ($c, $e) => $this->servicio->importador($e)->titulo()),
+        ]);
+    }
+
+    public function detalle(Importacion $importacion)
+    {
+        return view('administracion.cargas.detalle', [
+            'importacion' => $importacion->load('user'),
+            'importador' => $this->servicio->importador($importacion->entidad),
+        ]);
+    }
+
+    public function descargarPlantilla(string $tipo)
+    {
+        $importador = $this->servicio->importador($tipo);
+
+        return Excel::download(new Plantilla(array_keys($importador->columnas())), "plantilla_{$tipo}.xlsx");
+    }
+
+    public function descargarEjemplo(string $tipo)
+    {
+        $this->servicio->importador($tipo);
+        $ruta = database_path("data/ejemplos/{$tipo}.csv");
+        abort_unless(is_file($ruta), 404);
+
+        return response()->download($ruta, "ejemplo_{$tipo}.csv", ['Content-Type' => 'text/csv; charset=UTF-8']);
+    }
+
+    public function descargarReporteErrores(Importacion $importacion)
+    {
+        return response()->streamDownload(function () use ($importacion) {
+            $salida = fopen('php://output', 'w');
+            fwrite($salida, "\u{FEFF}");
+            fputcsv($salida, ['fila', 'codigo', 'motivo']);
+            foreach ($importacion->errores ?? [] as $error) {
+                fputcsv($salida, [$error['fila'] ?? '', $error['codigo'] ?? '', $error['motivo'] ?? '']);
+            }
+            fclose($salida);
+        }, "errores_importacion_{$importacion->id}.csv", ['Content-Type' => 'text/csv; charset=UTF-8']);
     }
 }

@@ -9,7 +9,6 @@ use App\Http\Controllers\Administracion\RolController;
 use App\Http\Controllers\Administracion\TrabajadorController;
 use App\Http\Controllers\Administracion\DirectorCarreraController;
 use App\Http\Controllers\Administracion\UserController;
-use App\Http\Controllers\Administracion\ImportacionesController;
 use App\Http\Controllers\Administracion\InicioController;
 use App\Http\Controllers\Administracion\PeriodoController;
 use App\Http\Controllers\Administracion\MateriaController;
@@ -95,11 +94,15 @@ Route::middleware(['auth', 'rol:admin'])->group(function () {
 
     Route::prefix('administracion/cargas')->name('cargas.')->controller(CargaController::class)->group(function () {
         Route::get('/', 'index')->name('index');
-        Route::post('/vista-previa', 'preview')->name('preview');
-        Route::post('/procesar', 'procesar')->name('procesar');
+        Route::post('/vista-previa', 'subir')->name('preview');
         Route::get('/historial', 'historial')->name('historial');
         Route::get('/plantilla/{tipo}', 'descargarPlantilla')->name('plantilla');
-        Route::get('/reporte-errores/{id}', 'descargarReporteErrores')->name('reporte-errores');
+        Route::get('/ejemplo/{tipo}', 'descargarEjemplo')->name('ejemplo');
+        Route::get('/{importacion}/vista-previa', 'vistaPrevia')->name('vista-previa');
+        Route::post('/{importacion}/procesar', 'procesar')->name('procesar');
+        Route::delete('/{importacion}', 'cancelar')->name('cancelar');
+        Route::get('/{importacion}', 'detalle')->name('detalle');
+        Route::get('/{importacion}/errores', 'descargarReporteErrores')->name('reporte-errores');
     });
 
     Route::get('/personal', [TrabajadorController::class, 'index'])->name('administracion.personal');
@@ -118,7 +121,6 @@ Route::middleware(['auth', 'rol:admin'])->group(function () {
 
     Route::get('/roles', [RolController::class, 'index'])->name('administracion.roles');
 
-    Route::resource('importaciones', ImportacionesController::class)->only(['index', 'show', 'destroy']);
 });
 
 // ===== Grupo 3: Revisión y Consejo =====
