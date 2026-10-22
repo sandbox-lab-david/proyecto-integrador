@@ -4,6 +4,9 @@ namespace Tests\Feature;
 
 use App\Models\Carrera;
 use App\Models\CarreraEstudiante;
+use App\Models\CarreraModalidad;
+use App\Models\Estudiante;
+use App\Models\Modalidad;
 use App\Models\EstadoSolicitud;
 use App\Models\HistorialSolicitud;
 use App\Models\Periodo;
@@ -34,8 +37,10 @@ class SeguimientoEstudianteTest extends TestCase
         $facultad = DB::table('facultades')->insertGetId(['codigo' => 'ING', 'nombre' => 'Ingeniería', 'activo' => true]);
         $carrera = Carrera::create(['facultad_id' => $facultad, 'codigo' => 'COM', 'nombre' => 'Computación', 'nivel' => 'grado', 'activo' => true]);
         $periodo = Periodo::create(['codigo' => '2026-2', 'nombre' => 'Período actual', 'tipo' => 'ordinario', 'fecha_inicio' => today()->subDays(10), 'fecha_fin' => today()->addDays(30), 'semana_primer_parcial' => 4, 'activo' => true]);
+        $carreraModalidad = CarreraModalidad::create(['carrera_id' => $carrera->id, 'modalidad_id' => Modalidad::firstOrCreate(['nombre' => 'Presencial'])->id]);
         foreach ([$this->estudiante, $otro] as $indice => $usuario) {
-            $inscripcion = CarreraEstudiante::create(['user_id' => $usuario->id, 'carrera_id' => $carrera->id, 'periodo_id' => $periodo->id, 'estado' => 'activo']);
+            $estudiante = Estudiante::create(['user_id' => $usuario->id, 'codigo' => '202600000'.$indice, 'nombres' => 'Estudiante', 'apellidos' => 'Prueba '.$indice, 'correo' => $usuario->email]);
+            $inscripcion = CarreraEstudiante::create(['estudiante_id' => $estudiante->id, 'carrera_modalidad_id' => $carreraModalidad->id, 'estado' => 'activo']);
             $solicitud = Solicitud::create(['codigo' => 'SOL-SEGUIMIENTO-'.$indice,
                 'carrera_estudiante_id' => $inscripcion->id, 'periodo_id' => $periodo->id,
                 'tipo_tramite_id' => TipoTramite::where('codigo', 'examen_recuperacion')->firstOrFail()->id,

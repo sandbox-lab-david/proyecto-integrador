@@ -95,7 +95,7 @@ class IntegracionInstitucionalTest extends TestCase
         $this->actingAs($u);
         $materiaId = DB::table('materias')->insertGetId(['codigo' => 'BD401', 'nombre' => 'Bases de datos', 'creditos' => 3]);
         $curso = \App\Models\Curso::create(['materia_id' => $materiaId,
-            'periodo_id' => $inscripcion->periodo_id, 'paralelo' => 'A']);
+            'periodo_id' => Periodo::where('codigo', 'ACTUAL')->value('id'), 'paralelo' => 'A']);
         $catalogo = app(TramitesSimulados::class);
         foreach (array_keys(DocumentoSolicitud::PLANTILLAS) as $codigo) {
             $def = $catalogo->buscar($codigo);
