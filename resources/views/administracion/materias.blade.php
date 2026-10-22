@@ -1,8 +1,4 @@
-@extends('layouts.app')
-
-@section('titulo', 'Materias')
-
-@section('content')
+<x-layouts.app titulo="Materias" modulo="Administración académica" :menu="config('menu_administracion')">
     <p class="ui-antetitulo">Estructura académica</p>
     <h1 class="ui-titulo">Materias</h1>
     <p class="ui-texto-gris mt-chico">Catálogo institucional de asignaturas. Los demás módulos las usan para que el estudiante elija en lugar de escribir.</p>
@@ -81,4 +77,4 @@
             @endif
         </section>
     </div>
-@endsection
+</x-layouts.app>

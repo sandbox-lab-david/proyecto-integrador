@@ -16,6 +16,14 @@ use Illuminate\View\View;
 
 class NewPasswordController extends Controller
 {
+    private const MENSAJES = [
+        Password::RESET_LINK_SENT => 'Te enviamos un enlace para cambiar tu contraseña. Revisa tu correo.',
+        Password::PASSWORD_RESET => 'Tu contraseña se cambió. Ya puedes iniciar sesión.',
+        Password::INVALID_USER => 'No encontramos una cuenta con ese correo.',
+        Password::INVALID_TOKEN => 'El enlace para cambiar la contraseña ya no es válido. Pide uno nuevo.',
+        Password::RESET_THROTTLED => 'Espera un momento antes de pedir otro enlace.',
+    ];
+
     /**
      * Display the password reset view.
      */
@@ -35,6 +43,12 @@ class NewPasswordController extends Controller
             'token' => ['required'],
             'email' => ['required', 'email'],
             'password' => ['required', 'confirmed', Rules\Password::defaults()],
+        ], [
+            'email.required' => 'Escribe tu correo institucional.',
+            'email.email' => 'El correo no tiene un formato válido.',
+            'password.required' => 'Escribe la nueva contraseña.',
+            'password.confirmed' => 'Las contraseñas no coinciden.',
+            'password.min' => 'La contraseña debe tener al menos :min caracteres.',
         ]);
 
         // Here we will attempt to reset the user's password. If it is successful we
@@ -56,8 +70,8 @@ class NewPasswordController extends Controller
         // the application's home authenticated view. If there is an error we can
         // redirect them back to where they came from with their error message.
         return $status == Password::PASSWORD_RESET
-                    ? redirect()->route('login')->with('status', __($status))
+                    ? redirect()->route('login')->with('status', self::MENSAJES[$status] ?? __($status))
                     : back()->withInput($request->only('email'))
-                        ->withErrors(['email' => __($status)]);
+                        ->withErrors(['email' => self::MENSAJES[$status] ?? __($status)]);
     }
 }

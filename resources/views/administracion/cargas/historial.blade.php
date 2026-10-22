@@ -1,8 +1,4 @@
-@extends('layouts.app')
-
-@section('titulo', 'Historial de importaciones')
-
-@section('content')
+<x-layouts.app titulo="Historial de importaciones" modulo="Administración académica" :menu="config('menu_administracion')">
     <div class="flex flex-wrap items-end justify-between gap-normal">
         <div>
             <p class="ui-antetitulo">Importaciones SIAC</p>
@@ -50,4 +46,4 @@
             </table>
         </div>
     @endif
-@endsection
+</x-layouts.app>
