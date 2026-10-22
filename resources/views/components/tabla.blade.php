@@ -1,6 +1,6 @@
 @props(['columnas' => [], 'paginacion' => null, 'vacio' => 'No hay registros.'])
 
-@if ($slot->isEmpty())
+@if (trim((string) $slot) === '')
     <div class="ui-vacio">{{ $vacio }}</div>
 @else
     <div {{ $attributes->merge(['class' => 'ui-tabla-caja']) }}>

@@ -106,6 +106,11 @@ class PendientesG1Test extends TestCase
 
         $this->blade('<x-tabla :columnas="[\'A\']"><tr><td>1</td></tr></x-tabla>')->assertSee('ui-tabla-caja', false)->assertSee('ui-tabla', false);
         $this->blade('<x-tabla :columnas="[\'A\']" vacio="Nada aquí"></x-tabla>')->assertSee('ui-vacio', false)->assertSee('Nada aquí');
+        $this->blade('<x-tabla :columnas="[\'A\']" vacio="Sin filas">
+            @foreach ([] as $fila)
+                <tr><td>{{ $fila }}</td></tr>
+            @endforeach
+        </x-tabla>')->assertSee('Sin filas')->assertDontSee('<table', false);
     }
 
     public function test_se_quitaron_las_rutas_viejas(): void
