@@ -75,10 +75,10 @@ class CargaController extends Controller
 
         if ($importacion->total_filas > ImportacionService::LIMITE_INMEDIATO) {
             $importacion->update(['estado' => 'procesando']);
-            ProcesarImportacion::dispatch($importacion);
+            ProcesarImportacion::dispatch($importacion, avisar: true);
 
             return redirect()->route('cargas.detalle', $importacion)
-                ->with('exito', "El archivo tiene {$importacion->total_filas} filas: se está procesando en segundo plano. Actualiza esta página en unos minutos.");
+                ->with('exito', "El archivo tiene {$importacion->total_filas} filas: se está procesando en segundo plano. Te llegará una notificación cuando termine.");
         }
 
         ProcesarImportacion::dispatchSync($importacion);

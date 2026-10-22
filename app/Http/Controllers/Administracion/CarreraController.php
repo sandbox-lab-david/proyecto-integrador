@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Administracion;
 
 use App\Http\Controllers\Controller;
+use App\Enums\NivelCarrera;
 use App\Models\Carrera;
 use App\Models\CarreraEstudiante;
 use App\Models\CarreraModalidad;
@@ -89,7 +90,7 @@ class CarreraController extends Controller
             'facultad_id' => 'required|exists:facultades,id',
             'codigo' => ['required', 'string', 'max:20', Rule::unique('carreras', 'codigo')->ignore($carrera)],
             'nombre' => 'required|string|max:255',
-            'nivel' => 'required|in:grado,posgrado',
+            'nivel' => ['required', Rule::enum(NivelCarrera::class)],
             'modalidades' => 'required|array|min:1',
             'modalidades.*' => 'integer|exists:modalidades,id',
         ], $this->mensajes([

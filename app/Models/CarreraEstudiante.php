@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Enums\EstadoInscripcion;
 use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -10,7 +11,12 @@ class CarreraEstudiante extends Model
 {
     use HasFactory;
 
-    public const ESTADOS = ['activo', 'inactivo', 'egresado', 'retirado'];
+    public const ESTADOS = [
+        EstadoInscripcion::ACTIVO->value,
+        EstadoInscripcion::INACTIVO->value,
+        EstadoInscripcion::EGRESADO->value,
+        EstadoInscripcion::RETIRADO->value,
+    ];
 
     protected $table = 'carrera_estudiante';
 

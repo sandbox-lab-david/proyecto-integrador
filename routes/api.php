@@ -61,18 +61,25 @@ Route::prefix('interno')->middleware(['web', 'auth'])->group(function () {
         );
     })->name('interno.materias');
 
-    // C35: Endpoint para obtener los paralelos y docentes de una materia
+    // C35: Paralelos de una materia en un periodo, con su docente
     Route::get('/cursos', function (Request $request, CatalogoAcademicoService $servicio) {
-        // Validamos que nos envíen los parámetros obligatorios en la URL
         $request->validate([
             'materia_id' => 'required|integer',
             'periodo_id' => 'required|integer',
+        ], [
+            'materia_id.required' => 'Indica la materia (materia_id).',
+            'materia_id.integer' => 'materia_id debe ser un número.',
+            'periodo_id.required' => 'Indica el periodo (periodo_id).',
+            'periodo_id.integer' => 'periodo_id debe ser un número.',
         ]);
 
-        // Llamamos al método C09 que acabamos de crear arriba
-        $cursos = $servicio->cursosDeMateria($request->materia_id, $request->periodo_id);
-
-        // Devolvemos el resultado en formato JSON para que el frontend lo lea fácilmente
-        return response()->json($cursos);
-    });
+        return response()->json(
+            $servicio->cursosDeMateria((int) $request->materia_id, (int) $request->periodo_id)->map(fn ($curso) => [
+                'id' => $curso->id,
+                'paralelo' => $curso->paralelo,
+                'cupo' => $curso->cupo,
+                'profesor' => $curso->profesor?->only(['id', 'nombres', 'apellidos']),
+            ])->values()
+        );
+    })->name('interno.cursos');
 });

@@ -5,6 +5,7 @@
     <span class="ui-barra-titulo">{{ $modulo }}</span>
     <div class="ml-auto flex items-center gap-medio">
         @auth
+            <x-campana-notificaciones />
             <span class="hidden sm:inline text-chico text-gris">{{ auth()->user()->name }}</span>
             <form method="POST" action="{{ route('logout') }}">
                 @csrf

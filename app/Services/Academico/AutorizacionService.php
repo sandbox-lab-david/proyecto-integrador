@@ -2,6 +2,7 @@
 
 namespace App\Services\Academico;
 
+use App\Models\Carrera;
 use App\Models\Trabajador;
 use Illuminate\Database\Eloquent\Collection;
 use App\Models\User;
@@ -12,34 +13,32 @@ use Illuminate\Support\Facades\DB;
 class AutorizacionService
 {
     // ==== C17: Carreras que dirige
-    public function carrerasQueDirige($trabajadorId)
+    public function carrerasQueDirige(Trabajador|int $trabajador): Collection
     {
-        return DirectorCarrera::where('trabajador_id', $trabajadorId)
-            ->with('carrera')
-            ->get()
-            ->pluck('carrera');
+        $trabajadorId = $trabajador instanceof Trabajador ? $trabajador->id : $trabajador;
+
+        return Carrera::whereIn('id', $this->vigentes(DirectorCarrera::query())->where('trabajador_id', $trabajadorId)->select('carrera_id'))
+            ->orderBy('nombre')
+            ->get();
     }
 
-    // ==== C18: Encuentra qué profesor/trabajador es el director actual de una carrera.
-    public function directorDeCarrera(int $carreraId)
+    // ==== C18: Director vigente de una carrera
+    public function directorDeCarrera(int $carreraId): ?Trabajador
     {
+        $asignacion = $this->vigentes(DirectorCarrera::query())
+            ->where('carrera_id', $carreraId)
+            ->orderByDesc('fecha_inicio')
+            ->first();
 
-        /*
-        // = STUB =
-            return (object)[
-                'id' => 50,
-                'nombres' => 'Dra. María',
-                'apellidos' => 'Gómez',
-                'correo' => 'mgomez@uees.edu.ec'
-            ];
-        */
+        return $asignacion?->trabajador;
+    }
 
-        // Busca en la tabla Trabajadores aquel que tenga una relación vigente de director con la carrera indicada
-        return Trabajador::whereHas('directoresCarrera', function ($query) use ($carreraId) {
-            $query->where('carrera_id', $carreraId)
-                ->whereNull('fecha_fin'); // Si fecha_fin es nula, significa que sigue en el cargo
-        })->first();
+    private function vigentes($consulta)
+    {
+        $hoy = now(ReglasCampoSolicitud::zonaHoraria())->toDateString();
 
+        return $consulta->whereDate('fecha_inicio', '<=', $hoy)
+            ->where(fn ($q) => $q->whereNull('fecha_fin')->orWhereDate('fecha_fin', '>=', $hoy));
     }
 
     // ==== C16: Facultades donde está asignado un trabajador
@@ -92,12 +91,9 @@ class AutorizacionService
             return true;
         }
 
-        $hoy = now(ReglasCampoSolicitud::zonaHoraria())->toDateString();
-
-        return DB::table('directores_carrera')
+        return $this->vigentes(DirectorCarrera::query())
             ->where('trabajador_id', $trabajador->id)->where('carrera_id', $carreraId)
-            ->whereDate('fecha_inicio', '<=', $hoy)
-            ->where(fn ($q) => $q->whereNull('fecha_fin')->orWhereDate('fecha_fin', '>=', $hoy))->exists();
+            ->exists();
     }
 
     // ==== C20: Es administrador o trabaja en esa facultad
