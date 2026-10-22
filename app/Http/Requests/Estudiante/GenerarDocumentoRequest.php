@@ -23,6 +23,7 @@ class GenerarDocumentoRequest extends FormRequest
     {
         $definicion = $tramites->buscar((string) $this->input('tramite'));
         $reglas = [
+            'origen_materias' => ['sometimes', 'in:catalogo'],
             'formato' => ['sometimes', 'in:docx,pdf'],
             'tramite' => [
                 'required',
@@ -34,6 +35,10 @@ class GenerarDocumentoRequest extends FormRequest
             'codigo' => ['required', 'string', 'max:30'],
             'carrera' => ['required', 'string', 'max:150'],
             'correo' => ['required', 'email', 'max:150'],
+            'cedula' => ['nullable', 'string', 'max:30'],
+            'facultad' => ['nullable', 'string', 'max:150'],
+            'modalidad' => ['nullable', 'string', 'max:100'],
+            'periodo' => ['nullable', 'string', 'max:100'],
 
             'celular' => [
                 'required',
@@ -48,6 +53,9 @@ class GenerarDocumentoRequest extends FormRequest
             'declaracion' => ['required', 'accepted'],
         ];
         $reglas = array_replace($reglas, DatosFormularioSolicitud::reglas(false));
+        if ($this->input('origen_materias') === 'catalogo') {
+            $reglas['materias.*.id'][] = Rule::in(array_column(app(\App\Services\Solicitudes\MateriasSolicitud::class)->todas(), 'id'));
+        }
         foreach (CatalogoFacultades::restricciones($this->input('facultad')) as $campo => $regla) {
             $reglas[$campo][] = $regla;
         }
@@ -69,10 +77,10 @@ class GenerarDocumentoRequest extends FormRequest
 
     protected function prepareForValidation(): void
     {
+        $this->merge(app(\App\Services\Solicitudes\MateriasSolicitud::class)->entrada($this->all()));
         $this->merge(DatosFormularioSolicitud::limpiarEntrada($this->all()));
         $this->merge(CatalogoFacultades::normalizar($this->all()));
-        // La identidad procede de la sesión, aunque se manipule el formulario en el navegador.
-        $this->merge(DatosFormularioSolicitud::cuenta($this->user()));
+        // Los datos declarados son manuales; el propietario se resuelve con la cuenta autenticada.
     }
 
     public function withValidator(Validator $validador): void

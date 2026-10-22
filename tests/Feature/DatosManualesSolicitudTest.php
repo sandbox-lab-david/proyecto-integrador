@@ -13,7 +13,7 @@ use Tests\TestCase;
 
 class DatosManualesSolicitudTest extends TestCase
 {
-    use RefreshDatabase;
+    use RefreshDatabase, SesionEstudiantePrueba;
 
     protected function setUp(): void
     {
@@ -56,15 +56,15 @@ class DatosManualesSolicitudTest extends TestCase
         }
     }
 
-    public function test_la_cuenta_completa_solo_nombre_y_correo(): void
+    public function test_nombre_y_correo_tambien_se_escriben_a_mano_con_sesion_iniciada(): void
     {
         $usuario = User::factory()->create(['name' => 'Nombre de la cuenta', 'email' => 'cuenta@uees.edu.ec']);
         $respuesta = $this->actingAs($usuario)->get(route('solicitudes.create', ['tramite' => 'gracia']))->assertOk();
         $dom = new \DOMDocument;
         @$dom->loadHTML('<?xml encoding="utf-8" ?>'.$respuesta->getContent());
-        foreach (['nombre' => $usuario->name, 'correo' => $usuario->email] as $campo => $valor) {
-            $this->assertSame($valor, $dom->getElementById($campo)->getAttribute('value'));
-            $this->assertTrue($dom->getElementById($campo)->hasAttribute('readonly'));
+        foreach (['nombre', 'correo'] as $campo) {
+            $this->assertSame('', $dom->getElementById($campo)->getAttribute('value'));
+            $this->assertFalse($dom->getElementById($campo)->hasAttribute('readonly'));
         }
         foreach (['codigo', 'cedula', 'facultad', 'carrera', 'modalidad', 'periodo', 'celular'] as $campo) {
             $this->assertFalse($dom->getElementById($campo)->hasAttribute('readonly'));
@@ -83,18 +83,20 @@ class DatosManualesSolicitudTest extends TestCase
         $this->assertEquals($datos['materias'], $borrador['materias']);
     }
 
-    public function test_el_servidor_conserva_la_identidad_de_la_cuenta_aunque_se_manipule_el_formulario(): void
+    public function test_borrador_y_documento_conservan_los_datos_declarados_sin_modificar_la_cuenta(): void
     {
         $usuario = User::factory()->create(['name' => 'Identidad real', 'email' => 'real@uees.edu.ec']);
         $datos = $this->datos();
         $this->actingAs($usuario)->putJson(route('borradores-temporales.update', 'gracia'), $datos + ['paso' => 2])->assertOk();
         $borrador = $this->get(route('solicitudes.create', ['tramite' => 'gracia']))->viewData('borrador');
-        $this->assertSame($usuario->name, $borrador['nombre']);
-        $this->assertSame($usuario->email, $borrador['correo']);
+        $this->assertSame($datos['nombre'], $borrador['nombre']);
+        $this->assertSame($datos['correo'], $borrador['correo']);
         $this->postJson(route('solicitudes.documento'), $datos)->assertOk();
         $guardado = app(DocumentosTemporales::class)->buscar('gracia')['datos'];
-        $this->assertSame($usuario->name, $guardado['nombre']);
-        $this->assertSame($usuario->email, $guardado['correo']);
+        $this->assertSame($datos['nombre'], $guardado['nombre']);
+        $this->assertSame($datos['correo'], $guardado['correo']);
+        $this->assertSame('Identidad real', $usuario->fresh()->name);
+        $this->assertSame('real@uees.edu.ec', $usuario->fresh()->email);
         $this->assertSame($datos['cedula'], $guardado['cedula']);
         $this->assertSame($datos['materias'], $guardado['materias']);
     }

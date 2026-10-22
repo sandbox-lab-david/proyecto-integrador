@@ -3,6 +3,10 @@
         'Módulo' => [
             ['Inicio', 'administracion.inicio', 'administracion.inicio'],
         ],
+        'Solicitudes académicas' => [
+            ['Catálogo de trámites', 'estudiante.catalogo', ['estudiante.catalogo', 'estudiante.tramites.*', 'estudiante.solicitudes.*', 'solicitudes.create']],
+            ['Mis solicitudes', 'solicitudes.index', ['solicitudes.index', 'solicitudes.show', 'solicitudes.edit']],
+        ],
         'Estructura académica' => [
             ['Periodos académicos', 'administracion.periodos', 'administracion.periodos*'],
             ['Materias', 'administracion.materias', 'administracion.materias*'],
@@ -40,13 +44,13 @@
 
     <div class="flex flex-col md:flex-row md:min-h-[calc(100dvh-68px)]">
         <aside class="md:w-64 shrink-0 bg-superficie border-b md:border-b-0 md:border-r border-linea px-normal py-amplio">
-            <nav aria-label="Menú de administración" class="flex md:flex-col gap-amplio overflow-x-auto">
+            <nav aria-label="Menú principal" class="flex md:flex-col gap-amplio overflow-x-auto">
                 @foreach ($menu as $seccion => $enlaces)
                     <div class="shrink-0">
                         <p class="px-3 mb-chico text-mini font-bold uppercase tracking-[1.4px] text-gris">{{ $seccion }}</p>
                         <ul class="flex md:flex-col gap-1">
                             @foreach ($enlaces as [$texto, $ruta, $patron])
-                                @php $activo = request()->routeIs($patron); @endphp
+                                @php $activo = request()->routeIs(...(array) $patron); @endphp
                                 <li>
                                     <a href="{{ route($ruta) }}"
                                        @if ($activo) aria-current="page" @endif

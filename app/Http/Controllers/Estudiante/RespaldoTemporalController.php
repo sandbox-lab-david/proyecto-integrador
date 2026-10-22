@@ -26,6 +26,7 @@ class RespaldoTemporalController extends Controller
         $request->validate([
             'tramite' => ['required', 'string', 'max:60', 'regex:/^[a-z0-9_-]+$/'],
             'archivo' => ['required', 'file'],
+            'requisito' => ['sometimes', 'required', 'string', 'max:150'],
         ], [
             'tramite.*' => 'No se reconoce el trámite de esta solicitud.',
             'archivo.required' => 'Selecciona un archivo.',
@@ -34,8 +35,20 @@ class RespaldoTemporalController extends Controller
             'archivo.uploaded' => "El servidor no aceptó el archivo: hoy solo recibe hasta {$limiteServidor} MB.",
         ]);
 
+        if ($request->filled('requisito')) {
+            try {
+                $consulta = app(\App\Services\Solicitudes\RequisitosSolicitud::class)->consultar($request->input('tramite'));
+            } catch (\App\Services\Chatbot\Prolog\PrologException $error) {
+                report($error);
+                return response()->json(['message' => 'No se pudieron verificar los documentos en Prolog. Inténtalo cuando el motor esté disponible.'], 503);
+            }
+            if (! in_array($request->input('requisito'), array_column($consulta['documentos'], 'id'), true)) {
+                throw ValidationException::withMessages(['requisito' => 'El tipo de documento ya no está disponible en Prolog. Recarga la página.']);
+            }
+        }
+
         try {
-            $respaldo = $this->respaldos->agregar($request->file('archivo'), $request->input('tramite'));
+            $respaldo = $this->respaldos->agregar($request->file('archivo'), $request->input('tramite'), $request->input('requisito'));
         } catch (ArchivoRechazado $error) {
             throw ValidationException::withMessages(['archivo' => $error->getMessage()]);
         }

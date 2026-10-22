@@ -19,7 +19,7 @@ use Tests\TestCase;
 
 class EnvioSolicitudTest extends TestCase
 {
-    use ArchivosDePrueba, RefreshDatabase;
+    use ArchivosDePrueba, RefreshDatabase, RequisitosPrologPrueba;
 
     protected function setUp(): void
     {
@@ -137,10 +137,10 @@ class EnvioSolicitudTest extends TestCase
     public function test_envio_requiere_sesion_y_muestra_acceso_al_login(): void
     {
         $datos = $this->preparar();
+        $this->app['auth']->forgetGuards();
         $this->postJson(route('solicitudes.enviar'), $datos)->assertStatus(401);
         $this->assertDatabaseCount('solicitudes', 0);
-        $this->get(route('solicitudes.create', ['tramite' => 'gracia']))->assertOk()
-            ->assertSee('Inicia sesión para enviar tu solicitud.');
+        $this->get(route('solicitudes.create', ['tramite' => 'gracia']))->assertRedirect(route('login'));
     }
 
     public function test_repetir_el_envio_devuelve_el_mismo_expediente_aunque_no_queden_temporales(): void

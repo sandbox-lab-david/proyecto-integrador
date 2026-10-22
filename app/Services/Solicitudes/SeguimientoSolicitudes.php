@@ -28,7 +28,7 @@ class SeguimientoSolicitudes
      */
     public function delEstudianteActual(): Collection
     {
-        if (! auth()->check()) {
+        if (! auth()->check() || ! auth()->user()->activo) {
             return new Collection;
         }
 
@@ -48,7 +48,7 @@ class SeguimientoSolicitudes
 
         return $this->estados->lineaDeTiempo($solicitud, false)
             ->filter(fn ($paso) => filled($paso->comentario))
-            ->sortByDesc('created_at')
+            ->sortBy([['created_at', 'desc'], ['id', 'desc']])
             ->values()
             ->map(fn ($paso) => [
                 'fecha' => $paso->created_at,
