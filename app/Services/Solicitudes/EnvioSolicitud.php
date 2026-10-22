@@ -9,6 +9,7 @@ use App\Services\Archivos\FirmadosTemporales;
 use App\Services\Archivos\RespaldosTemporales;
 use Illuminate\Database\QueryException;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
@@ -26,8 +27,21 @@ class EnvioSolicitud
         private readonly SolicitudService $solicitudes,
     ) {}
 
-    public function enviar(User $usuario, array $datos): Solicitud
+    public static function revision(Solicitud $solicitud): string
     {
+        return hash('sha256', json_encode([$solicitud->detalle, $solicitud->estado_solicitud_id,
+            $solicitud->carrera_estudiante_id, $solicitud->tipo_tramite_id, $solicitud->periodo_id,
+            $solicitud->getRawOriginal('updated_at')], JSON_THROW_ON_ERROR));
+    }
+
+    public function enviar(User $usuario, array $datos, ?Solicitud $correccion = null, ?string $revisionBase = null): Solicitud
+    {
+        if ($correccion) {
+            abort_unless((int) request()->input('solicitud_correccion') === (int) $correccion->getKey(), 422);
+        } else {
+            abort_if(request()->filled('solicitud_correccion'), 422);
+        }
+        if ($correccion) Gate::forUser($usuario)->authorize('update', $correccion);
         $clave = $datos['clave_envio'] ?? null;
         if (! is_string($clave) || ! Str::isUuid($clave)) {
             throw ValidationException::withMessages(['clave_envio' => 'Descarga el documento antes de enviar la solicitud.']);
@@ -35,7 +49,7 @@ class EnvioSolicitud
 
         $carpeta = 'expedientes/'.Str::uuid();
         try {
-            $solicitud = DB::transaction(function () use ($usuario, $datos, $clave, $carpeta) {
+            $solicitud = DB::transaction(function () use ($usuario, $datos, $clave, $carpeta, $correccion, $revisionBase) {
                 // Serializa los envíos del mismo usuario antes de comprobar el duplicado.
                 // La consulta y el expediente se confirman en la misma transacción.
                 User::query()->whereKey($usuario->getKey())->lockForUpdate()->firstOrFail();
@@ -45,7 +59,6 @@ class EnvioSolicitud
                     if (! hash_equals($this->huellaEnvio($previa->detalle), $this->huellaEnvio($datos))) {
                         throw ValidationException::withMessages(['clave_envio' => 'Este envío ya se realizó con otros datos. Inicia una nueva solicitud para hacer otro envío.']);
                     }
-
                     return $previa;
                 }
 
@@ -54,8 +67,7 @@ class EnvioSolicitud
                     throw ValidationException::withMessages(['clave_envio' => 'El documento cambió. Descarga la versión actual y sube su PDF firmado.']);
                 }
                 $datos['envio_usuario_id'] = $usuario->getKey();
-
-                return $this->crearExpediente($usuario, $datos, $carpeta);
+                return $this->crearExpediente($usuario, $datos, $carpeta, $correccion, $revisionBase);
             }, 5);
         } catch (\Throwable $error) {
             Storage::disk(ArchivoService::DISCO)->deleteDirectory($carpeta);
@@ -66,9 +78,7 @@ class EnvioSolicitud
         $tramite = $datos['tramite'];
         if (($this->documentos->buscar($tramite)['version'] ?? null) === $clave) {
             try {
-                foreach ($this->respaldos->delTramite($tramite) as $archivo) {
-                    $this->respaldos->quitar($archivo['id']);
-                }
+                foreach ($this->respaldos->delTramite($tramite) as $archivo) $this->respaldos->quitar($archivo['id']);
                 $this->firmados->quitar($tramite);
                 $this->documentos->quitar($tramite);
                 $this->borradores->descartar($tramite);
@@ -76,7 +86,6 @@ class EnvioSolicitud
                 report($error);
             }
         }
-
         return $solicitud;
     }
 
@@ -84,11 +93,10 @@ class EnvioSolicitud
     {
         $requisitos = $datos['requisitos'] ?? [];
         ksort($requisitos);
-
         return hash('sha256', $this->documentos->huella($datos).'|'.json_encode($requisitos, JSON_THROW_ON_ERROR));
     }
 
-    private function crearExpediente(User $usuario, array $datos, string $carpeta): Solicitud
+    private function crearExpediente(User $usuario, array $datos, string $carpeta, ?Solicitud $correccion = null, ?string $revisionBase = null): Solicitud
     {
         $tramite = $datos['tramite'];
         $documento = $this->documentos->buscar($tramite);
@@ -103,7 +111,7 @@ class EnvioSolicitud
         }
         $archivos = $this->respaldos->delTramite($tramite);
         $asignaciones = $datos['requisitos'] ?? [];
-        $requisitos = $this->catalogo->buscar($tramite)['documentos'];
+        $requisitos = app(RequisitosSolicitud::class)->verificar($tramite, $archivos, $asignaciones)['documentos'];
         $ids = array_column($archivos, 'id');
         if (array_diff(array_keys($asignaciones), $ids)) {
             throw ValidationException::withMessages(['requisitos' => 'Hay respaldos que no pertenecen a este trámite y sesión.']);
@@ -120,19 +128,25 @@ class EnvioSolicitud
         }
         $integracion = app(IntegracionEnvio::class);
         $contexto = $integracion->resolver($usuario, $datos);
+        if ($correccion) {
+            foreach (['carrera_estudiante_id', 'tipo_tramite_id', 'periodo_id'] as $clave) {
+                abort_unless(($contexto[$clave] ?? null) === (int) $correccion->$clave, 422, 'La corrección no puede cambiar la identidad del expediente, su trámite ni su periodo.');
+            }
+            abort_unless(($correccion->detalle['tramite'] ?? null) === $tramite, 422);
+        }
         foreach (['carrera_estudiante_id', 'tipo_tramite_id', 'periodo_id', 'estado_solicitud_id'] as $clave) {
             if (! is_int($contexto[$clave] ?? null) || $contexto[$clave] < 1) {
                 throw new RuntimeException('La integración no devolvió un contexto académico válido.');
             }
         }
         $datos['documento_version'] = $documento['version'];
+
         $disco = Storage::disk(ArchivoService::DISCO);
         $copiar = function (string $origen, string $nombre) use ($disco, $carpeta): string {
             $destino = $carpeta.'/'.$nombre;
             if (! $disco->exists($origen) || ! $disco->copy($origen, $destino)) {
                 throw new RuntimeException('No se pudo conservar un archivo del expediente. Vuelve a adjuntarlo.');
             }
-
             return $destino;
         };
         try {
@@ -145,24 +159,54 @@ class EnvioSolicitud
             }
             for ($intento = 0; ; $intento++) {
                 try {
-                    $solicitud = DB::transaction(function () use ($usuario, $datos, $contexto, $integracion, $word, $pdf, $firmado, $respaldos) {
+                    $solicitud = DB::transaction(function () use ($usuario, $datos, $contexto, $integracion, $word, $pdf, $firmado, $respaldos, $correccion, $revisionBase) {
                         $gpa = $datos['campos']['gpa_general'] ?? null;
-                        $solicitud = Solicitud::create([
+                        $version = 1;
+                        $historialCorrecciones = [];
+                        if ($correccion) {
+                            $solicitud = Solicitud::lockForUpdate()->findOrFail($correccion->getKey());
+                            Gate::forUser($usuario)->authorize('update', $solicitud);
+                            abort_unless($revisionBase !== null && hash_equals($revisionBase, self::revision($solicitud)), 409,
+                                'La solicitud cambió mientras la corregías. Revisa su estado; descarta el borrador de corrección y vuelve a abrirla con los datos actuales.');
+                            $version = ((int) $solicitud->documentosGenerados()->max('version')) + 1;
+                            $anterior = $solicitud->detalle;
+                            $historialCorrecciones = $anterior['_versiones_anteriores'] ?? [];
+                            unset($anterior['_versiones_anteriores']);
+                            $historialCorrecciones[] = [
+                                'detalle' => $anterior, 'corregida_at' => now()->toIso8601String(),
+                                'gpa_verificado' => $solicitud->gpa_verificado,
+                                'materias' => $solicitud->materias()->with('registrosAnteriores')->get()->toArray(),
+                                'respaldos_ids' => $solicitud->respaldos()->pluck('id')->all(),
+                            ];
+                            foreach ($solicitud->materias()->get() as $materiaAnterior) {
+                                $materiaAnterior->registrosAnteriores()->delete();
+                                $materiaAnterior->delete();
+                            }
+                        }
+                        $atributos = [
                             'codigo' => $this->solicitudes->siguienteCodigo(),
                             'carrera_estudiante_id' => $contexto['carrera_estudiante_id'],
                             'tipo_tramite_id' => $contexto['tipo_tramite_id'],
                             'periodo_id' => $contexto['periodo_id'],
                             'estado_solicitud_id' => $contexto['estado_solicitud_id'],
-                            'detalle' => $datos,
+                            'detalle' => $datos + ($correccion ? ['_versiones_anteriores' => $historialCorrecciones] : []),
                             'gpa_declarado' => $gpa === '' ? null : $gpa,
                             'fecha_ultima_recuperacion' => ($datos['campos']['ultima_recuperacion'] ?? '') ?: null,
                             'declaracion_veracidad' => true,
-                        ]);
+                        ];
+                        if ($correccion) {
+                            unset($atributos['codigo'], $atributos['estado_solicitud_id']);
+                            $atributos['gpa_verificado'] = false;
+                            $solicitud->forceFill($atributos)->save();
+                        } else {
+                            $solicitud = Solicitud::create($atributos);
+                        }
                         foreach ($datos['materias'] as $materia) {
                             $academicos = $materia['datos'];
                             $fila = $solicitud->materias()->create([
                                 // El detalle conserva los datos declarados completos; vincular un curso es opcional.
-                                'curso_id' => $contexto['cursos'][$materia['id']] ?? null,
+                                'curso_id' => ($datos['origen_materias'] ?? null) === 'catalogo'
+                                    ? (int) $materia['id'] : ($contexto['cursos'][$materia['id']] ?? null),
                                 'nota_declarada' => ($academicos['nota'] ?? $academicos['calificacion'] ?? '') === '' ? null : ($academicos['nota'] ?? $academicos['calificacion']),
                                 'asistencia_declarada' => ($academicos['asistencia'] ?? '') === '' ? null : $academicos['asistencia'],
                                 'estado_declarado' => ($academicos['estado'] ?? '') ?: null,
@@ -184,29 +228,30 @@ class EnvioSolicitud
                                 'mime' => $archivo['mime'], 'tamano_bytes' => $archivo['tamano_bytes'],
                             ]);
                         }
-                        $generado = $solicitud->documentosGenerados()->create(['version' => 1, 'ruta_docx' => $word]);
+                        $generado = $solicitud->documentosGenerados()->create(['version' => $version, 'ruta_docx' => $word]);
                         $generado->documentoFirmado()->create([
                             'ruta' => $pdf, 'tamano_bytes' => $firmado['tamano_bytes'], 'subido_por' => $usuario->getKey(),
                         ]);
+                        $estadoAnterior = $solicitud->estado_solicitud_id;
                         $integracion->enviar($solicitud, $usuario);
+                        if ($correccion) {
+                            abort_if($solicitud->fresh()->estado_solicitud_id === $estadoAnterior, 409,
+                                'El adaptador de revisión no completó la transición. La corrección no se envió.');
+                        }
                         $solicitud->forceFill(['enviada_at' => now()])->save();
-
                         return $solicitud;
                     });
                     break;
                 } catch (QueryException $error) {
                     // Solo reintenta colisiones del identificador SOL; otros errores se propagan.
                     if ($intento >= 4 || ! in_array($error->getCode(), ['23000', '23505'], true)
-                        || ! str_contains($error->getMessage(), 'codigo')) {
-                        throw $error;
-                    }
+                        || ! str_contains($error->getMessage(), 'codigo')) throw $error;
                 }
             }
         } catch (\Throwable $error) {
             $disco->deleteDirectory($carpeta);
             throw $error;
         }
-
         return $solicitud;
     }
 }

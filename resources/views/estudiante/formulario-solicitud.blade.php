@@ -1,11 +1,12 @@
-<!DOCTYPE html>
-<html lang="es">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Nueva solicitud de {{ $tramite['nombre'] }} | Portal del estudiante</title>
+@extends('estudiante.layouts.marco')
+@section('titulo', 'Formulario de solicitud')
+
+@section('content')
+<div class="portal-estudiante">
+    @include('estudiante.partials.estilo-layout')
 
     <style>
+        @scope (.portal-estudiante) {
         * { box-sizing: border-box; }
         [hidden] { display: none !important; }
 
@@ -291,6 +292,8 @@
         }
 
         .estado-requisito { flex-shrink: 0; color: #596579; }
+        .requisitos-respaldo li { flex-wrap: wrap; align-items: center; }
+        .requisitos-respaldo li > span:first-child { flex: 1 1 220px; }
         .estado-requisito.listo { color: #1f7a4d; font-weight: bold; }
 
         .carga { margin-top: 24px; }
@@ -413,36 +416,39 @@
 
             .acciones { align-items: stretch; flex-direction: column; }
         }
+        }
     </style>
-</head>
-<body>
-    <header>
-        <div class="marca">
-            <img
-                class="logo"
-                src="{{ asset('images/estudiante/Logo-UEES.gif') }}"
-                alt="Universidad Espíritu Santo"
-            >
-            <strong>Portal del estudiante</strong>
-            <x-campana-notificaciones />
-        </div>
-    </header>
-
     <main>
+        <div class="portal-herramientas"><x-campana-notificaciones /></div>
         <a href="{{ route($tramite['ficha']) }}">
             ← Volver a los requisitos
         </a>
 
-        <h1>Solicitud de {{ $tramite['nombre'] }}</h1>
+        <h1>{{ ($solicitudCorreccion ?? null) ? 'Corregir solicitud '.$solicitudCorreccion->codigo : 'Solicitud de '.$tramite['nombre'] }}</h1>
+        @if ($solicitudCorreccion ?? null)
+            <p class="introduccion">Revisa las observaciones, corrige los datos y vuelve a adjuntar los respaldos requeridos. Descarga el documento actualizado y sube su nuevo PDF firmado. Las versiones anteriores se conservan.</p>
+            <section class="panel" aria-label="Observaciones de revisión">
+                <h2>Observaciones de la facultad</h2>
+                @if ($observacionesCorreccion === null)
+                    <p>La consulta de observaciones públicas todavía no está integrada con el módulo de revisión.</p>
+                @else
+                    @forelse ($observacionesCorreccion as $observacionCorreccion)
+                        <p>{{ $observacionCorreccion['texto'] }}</p>
+                    @empty
+                        <p>No hay observaciones públicas registradas.</p>
+                    @endforelse
+                @endif
+            </section>
+        @endif
 
         <p class="introduccion">
             Confirma tus datos y completa la información de tu solicitud.
         </p>
 
-        <div class="aviso">
-            Completa tus datos personales y los de tus materias.
+        <div class="introduccion">
+            Completa tus datos manualmente y selecciona las materias del catálogo académico.
             La solicitud todavía no se envía; lo que
-            escribas queda guardado temporalmente como borrador mientras tu
+            escribas queda como borrador en este navegador mientras tu
             sesión siga abierta.
         </div>
 
@@ -553,9 +559,9 @@
 
                     <p class="introduccion">{{ $tramite['instrucciones'] }}</p>
 
-                    @isset($tramite['aviso'])
+                    @if (!empty($tramite['aviso']))
                         <div class="aviso">{{ $tramite['aviso'] }}</div>
-                    @endisset
+                    @endif
 
                     @if ($tramite['max_materias'] > 0)
                         <div class="campos">
@@ -565,6 +571,9 @@
                                 </p>
 
                                 <div class="agregar-materia">
+                                    <select id="materia" aria-label="Materia del catálogo académico">
+                                        <option value="">Selecciona una materia</option>
+                                    </select>
                                     <button id="agregar-materia" class="secundario"
                                         type="button" aria-describedby="ayuda-materia">
                                         Agregar materia
@@ -575,7 +584,10 @@
                                     {{ $tramite['max_materias'] === 1
                                         ? 'Este trámite admite una sola materia.'
                                         : 'Puedes agregar hasta '.$tramite['max_materias'].' materias.' }}
-                                    Escribe el código, nombre, periodo, paralelo y docente de cada materia.
+                                    Los cursos se consultan en la base de datos académica.
+                                    @if (empty($materias))
+                                        No hay cursos disponibles. Solicita a la unidad académica que revise el catálogo.
+                                    @endif
                                 </p>
                             </div>
                         </div>
@@ -677,12 +689,20 @@
                     </p>
 
                     <h3>Documentos de este trámite</h3>
+                    @if (!$requisitosMotor['disponible'])
+                        <div class="aviso" role="alert">{{ $requisitosMotor['error'] }}</div>
+                    @elseif ($requisitosMotor['aviso'])
+                        <div class="aviso">{{ $requisitosMotor['aviso'] }}</div>
+                    @endif
+                    @if ($requisitosMotor['disponible'] && empty($tramite['documentos']))
+                        <p class="ayuda">Prolog no indica documentos de respaldo para este trámite. El PDF firmado se adjunta en el paso de revisión.</p>
+                    @endif
                     <ul id="requisitos-respaldo" class="requisitos-respaldo"></ul>
                     @if ($tramite['documentos_orientativos'] ?? false)
                         <p class="ayuda">Las opciones de respaldo son orientativas. Adjunta las que correspondan a tu caso; la facultad confirmará los documentos exigidos.</p>
                     @endif
 
-                    <div class="carga">
+                    <div class="carga" hidden>
                         <x-subir-archivo id="archivos" name="archivo"
                             accept="pdf,jpg,png" max="10240" multiple
                             :vista-previa="false" />
@@ -712,7 +732,7 @@
                     <p class="ayuda">
                         Tus archivos se guardan de forma temporal mientras
                         completas el formulario. Quedarán unidos a tu
-                        solicitud al enviarla a revisión.
+                        solicitud cuando el guardado esté disponible.
                     </p>
                 </section>
 
@@ -760,11 +780,9 @@
                         <ul id="lista-respaldos" class="lista-resumen"></ul>
                     </section>
 
-                    <div class="aviso">
-                        La pre-validación de elegibilidad todavía no está
-                        conectada con el motor de reglas. La asistente
-                        revisará tu caso.
-                    </div>
+                    @if ($requisitosMotor['aviso'])
+                        <div class="aviso">{{ $requisitosMotor['aviso'] }}</div>
+                    @endif
 
                     <label class="confirmacion" for="declaracion">
                         <input id="declaracion" type="checkbox" required>
@@ -841,7 +859,7 @@
                             corresponde al documento descargado y a los datos actuales.
                         </p>
                         <button id="enviar-solicitud" class="principal" type="button" disabled>
-                            Enviar a revisión
+                            {{ ($solicitudCorreccion ?? null) ? 'Reenviar a revisión' : 'Enviar a revisión' }}
                         </button>
                         @unless ($envioDisponible)
                             <p class="ayuda">Inicia sesión para enviar tu solicitud.</p>
@@ -885,10 +903,26 @@
     </main>
 
     <script>
-        // Los datos personales y de las materias son declarados en este formulario.
+        const idSolicitudCorreccion = @json(($solicitudCorreccion ?? null)?->getKey());
+        // Aisla todos los temporales de esta corrección, incluidos visor y borradores.
+        function fetchSolicitud(url, opciones) {
+            const destino = new URL(url, window.location.href);
+            if (idSolicitudCorreccion && destino.origin === window.location.origin) {
+                destino.searchParams.set('solicitud_correccion', idSolicitudCorreccion);
+            }
+            return window.fetch(destino.toString(), opciones);
+        }
+        // Definición publicada del trámite y cursos de la base académica.
         const tramite = @json($tramite);
         const camposPersonales = @json($camposPersonales);
         const camposMateriaManual = @json($camposMateriaManual);
+        const materiasCatalogo = @json($materias);
+        const selectorCatalogo = document.getElementById('materia');
+        if (selectorCatalogo) {
+            materiasCatalogo.forEach(materia => {
+                selectorCatalogo.append(new Option(`${materia.codigo} — ${materia.nombre} (${materia.periodo}, ${materia.paralelo})`, materia.id));
+            });
+        }
         const catalogoFacultades = @json($catalogoFacultades);
 
         function actualizarCarreras(valorGuardado = '') {
@@ -1155,6 +1189,7 @@
                         `materia-${indice}-manual-${clave}`, `materias[${indice}][${clave}]`);
                     const control = campo.querySelector('input');
                     control.value = materia[clave] ?? '';
+                    control.readOnly = true;
                     control.addEventListener('input', () => {
                         materia[clave] = control.value;
                         titulo.textContent = materia.nombre ? `${materia.codigo} — ${materia.nombre}` : `Materia ${indice + 1}`;
@@ -1222,8 +1257,17 @@
             document.getElementById('agregar-materia')
                 .addEventListener('click', () => {
                     if (elegidas.length >= tramite.max_materias) return;
-                    const id = globalThis.crypto?.randomUUID?.() ?? `materia-${Date.now()}-${Math.random().toString(36).slice(2)}`;
-                    elegidas.push({ id, codigo: '', nombre: '', periodo: '', paralelo: '', docente: '', datos: {} });
+                    const materia = materiasCatalogo.find(item => String(item.id) === selectorCatalogo.value);
+                    if (!materia) {
+                        errorMaterias.textContent = 'Selecciona una materia del catálogo académico.';
+                        selectorCatalogo.focus();
+                        return;
+                    }
+                    if (elegidas.some(item => String(item.id) === String(materia.id))) {
+                        errorMaterias.textContent = 'Esta materia ya está agregada.';
+                        return;
+                    }
+                    elegidas.push({ ...materia, datos: {} });
                     errorMaterias.textContent = '';
                     pintarMaterias();
                     document.getElementById(`materia-${elegidas.length - 1}-manual-codigo`).focus();
@@ -1287,6 +1331,8 @@
 
         // Paso 3: respaldos que pide este trámite.
         const requisitosRespaldo = tramite.documentos;
+        const requisitosDisponibles = @json($requisitosMotor['disponible']);
+        let requisitoElegido = null;
 
         const urlRespaldos = @json(route('respaldos-temporales.store'));
         const cabecerasRespaldos = {
@@ -1301,7 +1347,7 @@
         const archivos = @json($respaldosSubidos)
             .map(respaldo => ({
                 ...respaldo,
-                requisito: borrador?.requisitos[respaldo.id] ?? ''
+                requisito: borrador?.requisitos[respaldo.id] ?? respaldo.requisito ?? ''
             }));
 
         const entradaArchivos = document.getElementById('archivos');
@@ -1331,20 +1377,37 @@
                 const estado = document.createElement('span');
 
                 nombre.textContent = requisito.nombre +
-                    (requisito.obligatorio ? ' (obligatorio)' : ' (opcional)');
+                    (requisito.obligacion === 'condicional' ? ' (según tu caso)' : (requisito.obligatorio ? ' (obligatorio)' : ' (opcional)'));
 
                 estado.className = 'estado-requisito' + (cantidad ? ' listo' : '');
                 estado.textContent = cantidad === 0
                     ? 'Sin adjuntar'
                     : `${cantidad} ${cantidad === 1 ? 'archivo' : 'archivos'}`;
 
-                fila.append(nombre, estado);
+                const adjuntar = document.createElement('button');
+                adjuntar.type = 'button';
+                adjuntar.className = 'secundario';
+                adjuntar.textContent = 'Adjuntar archivo';
+                adjuntar.setAttribute('aria-label', `Adjuntar ${requisito.nombre}`);
+                adjuntar.disabled = entradaArchivos.disabled;
+                adjuntar.addEventListener('click', () => {
+                    requisitoElegido = requisito.id;
+                    entradaArchivos.value = '';
+                    entradaArchivos.click();
+                });
+                if (requisito.descripcion || requisito.formato) {
+                    const detalle = document.createElement('small');
+                    detalle.style.display = 'block';
+                    detalle.textContent = [requisito.descripcion, requisito.formato].filter(Boolean).join(' · ');
+                    nombre.append(detalle);
+                }
+                fila.append(nombre, estado, adjuntar);
                 lista.append(fila);
             });
         }
 
         async function abrirVisor(url) {
-            const respuesta = await fetch(url, {
+            const respuesta = await fetchSolicitud(url, {
                 headers: { 'Accept': 'text/html' }
             }).catch(() => null);
 
@@ -1364,7 +1427,7 @@
         }
 
         async function quitarRespaldo(item) {
-            const respuesta = await enCola(() => fetch(`${urlRespaldos}/${item.id}`, {
+            const respuesta = await enCola(() => fetchSolicitud(`${urlRespaldos}/${item.id}`, {
                 method: 'DELETE',
                 headers: cabecerasRespaldos
             }).catch(() => null));
@@ -1436,7 +1499,7 @@
 
                     if (await quitarRespaldo(item)) {
                         pintarArchivos();
-                        entradaArchivos.focus();
+                        document.querySelector('#requisitos-respaldo button')?.focus();
                     } else {
                         quitar.disabled = false;
                     }
@@ -1453,12 +1516,13 @@
             pintarRequisitos();
         }
 
-        async function subirRespaldo(archivo) {
+        async function subirRespaldo(archivo, requisito) {
             const datos = new FormData();
             datos.append('tramite', @json($codigoTramite));
             datos.append('archivo', archivo);
+            datos.append('requisito', requisito);
 
-            const respuesta = await enCola(() => fetch(urlRespaldos, {
+            const respuesta = await enCola(() => fetchSolicitud(urlRespaldos, {
                 method: 'POST',
                 headers: cabecerasRespaldos,
                 body: datos
@@ -1478,7 +1542,7 @@
             const error = await respuesta?.json().catch(() => null);
 
             return motivos[respuesta?.status] ??
-                error?.errors?.archivo?.[0] ??
+                error?.errors?.archivo?.[0] ?? error?.errors?.requisito?.[0] ?? error?.message ??
                 'No se pudo subir. Inténtalo de nuevo.';
         }
 
@@ -1486,33 +1550,30 @@
         // hasta 10 MB; el servidor lo vuelve a comprobar al guardar.
         document.getElementById('paso-3')
             .addEventListener('subir-archivo:cambio', async evento => {
+                const requisito = requisitoElegido;
+                if (!requisitosDisponibles || !requisitosRespaldo.some(item => item.id === requisito)) return;
                 const nuevos = evento.detail.archivos.filter(archivo =>
                     !archivos.some(item =>
                         item.nombre_original === archivo.name &&
-                        item.tamano_bytes === archivo.size
+                        item.tamano_bytes === archivo.size && item.requisito === requisito
                     )
                 );
                 const fallidos = [];
 
                 errorArchivos.textContent = '';
                 entradaArchivos.disabled = true;
+                pintarRequisitos();
 
                 for (const [indice, archivo] of nuevos.entries()) {
                     estadoArchivos.textContent =
                         `Subiendo ${indice + 1} de ${nuevos.length}: ${archivo.name}…`;
 
                     try {
-                        const subido = await subirRespaldo(archivo);
-
-                        // Si solo hay un requisito pendiente obligatorio, se sugiere ese.
-                        const pendiente = requisitosRespaldo.find(requisito =>
-                            requisito.obligatorio &&
-                            !archivos.some(item => item.requisito === requisito.id)
-                        );
+                        const subido = await subirRespaldo(archivo, requisito);
 
                         archivos.push({
                             ...subido,
-                            requisito: pendiente ? pendiente.id : ''
+                            requisito
                         });
                         pintarArchivos();
                     } catch (error) {
@@ -1522,6 +1583,8 @@
 
                 entradaArchivos.value = '';
                 entradaArchivos.disabled = false;
+                requisitoElegido = null;
+                pintarRequisitos();
                 estadoArchivos.textContent = '';
                 errorArchivos.textContent = fallidos.join(' ');
                 programarGuardado();
@@ -1539,6 +1602,11 @@
             .addEventListener('click', () => {
                 const sinRequisito = listaArchivos.querySelector('select:invalid');
 
+                if (!requisitosDisponibles) {
+                    errorArchivos.textContent = 'No puedes continuar sin consultar los requisitos en Prolog. Recarga la página.';
+                    return;
+                }
+
                 if (sinRequisito) {
                     sinRequisito.reportValidity();
                     return;
@@ -1553,7 +1621,7 @@
                     errorArchivos.textContent =
                         'Falta adjuntar: ' +
                         faltantes.map(item => item.nombre).join('; ') + '.';
-                    entradaArchivos.focus();
+                    document.querySelector('#requisitos-respaldo button')?.focus();
                     return;
                 }
 
@@ -1626,7 +1694,7 @@
                     r => r.id === item.requisito
                 );
                 const fila = document.createElement('li');
-                fila.textContent = `${item.nombre_original} — ${requisito.nombre}`;
+                fila.textContent = `${item.nombre_original} — ${requisito?.nombre ?? 'Tipo de documento no vigente: vuelve a asignarlo'}`;
                 listaRespaldos.append(fila);
             });
 
@@ -1685,7 +1753,7 @@
                     const formato = document.getElementById('formato-documento').value;
                     mensaje.textContent = 'Preparando el documento…';
                     try {
-                        const respuesta = await enCola(() => fetch(@json(route('solicitudes.documento')), {
+                        const respuesta = await enCola(() => fetchSolicitud(@json(route('solicitudes.documento')), {
                             method: 'POST',
                             headers: {'Content-Type': 'application/json', 'Accept': 'application/json', 'X-CSRF-TOKEN': @json(csrf_token())},
                             body: JSON.stringify({...datosBorrador(), formato, tramite: @json($codigoTramite), nombre: textoDe('nombre'), codigo: textoDe('codigo'), carrera: textoDe('carrera'), correo: textoDe('correo'), declaracion: declaracion.checked})
@@ -1714,7 +1782,7 @@
                             mensaje.textContent = 'PDF descargado. Revísalo, imprímelo, fírmalo y sube el PDF firmado. Descargar no envía la solicitud.';
                             return;
                         }
-                        mensaje.textContent = 'Word descargado con los datos que completaste. Revísalo, conviértelo a PDF, imprímelo, fírmalo y sube abajo el PDF firmado. La solicitud todavía no se envía.';
+                        mensaje.textContent = 'Word descargado con los datos ingresados. Imprímelo, fírmalo y sube abajo el PDF firmado. La descarga no envía la solicitud a revisión.';
                     } catch (error) {
                         mensaje.textContent = error.message;
                     } finally {
@@ -1763,7 +1831,7 @@
             estadoFirmado.textContent = `Subiendo ${archivo.name}…`;
             entradaFirmado.disabled = true;
 
-            const respuesta = await enCola(() => fetch(urlFirmado, {
+            const respuesta = await enCola(() => fetchSolicitud(urlFirmado, {
                 method: 'POST',
                 headers: cabecerasRespaldos,
                 body: datos
@@ -1791,7 +1859,7 @@
 
         document.getElementById('quitar-firmado')
             .addEventListener('click', async () => {
-                const respuesta = await enCola(() => fetch(urlFirmado, {
+                const respuesta = await enCola(() => fetchSolicitud(urlFirmado, {
                     method: 'DELETE',
                     headers: cabecerasRespaldos
                 }).catch(() => null));
@@ -1824,7 +1892,7 @@
             boton.disabled = true;
             mensaje.textContent = 'Guardando el expediente y enviando a revisión…';
             try {
-                const respuesta = await enCola(() => fetch(@json(route('solicitudes.enviar')), {
+                const respuesta = await enCola(() => fetchSolicitud(@json(($solicitudCorreccion ?? null) ? route('solicitudes.reenviar', $solicitudCorreccion) : route('solicitudes.enviar')), {
                     method: 'POST',
                     headers: {'Content-Type': 'application/json', 'Accept': 'application/json', 'X-CSRF-TOKEN': @json(csrf_token())},
                     body: JSON.stringify(datosEnvio)
@@ -1868,6 +1936,7 @@
             return {
                 ...Object.fromEntries(Object.keys(camposPersonales).map(clave => [clave, textoDe(clave)])),
                 paso: pasoActual,
+                origen_materias: 'catalogo',
                 materias: elegidas.map(materia => ({ id: materia.id,
                     ...Object.fromEntries(Object.keys(camposMateriaManual).map(clave => [clave, (materia[clave] ?? '').trim()])),
                     datos: Object.fromEntries(Object.entries(materia.datos).map(([clave, valor]) =>
@@ -1878,7 +1947,7 @@
         }
 
         function enviarBorrador(opciones = {}) {
-            return fetch(urlBorrador, {
+            return fetchSolicitud(urlBorrador, {
                 method: 'PUT',
                 headers: { ...cabecerasRespaldos, 'Content-Type': 'application/json' },
                 body: JSON.stringify(datosBorrador()),
@@ -1962,7 +2031,7 @@
 
             cancelarGuardado();
 
-            const respuesta = await enCola(() => fetch(urlBorrador, {
+            const respuesta = await enCola(() => fetchSolicitud(urlBorrador, {
                 method: 'DELETE',
                 headers: cabecerasRespaldos
             }).catch(() => null));
@@ -2036,7 +2105,8 @@
             actualizarCondicionales();
 
             (borrador.materias ?? []).slice(0, tramite.max_materias).forEach(guardada => {
-                elegidas.push({ ...guardada, datos: { ...guardada.datos } });
+                const actual = materiasCatalogo.find(item => String(item.id) === String(guardada.id));
+                elegidas.push({ ...guardada, ...actual, datos: { ...guardada.datos } });
             });
 
             if (tramite.max_materias > 0) {
@@ -2057,5 +2127,5 @@
         pintarArchivos();
     </script>
     @include('estudiante.partials.chatbot-flotante')
-</body>
-</html>
+</div>
+@endsection

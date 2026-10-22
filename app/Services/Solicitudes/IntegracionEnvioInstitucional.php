@@ -39,11 +39,17 @@ class IntegracionEnvioInstitucional implements IntegracionEnvio
 
     public function enviar(Solicitud $solicitud, User $usuario): void
     {
-        if ((int) $solicitud->carreraEstudiante->user_id !== $usuario->id) {
+        if (! $usuario->activo || $usuario->tipo !== 'estudiante'
+            || (int) $solicitud->carreraEstudiante->user_id !== (int) $usuario->id) {
             abort(403);
         }
+        $anterior = $solicitud->estadoSolicitud->codigo;
+        abort_unless(in_array($anterior, ['borrador', 'observada', 'observado'], true), 409,
+            'La solicitud no está disponible para enviar a revisión.');
         $estado = EstadoSolicitud::where('codigo', 'enviada')->firstOrFail();
-        HistorialSolicitud::create(['solicitud_id' => $solicitud->id, 'estado_anterior' => 'borrador', 'estado_nuevo' => 'enviada', 'user_id' => $usuario->id, 'comentario' => 'Solicitud enviada para revisión de la facultad.', 'visible_estudiante' => true]);
+        HistorialSolicitud::create(['solicitud_id' => $solicitud->id, 'estado_anterior' => $anterior, 'estado_nuevo' => 'enviada', 'user_id' => $usuario->id, 'comentario' => $anterior === 'borrador'
+            ? 'Solicitud enviada para revisión de la facultad.'
+            : 'Solicitud corregida y reenviada para revisión de la facultad.', 'visible_estudiante' => true]);
         $solicitud->forceFill(['estado_solicitud_id' => $estado->id])->save();
     }
 }

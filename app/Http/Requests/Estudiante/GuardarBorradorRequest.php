@@ -26,6 +26,7 @@ class GuardarBorradorRequest extends FormRequest
         abort_if($definicion === null, 404);
 
         $reglas = [
+            'origen_materias' => ['sometimes', 'in:catalogo'],
             'paso' => ['required', 'integer', 'between:1,4'],
             'nombre' => ['nullable', 'string', 'max:150'],
             'codigo' => ['nullable', 'string', 'max:30'],
@@ -59,12 +60,19 @@ class GuardarBorradorRequest extends FormRequest
             'requisitos' => ['array'],
             'requisitos.*' => [
                 'nullable',
-                Rule::in(array_column($definicion['documentos'], 'id')),
+                'string', 'max:150', // Se comprueba contra Prolog al subir y al enviar; el borrador puede guardarse sin motor.
             ],
         ];
         $reglas = array_replace($reglas, DatosFormularioSolicitud::reglas(true));
         foreach (CatalogoFacultades::restricciones($this->input('facultad')) as $campo => $regla) {
             $reglas[$campo][] = $regla;
+        }
+
+        if ($this->input('requisitos')) {
+            $consulta = app(\App\Services\Solicitudes\RequisitosSolicitud::class)->paraVista($codigoTramite);
+            if ($consulta['disponible']) {
+                $reglas['requisitos.*'][] = Rule::in(array_column($consulta['documentos'], 'id'));
+            }
         }
 
         // Valida los campos según la definición de cada trámite.
@@ -80,14 +88,17 @@ class GuardarBorradorRequest extends FormRequest
             }
         }
 
+        if ($this->input('origen_materias') === 'catalogo') {
+            $reglas['materias.*.id'][] = Rule::in(array_column(app(\App\Services\Solicitudes\MateriasSolicitud::class)->todas(), 'id'));
+        }
         return $reglas;
     }
 
     protected function prepareForValidation(): void
     {
+        $this->merge(app(\App\Services\Solicitudes\MateriasSolicitud::class)->entrada($this->all()));
         $this->merge(DatosFormularioSolicitud::limpiarEntrada($this->all()));
         $this->merge(CatalogoFacultades::normalizar($this->all()));
-        $this->merge(DatosFormularioSolicitud::cuenta($this->user()));
     }
 
     public function withValidator(Validator $validador): void

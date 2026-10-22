@@ -16,19 +16,20 @@ class DocumentosTemporales
 
     public function guardar(string $tramite, string $word, array $datos): void
     {
+        $clave = ContextoCorreccion::clave($tramite);
         $ruta = $this->respaldos->carpeta().'/'.Str::uuid().'.docx';
         if (! Storage::disk(ArchivoService::DISCO)->put($ruta, $word)) {
             throw new RuntimeException('No se pudo conservar el documento generado.');
         }
         $this->quitar($tramite);
-        $this->sesion->put('documentos_temporales.'.$tramite, [
+        $this->sesion->put('documentos_temporales.'.$clave, [
             'ruta' => $ruta, 'version' => (string) Str::uuid(), 'datos' => $datos, 'hash_datos' => $this->huella($datos),
         ]);
     }
 
     public function buscar(string $tramite): ?array
     {
-        return $this->sesion->get('documentos_temporales.'.$tramite);
+        return $this->sesion->get('documentos_temporales.'.ContextoCorreccion::clave($tramite));
     }
 
     public function huella(array $datos): string
@@ -49,6 +50,6 @@ class DocumentosTemporales
         if ($documento = $this->buscar($tramite)) {
             Storage::disk(ArchivoService::DISCO)->delete($documento['ruta']);
         }
-        $this->sesion->forget('documentos_temporales.'.$tramite);
+        $this->sesion->forget('documentos_temporales.'.ContextoCorreccion::clave($tramite));
     }
 }

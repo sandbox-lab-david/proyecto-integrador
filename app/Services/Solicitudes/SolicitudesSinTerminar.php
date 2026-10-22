@@ -31,16 +31,27 @@ class SolicitudesSinTerminar
         $sinTerminar = [];
 
         foreach ($this->borradores->todos() as $codigo => $borrador) {
+            $claveTemporal = $codigo;
+            $enlaces = [];
+            if (preg_match('/^correccion-(\d+)--([a-z0-9_-]+)$/', $codigo, $partes)) {
+                $expediente = \App\Models\Solicitud::find((int) $partes[1]);
+                if (! $expediente || ! \Illuminate\Support\Facades\Gate::allows('update', $expediente)) continue;
+                $codigo = $partes[2];
+                $enlaces = [
+                    'url' => route('solicitudes.edit', $expediente),
+                    'descartar_url' => route('borradores-temporales.destroy', ['tramite' => $codigo, 'solicitud_correccion' => $expediente->getKey()]),
+                ];
+            }
             $tramite = $this->tramites->buscar($codigo);
 
             if ($tramite !== null) {
-                $sinTerminar[] = [
+                $sinTerminar[] = $enlaces + [
                     'codigo' => $codigo,
-                    'nombre' => Str::ucfirst($tramite['nombre']),
+                    'nombre' => ($enlaces ? 'Corrección de '.$expediente->codigo.' — ' : '').Str::ucfirst($tramite['nombre']),
                     'paso' => $borrador['paso'],
                     'guardado_at' => $borrador['guardado_at'],
-                    'respaldos' => count($this->respaldos->delTramite($codigo)),
-                    'firmado' => $this->firmados->delTramite($codigo)['nombre_original'] ?? null,
+                    'respaldos' => count($this->respaldos->delTramite($claveTemporal)),
+                    'firmado' => $this->firmados->delTramite($claveTemporal)['nombre_original'] ?? null,
                 ];
             }
         }

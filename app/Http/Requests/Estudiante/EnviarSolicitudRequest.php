@@ -3,17 +3,15 @@
 namespace App\Http\Requests\Estudiante;
 
 use App\Services\Solicitudes\TramitesSimulados;
-use Illuminate\Validation\Rule;
 
 class EnviarSolicitudRequest extends GenerarDocumentoRequest
 {
     public function rules(TramitesSimulados $tramites): array
     {
-        $definicion = $tramites->buscar((string) $this->input('tramite'));
         $reglas = parent::rules($tramites) + [
             'clave_envio' => ['required', 'uuid'],
             'requisitos' => ['present', 'array'],
-            'requisitos.*' => ['required', Rule::in(array_column($definicion['documentos'] ?? [], 'id'))],
+            'requisitos.*' => ['required', 'string', 'max:150'], // La lista vigente la valida EnvioSolicitud consultando Prolog.
         ];
         return $reglas;
     }

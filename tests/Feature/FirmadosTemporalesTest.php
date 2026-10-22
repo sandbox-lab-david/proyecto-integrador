@@ -12,13 +12,15 @@ use Tests\TestCase;
  */
 class FirmadosTemporalesTest extends TestCase
 {
+    use MateriasCatalogoPrueba;
+
     use ArchivosDePrueba;
 
     protected function setUp(): void
     {
         parent::setUp();
 
-        Storage::fake('local');
+        $this->discoTemporal();
     }
 
     private function subir($archivo, string $tramite = 'recuperacion'): TestResponse

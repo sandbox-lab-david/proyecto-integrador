@@ -13,6 +13,8 @@ use Tests\TestCase;
 
 class NotasYFechasSolicitudTest extends TestCase
 {
+    use SesionEstudiantePrueba;
+
     protected function setUp(): void
     {
         parent::setUp();

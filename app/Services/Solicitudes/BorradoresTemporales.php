@@ -24,7 +24,7 @@ class BorradoresTemporales
     {
         $borrador = $datos + ['guardado_at' => now()->toIso8601String()];
 
-        $this->sesion->put(self::SESION.'.'.$tramite, $borrador);
+        $this->sesion->put(self::SESION.'.'.ContextoCorreccion::clave($tramite), $borrador);
 
         return $borrador;
     }
@@ -34,7 +34,7 @@ class BorradoresTemporales
      */
     public function buscar(string $tramite): ?array
     {
-        return $this->todos()[$tramite] ?? null;
+        return $this->todos()[ContextoCorreccion::clave($tramite)] ?? null;
     }
 
     /**
@@ -47,6 +47,6 @@ class BorradoresTemporales
 
     public function descartar(string $tramite): void
     {
-        $this->sesion->forget(self::SESION.'.'.$tramite);
+        $this->sesion->forget(self::SESION.'.'.ContextoCorreccion::clave($tramite));
     }
 }

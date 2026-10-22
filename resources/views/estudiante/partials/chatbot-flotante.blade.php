@@ -25,7 +25,7 @@
     $rutaChatbot = request()->route()?->getName() ?? '';
     $codigoChatbot = str_starts_with($rutaChatbot, 'estudiante.tramites.')
         ? substr($rutaChatbot, strlen('estudiante.tramites.'))
-        : request()->query('tramite');
+        : (request()->route('tramite') ?? request()->query('tramite'));
     $tramiteChatbot = is_string($codigoChatbot)
         ? ($codigosChatbot[$codigoChatbot] ?? null)
         : null;

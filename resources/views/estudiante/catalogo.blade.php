@@ -1,11 +1,12 @@
-<!DOCTYPE html>
-<html lang="es">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Trámites | Portal del estudiante</title>
+@extends('estudiante.layouts.marco')
+@section('titulo', 'Catálogo de trámites')
+
+@section('content')
+<div class="portal-estudiante">
+    @include('estudiante.partials.estilo-layout')
 
     <style>
+        @scope (.portal-estudiante) {
         * {
             box-sizing: border-box;
         }
@@ -751,30 +752,10 @@
         @media (max-width: 600px) {
             .opciones-categoria { grid-template-columns: 1fr; }
         }
+        }
     </style>
-</head>
-<body>
-    <header class="encabezado-portal">
-    <div class="marca-portal">
-        <img
-            class="logo-uees"
-            src="{{ asset('images/estudiante/Logo-UEES.gif') }}"
-            alt="Universidad Espíritu Santo — UEES"
-        >
-
-        <div class="titulo-portal">
-            <strong>Portal del estudiante</strong>
-            <span>Tus solicitudes académicas, en un solo lugar</span>
-        </div>
-
-        <a class="enlace-solicitudes" href="{{ route('solicitudes.index') }}">
-            Mis solicitudes
-        </a>
-        <x-campana-notificaciones />
-    </div>
-</header>
-
     <main>
+        <div class="portal-herramientas"><a class="portal-mis-solicitudes" href="{{ route('solicitudes.index') }}">Mis solicitudes <span aria-hidden="true">→</span></a><x-campana-notificaciones /></div>
        <section class="portada-catalogo">
             <span class="portada-etiqueta">GESTIONES ACADÉMICAS</span>
 
@@ -805,7 +786,7 @@
                                 </span>
                             </div>
 
-                            <a href="{{ route('solicitudes.create', ['tramite' => $borrador['codigo']]) }}"
+                            <a href="{{ $borrador['url'] ?? route('solicitudes.create', ['tramite' => $borrador['codigo']]) }}"
                                 aria-label="Continuar la solicitud de {{ $borrador['nombre'] }}">
                                 Continuar →
                             </a>
@@ -1149,5 +1130,5 @@
         mostrarTramites();
     </script>
     @include('estudiante.partials.chatbot-flotante')
-</body>
-</html>
+</div>
+@endsection

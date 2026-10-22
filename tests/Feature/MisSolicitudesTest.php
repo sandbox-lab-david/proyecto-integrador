@@ -16,6 +16,8 @@ use Tests\TestCase;
  */
 class MisSolicitudesTest extends TestCase
 {
+    use MateriasCatalogoPrueba;
+
     use ArchivosDePrueba;
 
     private const FALTA_SEGUIMIENTO = 'Pendiente: requiere EstudianteService y AutorizacionService (G1), EstadoSolicitudService, <x-estado-badge> y <x-linea-tiempo> (G3) y TipoTramite (G4).';
@@ -24,7 +26,7 @@ class MisSolicitudesTest extends TestCase
     {
         parent::setUp();
 
-        Storage::fake('local');
+        $this->discoTemporal();
     }
 
     private function guardarBorrador(string $tramite = 'recuperacion', int $paso = 2): void

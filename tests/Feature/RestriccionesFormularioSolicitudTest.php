@@ -9,6 +9,8 @@ use Tests\TestCase;
 
 class RestriccionesFormularioSolicitudTest extends TestCase
 {
+    use SesionEstudiantePrueba;
+
     protected function setUp(): void
     {
         parent::setUp();

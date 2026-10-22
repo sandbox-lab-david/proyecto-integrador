@@ -1,15 +1,12 @@
-<!DOCTYPE html>
-<html lang="es">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Mis solicitudes | Portal del estudiante</title>
+@extends('estudiante.layouts.marco')
+@section('titulo', 'Mis solicitudes')
+
+@section('content')
+<div class="portal-estudiante">
+    @include('estudiante.partials.estilo-layout')
 
     @include('estudiante.partials.estilo-ficha')
     @include('estudiante.partials.estilo-seguimiento')
-</head>
-<body>
-    @include('estudiante.partials.encabezado-ficha')
 
     <main>
         <a class="volver" href="{{ route('estudiante.catalogo') }}">
@@ -57,13 +54,13 @@
 
                                 <div class="acciones-solicitud">
                                     <a class="boton-fila"
-                                        href="{{ route('solicitudes.create', ['tramite' => $pendiente['codigo']]) }}"
+                                        href="{{ $pendiente['url'] ?? route('solicitudes.create', ['tramite' => $pendiente['codigo']]) }}"
                                         aria-label="Continuar la solicitud de {{ $pendiente['nombre'] }}">
                                         Continuar →
                                     </a>
 
                                     <button class="boton-fila boton-secundario" type="button"
-                                        data-descartar="{{ route('borradores-temporales.destroy', $pendiente['codigo']) }}"
+                                        data-descartar="{{ $pendiente['descartar_url'] ?? route('borradores-temporales.destroy', $pendiente['codigo']) }}"
                                         data-nombre="{{ $pendiente['nombre'] }}"
                                         aria-label="Descartar la solicitud de {{ $pendiente['nombre'] }}">
                                         Descartar
@@ -142,5 +139,5 @@
         });
     </script>
     @include('estudiante.partials.chatbot-flotante')
-</body>
-</html>
+</div>
+@endsection

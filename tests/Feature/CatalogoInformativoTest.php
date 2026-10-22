@@ -16,7 +16,7 @@ use Tests\TestCase;
 
 class CatalogoInformativoTest extends TestCase
 {
-    use RefreshDatabase;
+    use RefreshDatabase, RequisitosPrologPrueba;
 
     protected function setUp(): void
     {
