@@ -4,8 +4,18 @@ namespace App\Enums;
 
 enum EstadoInscripcion: string
 {
-    case INSCRITO = 'inscrito';
+    case ACTIVO = 'activo';
+    case INACTIVO = 'inactivo';
+    case EGRESADO = 'egresado';
     case RETIRADO = 'retirado';
-    case PENDIENTE = 'pendiente';
-    case APROBADO = 'aprobado';
+
+    public function etiqueta(): string
+    {
+        return ucfirst($this->value);
+    }
+
+    public static function valores(): array
+    {
+        return array_column(self::cases(), 'value');
+    }
 }

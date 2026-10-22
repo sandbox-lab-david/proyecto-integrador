@@ -2,40 +2,88 @@
 
 namespace Database\Seeders;
 
-use Illuminate\Database\Console\Seeds\WithoutModelEvents;
-use Illuminate\Database\Seeder;
 use App\Models\Carrera;
 use App\Models\Facultad;
+use Illuminate\Database\Seeder;
 
 class CarreraSeeder extends Seeder
 {
-    /**
-     * Run the database seeds.
-     */
+    public const SIN_TERCER_REGISTRO = ['MED', 'ENF'];
+
+    public const CARRERAS = [
+        'ING' => [
+            'CIV' => 'Ingeniería Civil',
+            'COMP' => 'Ingeniería en Computación',
+            'AMB' => 'Ingeniería Ambiental',
+            'BIO' => 'Ingeniería en Biodiversidad y Recursos Genéticos',
+            'IND' => 'Ingeniería Industrial',
+        ],
+        'ARQ' => [
+            'ARQ' => 'Arquitectura',
+            'ARQI' => 'Arquitectura de Interiores',
+            'ARQU' => 'Arquitectura y Urbanismo',
+        ],
+        'COM' => [
+            'COMU' => 'Comunicación',
+            'DGI' => 'Diseño Gráfico Interactivo',
+            'PER' => 'Periodismo',
+            'MKT' => 'Marketing y Transmedia',
+            'PMC' => 'Producción para Medios de Comunicación',
+            'GMC' => 'Gestión de Medios y Contenidos',
+        ],
+        'SAL' => [
+            'MED' => 'Medicina',
+            'ODO' => 'Odontología',
+            'NUT' => 'Nutrición y Dietética',
+            'ENF' => 'Enfermería',
+        ],
+        'DER' => [
+            'DER' => 'Derecho',
+            'CPOL' => 'Ciencias Políticas',
+        ],
+        'ENE' => [
+            'NDIG' => 'Negocios Digitales',
+            'ECO' => 'Economía',
+            'ADM' => 'Administración de Empresas',
+            'CEXT' => 'Comercio Exterior',
+            'FIN' => 'Finanzas',
+            'CAU' => 'Contabilidad y Auditoría',
+        ],
+        'EIN' => [
+            'NINT' => 'Negocios Internacionales',
+            'ARH' => 'Administración Internacional de Recursos Humanos',
+        ],
+        'TUR' => [
+            'TUR' => 'Turismo',
+            'NENT' => 'Negocios de Entretenimiento',
+            'NTI' => 'Negocios Turísticos Internacionales',
+        ],
+        'HUM' => [
+            'PSC' => 'Psicología Clínica',
+            'PSO' => 'Psicología Organizacional',
+            'EDU' => 'Educación',
+            'DAN' => 'Danza',
+            'AMU' => 'Artes Musicales',
+            'PMU' => 'Producción Musical',
+            'TMU' => 'Teatro Musical',
+        ],
+    ];
+
     public function run(): void
     {
-    
-        $facultadIngenieria = Facultad::where('codigo', 'ING')->first();
-        $facultadMedicina = Facultad::where('codigo', 'MED')->first();
+        foreach (self::CARRERAS as $codigoFacultad => $carreras) {
+            $facultad = Facultad::where('codigo', $codigoFacultad)->firstOrFail();
 
-        // Carreras de Ingeniería
-        Carrera::create([
-            'facultad_id' => $facultadIngenieria->id,
-            'codigo' => 'SIS',
-            'nombre' => 'Ingeniería en Sistemas',
-            'nivel' => 'grado',
-            'admite_tercer_registro' => true,
-            'activo' => true,
-        ]);
-
-        // Carreras de Medicina
-        Carrera::create([
-            'facultad_id' => $facultadMedicina->id,
-            'codigo' => 'MED-GEN',
-            'nombre' => 'Medicina',
-            'nivel' => 'grado',
-            'admite_tercer_registro' => false,
-            'activo' => true,
-        ]);
+            foreach ($carreras as $codigo => $nombre) {
+                Carrera::create([
+                    'facultad_id' => $facultad->id,
+                    'codigo' => $codigo,
+                    'nombre' => $nombre,
+                    'nivel' => 'grado',
+                    'admite_tercer_registro' => ! in_array($codigo, self::SIN_TERCER_REGISTRO, true),
+                    'activo' => true,
+                ]);
+            }
+        }
     }
 }

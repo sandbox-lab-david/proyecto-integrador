@@ -73,29 +73,18 @@ class AccesoYRolesTest extends TestCase
         $this->get('/')->assertRedirect(route('dashboard'));
     }
 
-    public function test_el_registro_exige_correo_institucional(): void
+    public function test_no_hay_registro_publico(): void
     {
-        $this->post('/register', [
-            'name' => 'Ana Pérez',
-            'email' => 'ana@gmail.com',
-            'password' => 'ClaveSegura123',
-            'password_confirmation' => 'ClaveSegura123',
-        ])->assertSessionHasErrors(['email' => 'Usa tu correo institucional @uees.edu.ec.']);
-
-        $this->assertGuest();
-    }
-
-    public function test_el_registro_siempre_crea_estudiantes(): void
-    {
+        $this->get('/register')->assertNotFound();
         $this->post('/register', [
             'name' => 'Ana Pérez',
             'email' => 'ana.perez@uees.edu.ec',
-            'tipo' => 'trabajador',
             'password' => 'ClaveSegura123',
             'password_confirmation' => 'ClaveSegura123',
-        ])->assertRedirect(route('dashboard', absolute: false));
+        ])->assertNotFound();
 
-        $this->assertSame('estudiante', User::where('email', 'ana.perez@uees.edu.ec')->value('tipo'));
+        $this->assertGuest();
+        $this->get(route('login'))->assertOk()->assertSee('Crea tu contraseña')->assertSee(route('password.request'), false);
     }
 
     public function test_el_login_muestra_errores_en_espanol(): void

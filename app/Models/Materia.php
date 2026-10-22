@@ -10,10 +10,15 @@ class Materia extends Model
     use HasFactory;
 
     protected $table = 'materias';
-    protected $fillable = ['codigo', 'nombre', 'creditos', 'semestre', 'malla_id', 'categoria_materia_id', 'activo'];
+    protected $fillable = ['codigo', 'nombre', 'creditos', 'categoria_materia_id', 'activo'];
 
     public function categoria()
     {
         return $this->belongsTo(CategoriaMateria::class, 'categoria_materia_id');
+    }
+
+    public function mallas()
+    {
+        return $this->belongsToMany(Malla::class, 'malla_materia')->withPivot('nivel')->withTimestamps();
     }
 }
