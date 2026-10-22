@@ -37,14 +37,19 @@ respaldos pertenezcan a la sesión/trámite y que estén todos los obligatorios.
 
 `solicitudes.enviar` utiliza `IntegracionEnvioInstitucional`, registrado por la
 integración recibida en el pull. Exige un estudiante activo, inscripción propia,
-carrera y período vigentes, y catálogo publicado. La relación de propiedad es
-`carrera_estudiante.user_id`. El envío registra el estado `enviada` y un historial
+carrera y período vigentes, y catálogo publicado. La propiedad se lee por
+`carrera_estudiante.estudiante_id` → `estudiantes.user_id` (tabla de G1 según el
+Excel, PR #14). El envío registra el estado `enviada` y un historial
 visible. La clave de versión evita duplicar el expediente al repetir el envío.
 
 `MateriasSolicitud` consulta cursos, materias, períodos y docentes de G1, sin
-modificarlos. El formulario envía `origen_materias=catalogo`: el servidor valida
-los IDs y recupera sus metadatos de la base. Si no hay cursos, informa la ausencia;
+modificarlos. Si el estudiante tiene inscripciones activas con malla (C11, C13),
+solo ofrece los cursos de las materias de esas mallas (C05, RF-2.5); sin malla
+conocida, ofrece todos los cursos de la base. El formulario envía
+`origen_materias=catalogo`: el servidor valida los IDs contra esa misma lista y
+recupera sus metadatos de la base. Si no hay cursos, informa la ausencia;
 no ofrece las materias ficticias que conserva `TramitesSimulados` para fixtures.
+Todavía no se usa el historial del estudiante: no existe en el modelo de datos.
 
 `RequisitosSolicitud` consulta Prolog v3 mediante `PrologClient`, utilizando el
 ID del catálogo publicado. Los requisitos, documentos y aviso amarillo proceden
@@ -123,11 +128,14 @@ el personal de revisión. No se cambiaron el middleware ni el login de G1.
 
 ### Contratos que deben confirmar G1 y G2
 
-- C11 identifica al estudiante autenticado; C13 debe entregar sus inscripciones
-  activas con relaciones funcionales. En `origin/develop` revisado, C13 solicita
-  `carreraModalidad` y `malla`, que el modelo `CarreraEstudiante` todavía no define.
-  No sustituir las consultas actuales hasta que modelo y servicio sean coherentes.
-- C05 sigue devolviendo una colección vacía. C12 y C34 están pendientes de entrega.
+- Desde el PR #14 de G1 (22/10/2026), `carrera_estudiante` sigue el Excel
+  (`estudiante_id`, `carrera_modalidad_id`, `malla_id`) y `CarreraEstudiante`
+  define `estudiante()`, `carreraModalidad()` y `malla()`. G2 usa C11, C13 y C05
+  para el selector de materias y lee la propiedad por `estudiante()`. Los
+  accesores `user_id` y `carrera_id` del modelo son de compatibilidad de G1; no
+  depender de ellos.
+- C12 (`perfil()`) y la API C32–C35 ya están entregados. C12 no se usa: los
+  datos personales del paso 1 siguen siendo manuales (ver abajo).
 - La selección final actual de G2 representa un **curso**, no solo una materia.
   Propuesta de respuesta para normalizar en el adaptador de G2:
 

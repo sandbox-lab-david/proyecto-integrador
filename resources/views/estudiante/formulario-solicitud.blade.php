@@ -388,9 +388,11 @@
 
         .agregar-materia { display: flex; gap: 12px; }
         .agregar-materia button { flex-shrink: 0; }
-        .detalle-materia .encabezado-resumen { margin-bottom: 4px; }
+        .detalle-materia .encabezado-resumen { flex-wrap: wrap; row-gap: 4px; margin-bottom: 4px; }
         .detalle-materia .encabezado-resumen h3 { margin: 0; }
         .detalle-materia .campos { margin-top: 16px; }
+        .acciones-materia { display: flex; gap: 16px; flex-shrink: 0; }
+        .resumen-materia { margin: 4px 0 0; color: #596579; font-size: 14px; }
 
         @media (max-width: 850px) {
             .distribucion { grid-template-columns: 1fr; }
@@ -419,7 +421,6 @@
         }
     </style>
     <main>
-        <div class="portal-herramientas"><x-campana-notificaciones /></div>
         <a href="{{ route($tramite['ficha']) }}">
             ← Volver a los requisitos
         </a>
@@ -1153,6 +1154,15 @@
             return campo;
         }
 
+        // Materias cuyos datos el estudiante ocultó; sobrevive a cada repintado.
+        const materiasCerradas = new WeakSet();
+
+        // Abre la tarjeta de materia que contiene el control antes de señalar su error.
+        function abrirMateriaDe(control) {
+            const alternar = control.closest('.detalle-materia')?.querySelector('[data-alternar-materia]');
+            if (alternar?.getAttribute('aria-expanded') === 'false') alternar.click();
+        }
+
         function pintarMaterias() {
             contenedorMaterias.innerHTML = '';
 
@@ -1166,6 +1176,32 @@
                 const titulo = document.createElement('h3');
                 titulo.textContent = `${materia.codigo} — ${materia.nombre}`;
 
+                const cuerpo = document.createElement('div');
+                cuerpo.id = `materia-${indice}-datos`;
+
+                const resumen = document.createElement('p');
+                resumen.className = 'resumen-materia';
+                resumen.textContent = [materia.periodo, materia.paralelo && `Paralelo ${materia.paralelo}`, materia.docente]
+                    .filter(Boolean).join(' · ');
+
+                const alternar = document.createElement('button');
+                alternar.type = 'button';
+                alternar.className = 'enlace';
+                alternar.dataset.alternarMateria = '';
+                alternar.setAttribute('aria-controls', cuerpo.id);
+                const aplicarAbierta = abierta => {
+                    cuerpo.hidden = !abierta;
+                    resumen.hidden = abierta;
+                    alternar.textContent = abierta ? 'Ocultar datos' : 'Mostrar datos';
+                    alternar.setAttribute('aria-expanded', String(abierta));
+                    alternar.setAttribute('aria-label', `${abierta ? 'Ocultar' : 'Mostrar'} los datos de ${materia.nombre}`);
+                };
+                alternar.addEventListener('click', () => {
+                    const abierta = cuerpo.hidden;
+                    abierta ? materiasCerradas.delete(materia) : materiasCerradas.add(materia);
+                    aplicarAbierta(abierta);
+                });
+
                 const quitar = document.createElement('button');
                 quitar.type = 'button';
                 quitar.className = 'enlace';
@@ -1178,9 +1214,13 @@
                     document.getElementById('agregar-materia').focus();
                 });
 
-                encabezado.append(titulo, quitar);
+                const acciones = document.createElement('div');
+                acciones.className = 'acciones-materia';
+                acciones.append(alternar, quitar);
+                encabezado.append(titulo, acciones);
 
-                tarjeta.append(encabezado);
+                tarjeta.append(encabezado, resumen, cuerpo);
+                aplicarAbierta(!materiasCerradas.has(materia));
                 titulo.textContent = materia.nombre ? `${materia.codigo} — ${materia.nombre}` : `Materia ${indice + 1}`;
                 const manuales = document.createElement('div');
                 manuales.className = 'campos';
@@ -1197,7 +1237,7 @@
                     });
                     manuales.append(campo);
                 });
-                tarjeta.append(manuales);
+                cuerpo.append(manuales);
 
                 if (tramite.campos_materia.length) {
                     const campos = document.createElement('div');
@@ -1219,7 +1259,7 @@
                         campos.append(campo);
                     });
 
-                    tarjeta.append(campos);
+                    cuerpo.append(campos);
                 }
 
                 contenedorMaterias.append(tarjeta);
@@ -1318,6 +1358,7 @@
 
                 for (const campo of campos) {
                     if (campo.id !== 'materia' && !campo.disabled && !campo.checkValidity()) {
+                        abrirMateriaDe(campo);
                         campo.reportValidity();
                         return;
                     }
@@ -1731,6 +1772,7 @@
                 for (const control of document.querySelectorAll(`#paso-${numero} input, #paso-${numero} select, #paso-${numero} textarea`)) {
                     if (!control.disabled && !control.checkValidity()) {
                         mostrarPaso(numero);
+                        abrirMateriaDe(control);
                         control.reportValidity();
                         return false;
                     }

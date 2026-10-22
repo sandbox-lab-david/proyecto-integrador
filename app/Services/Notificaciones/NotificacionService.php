@@ -3,7 +3,6 @@
 namespace App\Services\Notificaciones;
 
 use App\Models\EstadoSolicitud;
-use App\Models\Estudiante;
 use App\Models\Solicitud;
 use App\Models\User;
 use App\Notifications\NotificacionPortal;
@@ -20,11 +19,7 @@ class NotificacionService
             throw new LogicException('La solicitud no tiene una inscripción asociada.');
         }
 
-        // El esquema actual vincula user_id; el contrato académico utiliza estudiante_id.
-        $estudianteId = $inscripcion->getAttribute('estudiante_id');
-        $usuarioId = $estudianteId
-            ? Estudiante::findOrFail($estudianteId)->user_id
-            : $inscripcion->getAttribute('user_id');
+        $usuarioId = $inscripcion->estudiante?->user_id;
         if (! $usuarioId) {
             throw new LogicException('No se pudo identificar al propietario de la solicitud.');
         }

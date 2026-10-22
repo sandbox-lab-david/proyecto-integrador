@@ -405,8 +405,15 @@
                 }
 
                 .filtros-catalogo .controles {
+                    grid-template-columns: minmax(0, 1fr) auto;
+                    align-items: end;
                     margin: 0;
                     gap: 18px;
+                }
+
+                .filtros-catalogo .ver-todos {
+                    min-height: 46px;
+                    padding: 0 20px;
                 }
 
                 .filtros-catalogo label {
@@ -438,6 +445,10 @@
 
                     .filtros-catalogo {
                         padding: 20px;
+                    }
+
+                    .filtros-catalogo .controles {
+                        grid-template-columns: 1fr;
                     }
                 }
 
@@ -755,7 +766,7 @@
         }
     </style>
     <main>
-        <div class="portal-herramientas"><a class="portal-mis-solicitudes" href="{{ route('solicitudes.index') }}">Mis solicitudes <span aria-hidden="true">→</span></a><x-campana-notificaciones /></div>
+        <div class="portal-herramientas"><a class="portal-mis-solicitudes" href="{{ route('solicitudes.index') }}">Mis solicitudes <span aria-hidden="true">→</span></a></div>
        <section class="portada-catalogo">
             <span class="portada-etiqueta">GESTIONES ACADÉMICAS</span>
 
@@ -807,7 +818,7 @@
             <div id="opciones-categoria" class="opciones-categoria"></div>
         </section>
 
-        <section class="filtros-catalogo" aria-label="Buscar y filtrar trámites">
+        <section class="filtros-catalogo" aria-label="Buscar trámites">
             <div class="controles">
                 <div>
                     <label for="busqueda">Buscar un trámite</label>
@@ -819,21 +830,8 @@
                     >
                 </div>
 
-                <div>
-                    <label for="categoria">Filtrar por categoría</label>
-
-                    <select id="categoria">
-                        <option value="">Todas las categorías</option>
-                        <option>Homologación</option>
-                        <option>Apoyo académico</option>
-                        <option>Cambios académicos</option>
-                        <option>Evaluaciones</option>
-                        <option>Registro</option>
-                        <option>Retiros y continuidad</option>
-                    </select>
-                </div>
+                <button id="ver-todos" class="ver-todos" type="button">Ver todos los trámites</button>
             </div>
-            <button id="ver-todos" class="ver-todos" type="button">Ver todos los trámites</button>
         </section>
 
         <p id="resultado" class="resultado" role="status"></p>
@@ -847,7 +845,7 @@
 
         <div id="vacio" hidden>
             No encontramos trámites con esos filtros.
-            Prueba otro nombre o selecciona todas las categorías.
+            Prueba otro nombre o pulsa «Ver todos los trámites».
         </div>
     </main>
 
@@ -933,7 +931,8 @@
         ];
 
         const busqueda = document.getElementById('busqueda');
-        const categoria = document.getElementById('categoria');
+        // Categoría elegida en las tarjetas de arriba; '' es ninguna.
+        let categoriaActiva = '';
         const tarjetas = document.getElementById('tarjetas');
         const resultado = document.getElementById('resultado');
         const vacio = document.getElementById('vacio');
@@ -960,7 +959,8 @@
             detalle.textContent = descripcion;
             boton.append(crearIcono(nombre), titulo, detalle);
             boton.addEventListener('click', () => {
-                categoria.value = nombre;
+                // Pulsar otra vez la categoría elegida quita el filtro.
+                categoriaActiva = categoriaActiva === nombre ? '' : nombre;
                 busqueda.value = '';
                 verTodos = false;
                 mostrarTramites();
@@ -1030,10 +1030,10 @@
 
         function mostrarTramites() {
             const texto = normalizar(busqueda.value);
-            const explorando = Boolean(texto || categoria.value || verTodos);
+            const explorando = Boolean(texto || categoriaActiva || verTodos);
             tarjetas.hidden = !explorando;
             document.querySelectorAll('.opcion-categoria').forEach(boton => {
-                boton.setAttribute('aria-pressed', String(boton.dataset.categoria === categoria.value));
+                boton.setAttribute('aria-pressed', String(boton.dataset.categoria === categoriaActiva));
             });
             if (!explorando) {
                 tarjetas.replaceChildren();
@@ -1045,8 +1045,8 @@
             const filtrados = tramites.filter(tramite =>
                 normalizar(tramite.nombre).includes(texto) &&
                 (
-                    categoria.value === '' ||
-                    tramite.categoria === categoria.value
+                    categoriaActiva === '' ||
+                    tramite.categoria === categoriaActiva
                 )
             );
 
@@ -1111,17 +1111,16 @@
                 tarjetas.append(tarjeta);
             });
 
-            resultado.textContent = filtrados.length === 1
+            resultado.textContent = (filtrados.length === 1
                 ? '1 trámite encontrado'
-                : `${filtrados.length} trámites encontrados`;
+                : `${filtrados.length} trámites encontrados`) + (categoriaActiva ? ` en ${categoriaActiva}` : '');
 
             vacio.hidden = filtrados.length !== 0;
         }
 
         busqueda.addEventListener('input', mostrarTramites);
-        categoria.addEventListener('change', mostrarTramites);
         document.getElementById('ver-todos').addEventListener('click', () => {
-            categoria.value = '';
+            categoriaActiva = '';
             busqueda.value = '';
             verTodos = true;
             mostrarTramites();

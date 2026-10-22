@@ -33,7 +33,7 @@ class CorreccionesSolicitudTest extends TestCase
         DB::table('users')->insert([['id' => 10], ['id' => 20]]);
         // SQLite aislado: prueba el flujo de G2 sin cambiar migraciones ajenas.
         Schema::create('estudiantes', function (Blueprint $t) { $t->id(); $t->integer('user_id'); });
-        Schema::create('carrera_estudiante', function (Blueprint $t) { $t->id(); $t->integer('user_id'); });
+        Schema::create('carrera_estudiante', function (Blueprint $t) { $t->id(); $t->integer('estudiante_id'); });
         Schema::create('estados_solicitud', function (Blueprint $t) { $t->id(); $t->string('codigo'); });
         Schema::create('solicitudes', function (Blueprint $t) {
             $t->id(); $t->string('codigo')->unique(); $t->integer('carrera_estudiante_id');
@@ -63,7 +63,7 @@ class CorreccionesSolicitudTest extends TestCase
             $t->integer('subido_por'); $t->timestamps();
         });
         DB::table('estudiantes')->insert([['id' => 1, 'user_id' => 10], ['id' => 2, 'user_id' => 20]]);
-        DB::table('carrera_estudiante')->insert([['id' => 1, 'user_id' => 10], ['id' => 2, 'user_id' => 20]]);
+        DB::table('carrera_estudiante')->insert([['id' => 1, 'estudiante_id' => 1], ['id' => 2, 'estudiante_id' => 2]]);
         DB::table('estados_solicitud')->insert([['id' => 1, 'codigo' => 'observado'], ['id' => 2, 'codigo' => 'enviado']]);
         $this->usuario = (new User)->forceFill(['id' => 10, 'tipo' => 'estudiante', 'activo' => true]);
         $this->actingAs($this->usuario);

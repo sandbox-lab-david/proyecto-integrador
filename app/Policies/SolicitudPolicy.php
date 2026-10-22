@@ -9,7 +9,7 @@ use App\Services\Academico\AutorizacionService;
 /**
  * El único lugar que decide quién puede ver o tocar una solicitud (contrato C60).
  *
- * La propiedad usa carrera_estudiante.user_id. Solo el estudiante propietario
+ * La propiedad se lee por carrera_estudiante → estudiantes.user_id. Solo el estudiante propietario
  * activo puede corregir una solicitud observada; el personal conserva los
  * permisos de lectura publicados por G1.
  */
@@ -18,7 +18,7 @@ class SolicitudPolicy
     public function update(User $u, Solicitud $s): bool
     {
         return $u->activo && $u->tipo === 'estudiante'
-            && (int) $s->carreraEstudiante?->user_id === (int) $u->getKey()
+            && (int) $s->carreraEstudiante?->estudiante?->user_id === (int) $u->getKey()
             && in_array(strtolower((string) $s->estadoSolicitud?->codigo), ['observada', 'observado'], true);
     }
 
@@ -37,11 +37,11 @@ class SolicitudPolicy
         if (! $u->activo || ! $s->carreraEstudiante) {
             return false;
         }
-        if ((int) $s->carreraEstudiante->user_id === (int) $u->id) {
+        if ((int) $s->carreraEstudiante->estudiante?->user_id === (int) $u->id) {
             return true;
         }
 
-        return $this->autorizacion->puedeVerCarrera($u, $s->carreraEstudiante->carrera_id);
+        return $this->autorizacion->puedeVerCarrera($u, (int) $s->carreraEstudiante->carreraModalidad?->carrera_id);
     }
 
     /**

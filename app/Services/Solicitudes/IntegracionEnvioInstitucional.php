@@ -43,7 +43,7 @@ class IntegracionEnvioInstitucional implements IntegracionEnvio
     public function enviar(Solicitud $solicitud, User $usuario): void
     {
         if (! $usuario->activo || $usuario->tipo !== 'estudiante'
-            || (int) $solicitud->carreraEstudiante->user_id !== (int) $usuario->id) {
+            || (int) $solicitud->carreraEstudiante->estudiante?->user_id !== (int) $usuario->id) {
             abort(403);
         }
         $anterior = $solicitud->estadoSolicitud->codigo;

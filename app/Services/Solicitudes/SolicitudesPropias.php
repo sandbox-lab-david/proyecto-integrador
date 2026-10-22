@@ -14,13 +14,14 @@ class SolicitudesPropias
     {
         foreach ([
             'solicitudes' => ['carrera_estudiante_id', 'estado_solicitud_id', 'detalle'],
-            'carrera_estudiante' => ['user_id'],
+            'carrera_estudiante' => ['estudiante_id'],
+            'estudiantes' => ['user_id'],
             'estados_solicitud' => ['codigo'],
         ] as $tabla => $columnas) {
             if (! Schema::hasTable($tabla) || ! Schema::hasColumns($tabla, $columnas)) return null;
         }
         if ($usuario === null || ! $usuario->activo) return new Collection;
-        return Solicitud::whereHas('carreraEstudiante', fn ($q) => $q->where('user_id', $usuario->getKey()))
+        return Solicitud::whereHas('carreraEstudiante.estudiante', fn ($q) => $q->where('user_id', $usuario->getKey()))
             ->with(Schema::hasTable('tipos_tramite') ? ['tipoTramite', 'estadoSolicitud'] : ['estadoSolicitud'])->latest('id')->get();
     }
 }
