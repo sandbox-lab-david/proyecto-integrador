@@ -17,4 +17,8 @@ class Malla extends Model
         return $this->belongsTo(Carrera::class);
     }
 
+    public function materias()
+    {
+        return $this->belongsToMany(Materia::class, 'malla_materia')->withPivot('nivel')->withTimestamps();
+    }
 }

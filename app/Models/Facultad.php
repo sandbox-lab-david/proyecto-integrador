@@ -16,4 +16,9 @@ class Facultad extends Model
     {
         return $this->hasMany(Carrera::class);
     }
+
+    public function trabajadores()
+    {
+        return $this->belongsToMany(Trabajador::class, 'facultad_trabajador')->withTimestamps();
+    }
 }

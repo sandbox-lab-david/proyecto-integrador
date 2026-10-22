@@ -3,6 +3,7 @@
 namespace App\Services\Academico;
 
 use App\Models\Trabajador;
+use Illuminate\Database\Eloquent\Collection;
 use App\Models\User;
 use App\Models\DirectorCarrera;
 use App\Services\Solicitudes\ReglasCampoSolicitud;
@@ -41,11 +42,20 @@ class AutorizacionService
 
     }
 
-    // ===C19
-    public function asistentesDeFacultad(int $facultadId)
+    // ==== C16: Facultades donde está asignado un trabajador
+    public function facultadesDe(Trabajador $trabajador): Collection
     {
+        return $trabajador->facultades()->orderBy('nombre')->get();
+    }
 
-        return collect([]);
+    // ===C19: Asistentes activas de una facultad
+    public function asistentesDeFacultad(int $facultadId): Collection
+    {
+        return Trabajador::conRol('asistente')
+            ->where('activo', true)
+            ->whereHas('facultades', fn ($q) => $q->where('facultades.id', $facultadId))
+            ->orderBy('apellidos')
+            ->get();
     }
 
     // ==== C15
@@ -70,6 +80,7 @@ class AutorizacionService
             ->exists();
     }
 
+    // ==== C20
     public function puedeVerCarrera(User $usuario, int $carreraId): bool
     {
         $trabajador = $usuario->trabajador;
@@ -87,5 +98,20 @@ class AutorizacionService
             ->where('trabajador_id', $trabajador->id)->where('carrera_id', $carreraId)
             ->whereDate('fecha_inicio', '<=', $hoy)
             ->where(fn ($q) => $q->whereNull('fecha_fin')->orWhereDate('fecha_fin', '>=', $hoy))->exists();
+    }
+
+    // ==== C20: Es administrador o trabaja en esa facultad
+    public function puedeVerFacultad(User $usuario, int $facultadId): bool
+    {
+        $trabajador = $usuario->trabajador;
+        if (! $usuario->activo || ! $trabajador?->activo) {
+            return false;
+        }
+
+        if ($this->tieneRol($usuario, 'admin')) {
+            return true;
+        }
+
+        return $trabajador->facultades()->where('facultades.id', $facultadId)->exists();
     }
 }

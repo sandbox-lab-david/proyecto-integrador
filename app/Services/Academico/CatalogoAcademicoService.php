@@ -8,6 +8,10 @@ use App\Models\Periodo;
 use Illuminate\Support\Carbon;
 use App\Models\Carrera;
 use App\Models\Facultad;
+use App\Models\Materia;
+use App\Models\Modalidad;
+use App\Models\Trabajador;
+use Illuminate\Support\Facades\DB;
 
 class CatalogoAcademicoService
 {
@@ -38,15 +42,30 @@ class CatalogoAcademicoService
     }
 
     // ===C02: Carreras por facultad
-    public function carrerasPorFacultad($facultadId)
+    public function carrerasPorFacultad(?int $facultadId = null, bool $soloActivas = true): Collection
     {
-        return Carrera::where('facultad_id', $facultadId)->get();
+        return Carrera::query()
+            ->when($facultadId, fn ($q) => $q->where('facultad_id', $facultadId))
+            ->when($soloActivas, fn ($q) => $q->where('activo', true))
+            ->orderBy('nombre')
+            ->get();
+    }
+
+    // ===C03: Modalidades en que se ofrece una carrera
+    public function modalidadesDeCarrera(int $carreraId): Collection
+    {
+        return Modalidad::whereIn('id', DB::table('carrera_modalidad')->where('carrera_id', $carreraId)->select('modalidad_id'))
+            ->orderBy('nombre')
+            ->get();
     }
 
     // ===C06: Periodos (Selects y filtros)
-    public function periodos()
+    public function periodos(bool $soloActivos = false): Collection
     {
-        return Periodo::orderBy('created_at', 'desc')->get(['id', 'nombre', 'activo']);
+        return Periodo::query()
+            ->when($soloActivos, fn ($q) => $q->where('activo', true))
+            ->orderByDesc('fecha_inicio')
+            ->get();
     }
 
     // ===C07: Devuelve el periodo academico activo actualmente
@@ -107,11 +126,22 @@ class CatalogoAcademicoService
                     ->get();
     }
 
-    //===C05
+    //===C05: Materias activas de una malla, por nivel; se pueden buscar por código o nombre
     public function materiasDeMalla(int $mallaId, ?string $buscar = null): Collection
     {
-        // Contrato Semana 1: Devolver colección vacía (stub).
-        return collect([]);
+        $buscar = $buscar !== null ? mb_strtolower(trim($buscar)) : '';
+
+        return Materia::query()
+            ->select('materias.*', 'malla_materia.nivel')
+            ->join('malla_materia', 'malla_materia.materia_id', '=', 'materias.id')
+            ->where('malla_materia.malla_id', $mallaId)
+            ->where('materias.activo', true)
+            ->when($buscar !== '', fn ($q) => $q->where(fn ($sub) => $sub
+                ->whereRaw('LOWER(materias.codigo) LIKE ?', ['%'.$buscar.'%'])
+                ->orWhereRaw('LOWER(materias.nombre) LIKE ?', ['%'.$buscar.'%'])))
+            ->orderBy('malla_materia.nivel')
+            ->orderBy('materias.nombre')
+            ->get();
     }
 
     //===C08:Devuelve la semana actual del periodo activo, o null si no aplica.
@@ -132,11 +162,14 @@ class CatalogoAcademicoService
         return intdiv($dias, 7) + 1;
     }
 
-    //===C10
+    //===C10: Trabajadores con rol docente
     public function docentes(bool $soloActivos = true): Collection
     {
-        // Contrato Semana 1: Devolver colección vacía (stub).
-        return collect([]);
+        return Trabajador::conRol('docente')
+            ->when($soloActivos, fn ($q) => $q->where('activo', true))
+            ->orderBy('apellidos')
+            ->orderBy('nombres')
+            ->get();
     }
     
     // ===C31: Carreras sin tercer registro

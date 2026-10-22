@@ -3,6 +3,7 @@
 namespace Database\Seeders;
 
 use App\Models\Estudiante;
+use App\Models\Facultad;
 use App\Models\Rol;
 use App\Models\Trabajador;
 use App\Models\User;
@@ -48,6 +49,10 @@ class UsuarioDemoSeeder extends Seeder
                 'created_at' => now(),
                 'updated_at' => now(),
             ]);
+
+            if ($rol === 'asistente' && $facultad = Facultad::orderBy('id')->first()) {
+                $trabajador->facultades()->attach($facultad->id);
+            }
         }
 
         $estudiante = User::create([

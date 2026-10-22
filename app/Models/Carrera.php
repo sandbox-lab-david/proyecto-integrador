@@ -20,4 +20,9 @@ class Carrera extends Model
     {
         return $this->belongsToMany(Modalidad::class, 'carrera_modalidad');
     }
+
+    public function mallas()
+    {
+        return $this->hasMany(Malla::class);
+    }
 }
