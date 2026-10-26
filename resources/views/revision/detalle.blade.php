@@ -1,29 +1,18 @@
-<!DOCTYPE html>
-<html lang="es">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Revisión de Solicitud - {{ $solicitud->id ?? 'N/D' }}</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-</head>
-<body class="bg-slate-950 text-slate-100 min-h-screen">
-    <main class="flex-1 p-10 overflow-y-auto">
-        <div class="max-w-4xl mx-auto">
+@extends('layouts.revision')
 
-            <!-- Encabezado -->
-            <div class="flex justify-between items-center mb-6">
-                <div>
-                    <h2 class="text-2xl font-bold text-white">Revisión de Solicitud {{ $solicitud->id ?? 'N/D' }}</h2>
-                    <p class="text-sm text-slate-400">Detalle y validación documental del caso</p>
-                </div>
-                <a href="{{ route('revision.asistente') }}" class="bg-slate-800 hover:bg-slate-700 text-slate-300 text-sm px-4 py-2 rounded-lg transition">
-                    ← Volver a la Bandeja
-                </a>
-            </div>
+@section('page-title', 'Revisión de solicitud')
+@section('page-heading') Revisión de Solicitud {{ $solicitud->id ?? 'N/D' }} @endsection
+@section('page-description', 'Detalle y validación documental del caso')
+@section('active-page', 'detail')
 
-            <!-- Alertas de estado -->
+@section('content')
+    @if(session('success'))
+        <div class="mb-4 rounded-lg border border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-800">{{ session('success') }}</div>
+    @endif
+
+    <!-- Alertas de estado -->
             @if(session('error'))
-                <div class="mb-4 p-4 bg-red-900/50 border border-red-700 text-red-200 rounded-lg text-sm">
+                <div class="mb-4 p-4 bg-red-50 border border-red-200 text-red-800 rounded-lg text-sm">
                     {{ session('error') }}
                 </div>
             @endif
@@ -50,7 +39,7 @@
                     </div>
                     <div>
                         <span class="text-slate-400 block">Estado Actual:</span>
-                        <span class="text-indigo-400 font-bold">{{ $solicitud->estado ?? 'Enviado' }}</span>
+                        <span class="text-indigo-400 font-bold">{{ $solicitud->estado ?? 'Enviado por estudiante' }}</span>
                     </div>
                     <div>
                         <span class="text-slate-400 block">Fecha de Envío:</span>
@@ -93,7 +82,7 @@
 
             <!-- Formulario de Revisión (Bloqueado si ya está finalizado) -->
             @php
-                $esFinalizado = in_array($solicitud->estado ?? '', ['Aprobado', 'Rechazado']);
+                $esFinalizado = ($solicitud->estado ?? '') !== 'Enviado por estudiante';
             @endphp
 
             <form action="{{ route('revision.guardar', $solicitud->id) }}" method="POST" class="bg-slate-900 border border-slate-800 rounded-xl p-6 shadow-lg" onsubmit="return validarAccion(event);">
@@ -120,17 +109,17 @@
                     <textarea name="observaciones" rows="3" {{ $esFinalizado ? 'disabled' : '' }} class="w-full bg-slate-950 border border-slate-800 rounded-lg p-3 text-sm text-slate-200 focus:ring-2 focus:ring-indigo-500 focus:outline-none" placeholder="Escriba sus observaciones o motivo de devolución..."></textarea>
                 </div>
 
-                <!-- 3 Botones de Decisión con confirmación -->
+                <!-- Confirmación de envío al Director -->
                 @unless($esFinalizado)
-                <div class="flex justify-end space-x-3">
-                    <button type="submit" name="accion" value="rechazar" onclick="window.accionSeleccionada = 'rechazar'" class="bg-red-600/20 hover:bg-red-600/30 text-red-300 border border-red-600/40 px-4 py-2 rounded-lg text-sm transition">
-                        Rechazar Solicitud
-                    </button>
-                    <button type="submit" name="accion" value="observado" onclick="window.accionSeleccionada = 'observado'" class="bg-amber-600/20 hover:bg-amber-600/30 text-amber-300 border border-amber-600/40 px-4 py-2 rounded-lg text-sm transition">
+                <div class="flex flex-wrap justify-end gap-3">
+                    <button type="submit" name="accion" value="observar" onclick="window.accionSeleccionada = 'observar'" class="rounded-lg border border-amber-300 bg-amber-50 px-5 py-2 text-sm font-semibold text-amber-800 transition hover:bg-amber-100">
                         Marcar como Observado
                     </button>
-                    <button type="submit" name="accion" value="aprobar" onclick="window.accionSeleccionada = 'aprobar'" class="bg-indigo-600 hover:bg-indigo-500 text-white px-5 py-2 rounded-lg text-sm font-medium transition shadow-lg shadow-indigo-600/20">
-                        Aprobar y Enviar a Consejo
+                    <button type="submit" name="accion" value="rechazar" onclick="window.accionSeleccionada = 'rechazar'" class="rounded-lg border border-red-300 bg-white px-5 py-2 text-sm font-semibold text-red-700 transition hover:bg-red-50">
+                        Rechazar
+                    </button>
+                    <button type="submit" name="accion" value="aprobar" onclick="window.accionSeleccionada = 'aprobar'" class="rounded-lg bg-red-700 px-5 py-2 text-sm font-semibold text-white transition hover:bg-red-800">
+                        Enviar al director
                     </button>
                 </div>
                 @else
@@ -140,21 +129,18 @@
                 @endunless
             </form>
 
-        </div>
-    </main>
 
-    <!-- Script de confirmación -->
     <script>
         function validarAccion(event) {
             let accion = window.accionSeleccionada;
             let mensaje = "¿Está seguro de realizar esta acción?";
             
             if (accion === 'aprobar') {
-                mensaje = "¿Está completamente seguro de APROBAR esta solicitud y enviarla a Consejo?";
+                mensaje = "¿Está seguro de enviar esta solicitud al Director?";
+            } else if (accion === 'observar') {
+                mensaje = "¿Está seguro de marcar esta solicitud como Observado?";
             } else if (accion === 'rechazar') {
-                mensaje = "¿Está seguro de RECHAZAR esta solicitud? Esta acción finalizará el trámite.";
-            } else if (accion === 'observado') {
-                mensaje = "¿Desea marcar este caso como OBSERVADO para que el estudiante corrija los datos?";
+                mensaje = "¿Está seguro de marcar esta solicitud como Rechazado?";
             }
 
             if (!confirm(mensaje)) {
@@ -164,5 +150,4 @@
             return true;
         }
     </script>
-</body>
-</html>
+@endsection

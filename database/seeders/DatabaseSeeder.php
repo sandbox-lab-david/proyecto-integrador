@@ -27,6 +27,7 @@ class DatabaseSeeder extends Seeder
         // Grupo 3
         $this->call([
             SolicitudRevisionSeeder::class,
+            DemoModuloTresSeeder::class,
         ]);
     }
 }

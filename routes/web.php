@@ -2,6 +2,8 @@
 
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\RevisionController; // ===== Grupo 3
+use App\Http\Controllers\AgendaConsejoController;
+use App\Http\Controllers\ResolucionesConsejoController;
 use App\Http\Controllers\Administracion\CarreraController;
 use App\Http\Controllers\Administracion\FacultadController;
 use App\Http\Controllers\Administracion\MallaController;
@@ -109,6 +111,33 @@ Route::middleware(['auth', 'rol:admin'])->group(function () {
 });
 
 // ===== Grupo 3: Revisión y Consejo =====
-Route::get('/revision/asistente', [RevisionController::class, 'bandejaAsistente'])->name('revision.asistente');
-Route::get('/revision/caso/{id}', [RevisionController::class, 'detalleCaso'])->name('revision.detalle');
-Route::post('/revision/caso/{id}', [RevisionController::class, 'guardarRevision'])->name('revision.guardar');
+Route::middleware(['auth', 'rol:asistente,admin'])->group(function () {
+    Route::get('/revision/asistente', [RevisionController::class, 'bandejaAsistente'])->name('revision.asistente');
+    Route::get('/revision/caso/{id}', [RevisionController::class, 'detalleCaso'])->name('revision.detalle');
+    Route::post('/revision/caso/{id}', [RevisionController::class, 'guardarRevision'])->name('revision.guardar');
+
+});
+
+Route::middleware(['auth', 'rol:admin'])->group(function () {
+    Route::get('/revision/agendas', [AgendaConsejoController::class, 'index'])->name('revision.agendas');
+});
+
+Route::middleware(['auth', 'rol:consulta,admin'])->group(function () {
+    Route::get('/revision/resoluciones', [ResolucionesConsejoController::class, 'index'])->name('revision.resoluciones');
+    Route::get('/revision/agendas/{agenda}/resoluciones', [ResolucionesConsejoController::class, 'porAgenda'])->name('revision.agendas.resoluciones');
+    Route::get('/revision/resoluciones/documento', [ResolucionesConsejoController::class, 'documento'])->name('revision.resoluciones.documento');
+});
+
+Route::middleware(['auth', 'rol:admin'])->group(function () {
+    Route::post('/revision/agendas', [AgendaConsejoController::class, 'store'])->name('revision.agendas.store');
+    Route::post('/revision/agendas/solicitudes/{id}/rechazar', [AgendaConsejoController::class, 'rechazarSolicitud'])->name('revision.agendas.solicitudes.rechazar');
+    Route::post('/revision/agendas/solicitudes/rechazar-varias', [AgendaConsejoController::class, 'rechazarVariasSolicitudes'])->name('revision.agendas.solicitudes.rechazar-varias');
+
+    Route::post('/revision/agendas/{agenda}/resoluciones/{solicitud}', [ResolucionesConsejoController::class, 'guardar'])->name('revision.agendas.resoluciones.guardar');
+    Route::post('/revision/resoluciones/{id}', [ResolucionesConsejoController::class, 'actualizarEstado'])->name('revision.resoluciones.estado');
+});
+
+Route::middleware(['auth', 'rol:director,admin'])->group(function () {
+    Route::get('/revision/director', [RevisionController::class, 'bandejaDirector'])->name('revision.director');
+    Route::post('/revision/director/caso/{id}', [RevisionController::class, 'guardarDecisionDirector'])->name('revision.director.guardar');
+});
