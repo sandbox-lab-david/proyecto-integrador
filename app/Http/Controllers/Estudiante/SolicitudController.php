@@ -181,6 +181,7 @@ class SolicitudController extends Controller
         BorradoresSolicitud $borradores,
         FirmadosTemporales $firmados,
         DocumentosTemporales $temporales,
+        \App\Services\Solicitudes\PerfilFormularioSolicitud $perfil,
     ): View {
         $codigoTramite = (string) (
             $request->route('tramite') ?? $request->query('tramite')
@@ -214,13 +215,19 @@ class SolicitudController extends Controller
                 ->entrada($borrador + ['origen_materias' => 'catalogo']));
         }
 
+        $datosCuenta = DatosFormularioSolicitud::cuenta($request->user());
+        if ($borrador) {
+            $borrador = array_replace($borrador, $datosCuenta);
+        }
+
         return view('estudiante.formulario-solicitud', [
             'solicitudCorreccion' => $expedienteCorreccion,
             'observacionesCorreccion' => $observacionesCorreccion,
             'requisitosMotor' => $requisitosMotor,
             'codigoTramite' => $codigoTramite,
             'tramite' => $tramite,
-            'datosCuenta' => [],
+            'datosCuenta' => $datosCuenta,
+            'datosIniciales' => $perfil->iniciales(),
             'camposPersonales' => DatosFormularioSolicitud::PERSONALES,
             'camposMateriaManual' => DatosFormularioSolicitud::MATERIA,
             'materias' => app(\App\Services\Solicitudes\MateriasSolicitud::class)->todas(),

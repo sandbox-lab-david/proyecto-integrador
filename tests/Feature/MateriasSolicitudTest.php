@@ -120,10 +120,10 @@ class MateriasSolicitudTest extends TestCase
             'materias' => [['id' => '25', 'nombre' => 'Nombre manipulado', 'datos' => []]],
         ])->assertOk();
         $respuesta = $this->get(route('solicitudes.create', ['tramite' => 'recuperacion']))->assertOk();
-        $this->assertSame('Ana Pérez', $respuesta->viewData('borrador')['nombre']);
-        $this->assertSame('ana@uees.edu.ec', $respuesta->viewData('borrador')['correo']);
+        $this->assertSame('Nombre de la cuenta', $respuesta->viewData('borrador')['nombre']);
+        $this->assertSame('cuenta@uees.edu.ec', $respuesta->viewData('borrador')['correo']);
         $this->assertSame('catalogo', $respuesta->viewData('borrador')['origen_materias']);
-        $this->assertSame([], $respuesta->viewData('datosCuenta'));
+        $this->assertSame(['nombre' => 'Nombre de la cuenta', 'correo' => 'cuenta@uees.edu.ec'], $respuesta->viewData('datosCuenta'));
         $this->assertSame('25', $respuesta->viewData('borrador')['materias'][0]['id']);
         $this->assertSame('Bases de datos', $respuesta->viewData('borrador')['materias'][0]['nombre']);
     }

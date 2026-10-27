@@ -142,7 +142,7 @@ class CorreccionesSolicitudTest extends TestCase
         app(BorradoresTemporales::class)->guardar('gracia', ['paso' => 1, 'nombre' => 'Borrador nuevo']);
         $propia = $this->solicitud();
         $respuesta = $this->get(route('solicitudes.edit', $propia))->assertOk()->assertSee('Corregir solicitud');
-        $this->assertSame('Ana Pérez', $respuesta->viewData('borrador')['nombre']);
+        $this->assertSame($this->usuario->name, $respuesta->viewData('borrador')['nombre']);
         $this->assertSame('Borrador nuevo', app(BorradoresTemporales::class)->todos()['gracia']['nombre']);
         $this->assertArrayHasKey('correccion-'.$propia->id.'--gracia', app(BorradoresTemporales::class)->todos());
     }
@@ -262,7 +262,7 @@ class CorreccionesSolicitudTest extends TestCase
         $this->assertStringStartsWith('correcciones-g2/'.$this->usuario->id.'/'.$propia->id.'/', $word['ruta']);
         $this->flushSession();
         $borrador = $this->get(route('solicitudes.edit', $propia))->assertOk()->viewData('borrador');
-        $this->assertSame('Nombre corregido', $borrador['nombre']);
+        $this->assertSame($this->usuario->name, $borrador['nombre']);
         $this->assertTrue($borrador['en_cuenta']);
         $this->assertSame($word['version'], app(DocumentosTemporales::class)->buscar('gracia')['version']);
         $this->assertSame($firmado['ruta'], app(FirmadosTemporales::class)->buscar('gracia')['ruta']);
@@ -325,12 +325,18 @@ class CorreccionesSolicitudTest extends TestCase
         $datos = $this->datos() + ['cedula' => '1234567890', 'facultad' => $facultad,
             'modalidad' => 'Presencial', 'periodo' => '2026'];
         $datos['carrera'] = $facultades[$facultad][0];
+        $datos = array_replace($datos, \App\Services\Solicitudes\DatosFormularioSolicitud::cuenta($this->usuario));
         $datos = $this->preparar($propia, $datos);
         app(\App\Services\Solicitudes\CorreccionesGuardadas::class)->guardar($propia, 'gracia');
         $ruta = app(DocumentosTemporales::class)->buscar('gracia')['ruta'];
         $this->flushSession();
+        // Alterar campos de solo lectura no cambia la identidad ni invalida el documento legítimo.
+        $datos['nombre'] = 'Identidad manipulada';
+        $datos['correo'] = 'otra.cuenta@uees.edu.ec';
         $this->postJson(route('solicitudes.reenviar', ['solicitud' => $propia->id, 'solicitud_correccion' => $propia->id]), $datos)
             ->assertOk()->assertJsonPath('codigo', $propia->codigo);
+        $this->assertSame($this->usuario->name, $propia->fresh()->detalle['nombre']);
+        $this->assertSame($this->usuario->email, $propia->fresh()->detalle['correo']);
         $this->assertDatabaseCount('borradores_correccion_g2', 0);
         $this->assertSame([1, 2], $propia->documentosGenerados()->orderBy('version')->pluck('version')->all());
         Storage::disk('local')->assertMissing($ruta);
