@@ -28,22 +28,28 @@ class EstadoSolicitudService
     }
 
     /** C62: única puerta de escritura para cambios de estado y su historial. */
-    public function transicionar(Solicitud $solicitud, string $destino, User $actor, ?string $comentario = null, bool $visibleEstudiante = true): Solicitud
+    public function transicionar(Solicitud $solicitud, string $codigoDestino, User $actor, ?string $obs = null, ?string $obsInterna = null): HistorialSolicitud
     {
-        return DB::transaction(function () use ($solicitud, $destino, $actor, $comentario, $visibleEstudiante) {
+        return DB::transaction(function () use ($solicitud, $codigoDestino, $actor, $obs, $obsInterna) {
             $solicitud = Solicitud::with('estadoSolicitud')->lockForUpdate()->findOrFail($solicitud->id);
             $origen = $solicitud->estadoSolicitud?->codigo;
-            if (! $origen || ! in_array($destino, $this->transicionesPermitidas($origen), true)) {
+            if (! $origen || ! in_array($codigoDestino, $this->transicionesPermitidas($origen), true)) {
                 throw ValidationException::withMessages(['estado' => 'La transición solicitada no está permitida desde el estado actual.']);
             }
-            $nuevo = EstadoSolicitud::where('codigo', $destino)->firstOrFail();
+            $nuevo = EstadoSolicitud::where('codigo', $codigoDestino)->firstOrFail();
             $solicitud->forceFill(['estado_solicitud_id' => $nuevo->id])->save();
-            HistorialSolicitud::create(['solicitud_id' => $solicitud->id, 'estado_anterior' => $origen, 'estado_nuevo' => $destino, 'user_id' => $actor->id, 'comentario' => $comentario, 'visible_estudiante' => $visibleEstudiante]);
-            if ($visibleEstudiante) {
-                DB::afterCommit(fn () => app(NotificacionService::class)->notificarCambioEstado($solicitud->fresh(['carreraEstudiante']), $nuevo, $comentario));
-            }
+            $historial = HistorialSolicitud::create([
+                'solicitud_id' => $solicitud->id,
+                'estado_anterior' => $origen,
+                'estado_nuevo' => $codigoDestino,
+                'user_id' => $actor->id,
+                'comentario' => $obs,
+                'observacion_interna' => $obsInterna,
+                'visible_estudiante' => true,
+            ]);
+            DB::afterCommit(fn () => app(NotificacionService::class)->notificarCambioEstado($solicitud->fresh(['carreraEstudiante']), $nuevo, $obs));
 
-            return $solicitud->fresh(['estadoSolicitud']);
+            return $historial;
         });
     }
 
@@ -51,7 +57,17 @@ class EstadoSolicitudService
     {
         $consulta = $solicitud->historial()->with('user')->oldest('id');
         if (! $internas) {
-            $consulta->where('visible_estudiante', true);
+            $consulta->select([
+                'historial_solicitud.id',
+                'historial_solicitud.solicitud_id',
+                'historial_solicitud.estado_anterior',
+                'historial_solicitud.estado_nuevo',
+                'historial_solicitud.user_id',
+                DB::raw('CASE WHEN historial_solicitud.visible_estudiante THEN historial_solicitud.comentario ELSE NULL END AS comentario'),
+                'historial_solicitud.visible_estudiante',
+                'historial_solicitud.created_at',
+                'historial_solicitud.updated_at',
+            ]);
         }
 
         return $consulta->get();

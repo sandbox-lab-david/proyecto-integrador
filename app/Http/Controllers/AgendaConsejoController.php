@@ -54,7 +54,7 @@ class AgendaConsejoController extends Controller
                     if (! $s->codigo_sistema) {
                         $solicitudService->registrarCodigoSistema($s, $solicitudService->siguienteCodigoSistema());
                     }
-                    $estados->transicionar($s, Estados::AGENDADA, auth()->user(), 'Incluida en agenda de Consejo '.$corte->id.'.');
+                    $estados->transicionar($s, Estados::AGENDADA, auth()->user(), null, 'Incluida en agenda de Consejo '.$corte->id.'.');
                 }
             }
         });

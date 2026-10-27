@@ -59,7 +59,7 @@ class IntegracionInstitucionalTest extends TestCase
         $this->assertSame('enviada', $s->fresh()->estadoSolicitud->codigo);
         $this->assertSame(1, app(EstadoSolicitudService::class)->lineaDeTiempo($s, false)->count());
         HistorialSolicitud::create(['solicitud_id' => $s->id, 'estado_nuevo' => 'enviada', 'comentario' => 'Nota interna', 'visible_estudiante' => false]);
-        $this->assertSame(1, app(EstadoSolicitudService::class)->lineaDeTiempo($s, false)->count());
+        $this->assertSame(2, app(EstadoSolicitudService::class)->lineaDeTiempo($s, false)->count());
         $this->actingAs($u)->get('/estudiante/solicitudes/'.$s->id)->assertOk()->assertDontSee('Nota interna');
         $this->actingAs(User::factory()->create())->get('/estudiante/solicitudes/'.$s->id)->assertForbidden();
         $this->actingAs($u)->get('/estudiante/solicitudes')->assertOk()->assertSee('SOL-TEST');
