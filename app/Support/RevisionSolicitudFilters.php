@@ -2,44 +2,28 @@
 
 namespace App\Support;
 
-use Illuminate\Database\Query\Builder;
+use App\Models\TipoTramite;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
-use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 
 class RevisionSolicitudFilters
 {
-    public const ESTADOS = [
-        'Enviado por estudiante',
-        'Revisado',
-        'Apto para consejo',
-        'Agendado',
-        'Aprobado para ejecución',
-        'Ejecutado',
-        'Observado',
-        'Rechazado',
-    ];
+    public const ESTADOS = ['Enviado por estudiante', 'Revisado', 'Observado', 'Apto para consejo', 'Agendado', 'Aprobado para ejecución', 'Ejecutado', 'Rechazado'];
 
     public static function validate(Request $request): array
     {
-        $tramites = \Illuminate\Support\Facades\DB::table('solicitudes_revision')
-            ->whereNotNull('tramite')->distinct()->pluck('tramite')->all();
-
         $validated = $request->validate([
-            'filtrar' => ['nullable', 'boolean'],
-            'nombre' => ['nullable', 'string', 'max:255'],
-            'codigo' => ['nullable', 'string', 'max:255'],
-            'carrera' => ['nullable', 'string', 'max:255'],
+            'filtrar' => ['nullable', 'boolean'], 'nombre' => ['nullable', 'string', 'max:255'],
+            'codigo' => ['nullable', 'string', 'max:255'], 'carrera' => ['nullable', 'string', 'max:255'],
             'fecha' => ['nullable', 'date_format:d/m/Y'],
-            'tramite' => ['nullable', Rule::in($tramites)],
+            'tramite' => ['nullable', Rule::exists('tipos_tramite', 'nombre')],
             'estado' => ['nullable', Rule::in(self::ESTADOS)],
         ]);
-
         foreach (['nombre', 'codigo', 'carrera', 'fecha', 'tramite', 'estado'] as $key) {
             $validated[$key] = trim((string) ($validated[$key] ?? ''));
         }
-
         $validated['filtrar'] = $request->boolean('filtrar');
 
         return $validated;
@@ -47,19 +31,12 @@ class RevisionSolicitudFilters
 
     public static function validateWithDateRange(Request $request): array
     {
-        $tramites = \Illuminate\Support\Facades\DB::table('solicitudes_revision')
-            ->whereNotNull('tramite')->distinct()->pluck('tramite')->all();
-
         $validated = $request->validate([
-            'desde' => ['nullable', 'date_format:Y-m-d'],
-            'hasta' => ['nullable', 'date_format:Y-m-d', 'after_or_equal:desde'],
-            'nombre' => ['nullable', 'string', 'max:255'],
-            'codigo' => ['nullable', 'string', 'max:255'],
-            'carrera' => ['nullable', 'string', 'max:255'],
-            'tramite' => ['nullable', Rule::in($tramites)],
+            'desde' => ['nullable', 'date_format:Y-m-d'], 'hasta' => ['nullable', 'date_format:Y-m-d', 'after_or_equal:desde'],
+            'nombre' => ['nullable', 'string', 'max:255'], 'codigo' => ['nullable', 'string', 'max:255'],
+            'carrera' => ['nullable', 'string', 'max:255'], 'tramite' => ['nullable', Rule::exists('tipos_tramite', 'nombre')],
             'estado' => ['nullable', Rule::in(self::ESTADOS)],
         ]);
-
         foreach (['desde', 'hasta', 'nombre', 'codigo', 'carrera', 'tramite', 'estado'] as $key) {
             $validated[$key] = trim((string) ($validated[$key] ?? ''));
         }
@@ -67,67 +44,85 @@ class RevisionSolicitudFilters
         return $validated;
     }
 
-    public static function apply(Builder $query, array $filters, string $alias = ''): Builder
+    public static function apply(Builder $query, array $filters): Builder
     {
-        self::applyMetadata($query, $filters, $alias);
-
-        $column = fn (string $name): string => $alias === '' ? $name : $alias.'.'.$name;
-        if ($filters['fecha'] !== '') {
-            $date = Carbon::createFromFormat('!d/m/Y', $filters['fecha'])->format('Y-m-d');
-            $query->whereDate($column('created_at'), $date);
+        if (($filters['nombre'] ?? '') !== '' || ($filters['codigo'] ?? '') !== '') {
+            $query->whereHas('carreraEstudiante.estudiante', function (Builder $student) use ($filters) {
+                foreach (['nombre' => ['nombres', 'apellidos'], 'codigo' => ['codigo', 'cedula']] as $filter => $columns) {
+                    if (($filters[$filter] ?? '') === '') {
+                        continue;
+                    }
+                    $value = self::fold($filters[$filter]);
+                    $student->where(function (Builder $match) use ($columns, $value) {
+                        foreach ($columns as $index => $column) {
+                            $match->{$index ? 'orWhereRaw' : 'whereRaw'}(self::normalized($column).' LIKE ?', ['%'.$value.'%']);
+                        }
+                    });
+                }
+            });
+        }
+        if (($filters['carrera'] ?? '') !== '') {
+            $value = self::fold($filters['carrera']);
+            $query->whereHas('carreraEstudiante.carreraModalidad.carrera', fn (Builder $c) => $c->whereRaw(self::normalized('nombre').' LIKE ?', ['%'.$value.'%']));
+        }
+        if (($filters['tramite'] ?? '') !== '') {
+            $query->whereHas('tipoTramite', fn (Builder $t) => $t->where(fn (Builder $match) => $match->where('nombre', $filters['tramite'])->orWhere('codigo', $filters['tramite'])));
+        }
+        if (($filters['estado'] ?? '') !== '') {
+            $code = Estados::codigoDesdeEtiqueta($filters['estado']);
+            $query->enEstado($code);
+        }
+        if (($filters['fecha'] ?? '') !== '') {
+            $query->whereDate('created_at', Carbon::createFromFormat('!d/m/Y', $filters['fecha'])->toDateString());
         }
 
         return $query;
     }
 
-    public static function applyMetadata(Builder $query, array $filters, string $alias = ''): Builder
+    public static function applyMetadata(Builder $query, array $filters): Builder
     {
-        $column = fn (string $name): string => $alias === '' ? $name : $alias.'.'.$name;
-        $search = function (string $field, string $value) use ($query, $column): void {
-            $columnName = $column($field);
-            $normalizedColumn = "translate(lower({$columnName}), 'áéíóúüñ', 'aeiouun')";
-            $normalizedValue = Str::lower(Str::ascii($value));
-            $query->whereRaw($normalizedColumn.' LIKE ?', ['%'.$normalizedValue.'%']);
-        };
+        return self::apply($query, $filters);
+    }
 
-        if (($filters['nombre'] ?? '') !== '') {
-            $search('estudiante', $filters['nombre']);
-        }
-        if (($filters['codigo'] ?? '') !== '') {
-            $search('codigo_siac', $filters['codigo']);
-        }
-        if (($filters['carrera'] ?? '') !== '') {
-            $search('carrera', $filters['carrera']);
-        }
-        if (($filters['tramite'] ?? '') !== '') {
-            $search('tramite', $filters['tramite']);
-        }
-        if (($filters['estado'] ?? '') !== '') {
-            $search('estado', $filters['estado']);
-        }
-
-        return $query;
+    public static function tramitesDisponibles()
+    {
+        return TipoTramite::query()->orderBy('nombre')->pluck('nombre');
     }
 
     public static function hasMetadata(array $filters): bool
     {
-        foreach (['nombre', 'codigo', 'carrera', 'tramite', 'estado'] as $key) {
-            if (($filters[$key] ?? '') !== '') {
+        foreach (['nombre', 'codigo', 'carrera', 'tramite', 'estado'] as $k) {
+            if (($filters[$k] ?? '') !== '') {
                 return true;
             }
         }
 
-        return false;
+return false;
     }
 
     public static function hasAny(array $filters): bool
     {
-        foreach (['nombre', 'codigo', 'carrera', 'fecha', 'tramite', 'estado'] as $key) {
-            if ($filters[$key] !== '') {
+        foreach (['nombre', 'codigo', 'carrera', 'fecha', 'tramite', 'estado'] as $k) {
+            if (($filters[$k] ?? '') !== '') {
                 return true;
             }
         }
 
-        return false;
+return false;
+    }
+
+    private static function fold(string $value): string
+    {
+        return mb_strtolower(strtr($value, ['á' => 'a', 'é' => 'e', 'í' => 'i', 'ó' => 'o', 'ú' => 'u', 'ü' => 'u', 'ñ' => 'n', 'Á' => 'a', 'É' => 'e', 'Í' => 'i', 'Ó' => 'o', 'Ú' => 'u', 'Ü' => 'u', 'Ñ' => 'n']));
+    }
+
+    private static function normalized(string $column): string
+    {
+        $expression = 'LOWER('.$column.')';
+        foreach (['á' => 'a', 'à' => 'a', 'ä' => 'a', 'é' => 'e', 'è' => 'e', 'ë' => 'e', 'í' => 'i', 'ì' => 'i', 'ï' => 'i', 'ó' => 'o', 'ò' => 'o', 'ö' => 'o', 'ú' => 'u', 'ù' => 'u', 'ü' => 'u', 'ñ' => 'n'] as $from => $to) {
+            $expression = "REPLACE($expression, '$from', '$to')";
+        }
+
+        return $expression;
     }
 }

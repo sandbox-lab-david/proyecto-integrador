@@ -3,6 +3,7 @@
 namespace App\Services\Notificaciones;
 
 use App\Models\EstadoSolicitud;
+use App\Models\Estudiante;
 use App\Models\Solicitud;
 use App\Models\User;
 use App\Notifications\NotificacionPortal;
@@ -14,16 +15,7 @@ class NotificacionService
     /** $observacion debe contener únicamente el texto visible para el estudiante. */
     public function notificarCambioEstado(Solicitud $s, EstadoSolicitud $nuevo, ?string $observacion = null): void
     {
-        $inscripcion = $s->carreraEstudiante;
-        if (! $inscripcion) {
-            throw new LogicException('La solicitud no tiene una inscripción asociada.');
-        }
-
-        $usuarioId = $inscripcion->estudiante?->user_id;
-        if (! $usuarioId) {
-            throw new LogicException('No se pudo identificar al propietario de la solicitud.');
-        }
-        $usuario = User::findOrFail($usuarioId);
+        $usuario = $this->propietario($s);
         $estado = $nuevo->getAttribute('etiqueta_estudiante') ?: $nuevo->nombre;
         $mensaje = 'Tu solicitud '.$s->codigo.' cambió al estado: '.$estado.'.';
         if (filled($observacion)) {
@@ -36,6 +28,30 @@ class NotificacionService
             $mensaje,
             route('solicitudes.show', $s->getKey(), false),
         );
+    }
+
+    public function notificarResolucionGuardada(Solicitud $s, ?string $observacion = null): void
+    {
+        $mensaje = 'Se guardó una resolución pendiente para tu solicitud '.$s->codigo.'.';
+        if (filled($observacion)) {
+            $mensaje .= "\n\nObservación: ".trim($observacion);
+        }
+        $this->notificarUsuarios([$this->propietario($s)], 'Resolución pendiente · '.$s->codigo, $mensaje, route('solicitudes.show', $s->getKey(), false));
+    }
+
+    private function propietario(Solicitud $s): User
+    {
+        $inscripcion = $s->carreraEstudiante;
+        if (! $inscripcion) {
+            throw new LogicException('La solicitud no tiene una inscripción asociada.');
+        }
+        $estudianteId = $inscripcion->getAttribute('estudiante_id');
+        $usuarioId = $estudianteId ? Estudiante::findOrFail($estudianteId)->user_id : $inscripcion->getAttribute('user_id');
+        if (! $usuarioId) {
+            throw new LogicException('No se pudo identificar al propietario de la solicitud.');
+        }
+
+        return User::findOrFail($usuarioId);
     }
 
     /** @param iterable<User> $users */

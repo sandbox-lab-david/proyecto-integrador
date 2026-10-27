@@ -188,7 +188,7 @@ class Solicitud extends Model
 
     public function cortesAgenda(): BelongsToMany
     {
-        return $this->belongsToMany(CorteAgenda::class, 'corte_solicitud')->using(CorteSolicitud::class);
+        return $this->belongsToMany(CorteAgenda::class, 'corte_solicitud', 'solicitud_id', 'corte_agenda_id')->withTimestamps();
     }
 
     public function evaluacionesElegibilidad(): HasMany
