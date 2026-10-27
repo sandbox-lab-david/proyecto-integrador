@@ -18,7 +18,7 @@ use Tests\TestCase;
  */
 class SolicitudServiceTest extends TestCase
 {
-    use RefreshDatabase;
+    use LlavesAjenasPrueba, RefreshDatabase;
 
     private const FALTA_TRABAJADOR = 'Pendiente: requiere el modelo Trabajador de G1.';
 
@@ -33,12 +33,7 @@ class SolicitudServiceTest extends TestCase
 
     private function solicitud(array $atributos = []): Solicitud
     {
-        return Solicitud::factory()->create($atributos + [
-            'carrera_estudiante_id' => 1,
-            'tipo_tramite_id' => 1,
-            'periodo_id' => 1,
-            'estado_solicitud_id' => 1,
-        ]);
+        return Solicitud::factory()->create($atributos + $this->llavesAjenas());
     }
 
     public function test_detalle_falla_si_la_solicitud_no_existe(): void

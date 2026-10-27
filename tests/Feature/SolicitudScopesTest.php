@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Models\Periodo;
 use App\Models\Solicitud;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
@@ -15,7 +16,7 @@ use Tests\TestCase;
  */
 class SolicitudScopesTest extends TestCase
 {
-    use RefreshDatabase;
+    use LlavesAjenasPrueba, RefreshDatabase;
 
     private const FALTA_G1 = 'Pendiente: requiere los modelos y factories de G1 (CarreraEstudiante, CarreraModalidad, Carrera, Estudiante).';
 
@@ -23,37 +24,36 @@ class SolicitudScopesTest extends TestCase
 
     private function solicitud(array $atributos = []): Solicitud
     {
-        return Solicitud::factory()->create($atributos + [
-            'carrera_estudiante_id' => 1,
-            'tipo_tramite_id' => 1,
-            'periodo_id' => 1,
-            'estado_solicitud_id' => 1,
-        ]);
+        return Solicitud::factory()->create($atributos + $this->llavesAjenas());
     }
 
     public function test_del_periodo_filtra_por_periodo(): void
     {
-        $delPeriodo = $this->solicitud(['periodo_id' => 5]);
-        $this->solicitud(['periodo_id' => 6]);
+        [$periodo, $otro] = Periodo::factory()->count(2)->create()->modelKeys();
+        $delPeriodo = $this->solicitud(['periodo_id' => $periodo]);
+        $this->solicitud(['periodo_id' => $otro]);
 
-        $this->assertEquals([$delPeriodo->id], Solicitud::delPeriodo(5)->pluck('id')->all());
+        $this->assertEquals([$delPeriodo->id], Solicitud::delPeriodo($periodo)->pluck('id')->all());
     }
 
     public function test_del_tramite_filtra_por_tipo_de_tramite(): void
     {
-        $delTramite = $this->solicitud(['tipo_tramite_id' => 3]);
-        $this->solicitud(['tipo_tramite_id' => 4]);
+        [$tramite, $otro] = [$this->tipoTramite('examen_gracia'), $this->tipoTramite('retiro_materia')];
+        $delTramite = $this->solicitud(['tipo_tramite_id' => $tramite]);
+        $this->solicitud(['tipo_tramite_id' => $otro]);
 
-        $this->assertEquals([$delTramite->id], Solicitud::delTramite(3)->pluck('id')->all());
+        $this->assertEquals([$delTramite->id], Solicitud::delTramite($tramite)->pluck('id')->all());
     }
 
     public function test_los_scopes_se_encadenan(): void
     {
-        $coincide = $this->solicitud(['periodo_id' => 5, 'tipo_tramite_id' => 3]);
-        $this->solicitud(['periodo_id' => 5, 'tipo_tramite_id' => 4]);
-        $this->solicitud(['periodo_id' => 6, 'tipo_tramite_id' => 3]);
+        [$periodo, $otroPeriodo] = Periodo::factory()->count(2)->create()->modelKeys();
+        [$tramite, $otroTramite] = [$this->tipoTramite('examen_gracia'), $this->tipoTramite('retiro_materia')];
+        $coincide = $this->solicitud(['periodo_id' => $periodo, 'tipo_tramite_id' => $tramite]);
+        $this->solicitud(['periodo_id' => $periodo, 'tipo_tramite_id' => $otroTramite]);
+        $this->solicitud(['periodo_id' => $otroPeriodo, 'tipo_tramite_id' => $tramite]);
 
-        $this->assertEquals([$coincide->id], Solicitud::delPeriodo(5)->delTramite(3)->pluck('id')->all());
+        $this->assertEquals([$coincide->id], Solicitud::delPeriodo($periodo)->delTramite($tramite)->pluck('id')->all());
     }
 
     public function test_buscar_sin_texto_no_filtra(): void

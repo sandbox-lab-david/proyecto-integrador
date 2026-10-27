@@ -20,7 +20,10 @@ use Tests\TestCase;
 
 class EnvioSolicitudTest extends TestCase
 {
-    use ArchivosDePrueba, RefreshDatabase, RequisitosPrologPrueba;
+    use ArchivosDePrueba, LlavesAjenasPrueba, RefreshDatabase, RequisitosPrologPrueba;
+
+    /** Contexto que devuelve la integración: filas reales del catálogo y de G1. */
+    private ?array $contexto = null;
 
     protected function setUp(): void
     {
@@ -30,16 +33,17 @@ class EnvioSolicitudTest extends TestCase
 
     private function integrar(bool $fallar = false): void
     {
-        $this->app->instance(IntegracionEnvio::class, new class($fallar) implements IntegracionEnvio
+        $this->contexto ??= ['estado_solicitud_id' => $this->estadoSolicitud('borrador')]
+            + $this->llavesAjenas() + ['requisitos' => ['respaldo' => $this->documentoRequerido('examen_gracia')]];
+        $this->app->instance(IntegracionEnvio::class, new class($fallar, $this->contexto, $this->estadoSolicitud('enviada')) implements IntegracionEnvio
         {
             public int $envios = 0;
 
-            public function __construct(private bool $fallar) {}
+            public function __construct(private bool $fallar, private array $contexto, private int $enviada) {}
 
             public function resolver(User $usuario, array $datos): array
             {
-                return ['carrera_estudiante_id' => 1, 'tipo_tramite_id' => 1, 'periodo_id' => 1,
-                    'estado_solicitud_id' => 1, 'requisitos' => ['respaldo' => 1]];
+                return $this->contexto;
             }
 
             public function contextoBorrador(User $usuario, string $tramite, array $datos): ?array
@@ -53,7 +57,7 @@ class EnvioSolicitudTest extends TestCase
                 if ($this->fallar) {
                     throw new \RuntimeException('Error de transición');
                 }
-                $solicitud->forceFill(['estado_solicitud_id' => 2])->save();
+                $solicitud->forceFill(['estado_solicitud_id' => $this->enviada])->save();
             }
         });
     }
@@ -81,7 +85,7 @@ class EnvioSolicitudTest extends TestCase
         $usuario = User::factory()->create();
         $solicitud = app(EnvioSolicitud::class)->enviar($usuario, $datos);
         $this->assertMatchesRegularExpression('/^SOL-\d{4}-00001$/', $solicitud->codigo);
-        $this->assertSame(2, $solicitud->estado_solicitud_id);
+        $this->assertSame($this->estadoSolicitud('enviada'), $solicitud->estado_solicitud_id);
         $this->assertNotNull($solicitud->enviada_at);
         $this->assertDatabaseCount('solicitud_materia', 1);
         $this->assertNull($solicitud->materias()->firstOrFail()->curso_id);

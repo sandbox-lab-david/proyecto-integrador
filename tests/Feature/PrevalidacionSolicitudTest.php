@@ -3,7 +3,6 @@
 namespace Tests\Feature;
 
 use App\Models\Solicitud;
-use App\Models\TipoTramite;
 use App\Services\Chatbot\Prolog\PrologClient;
 use App\Services\Chatbot\Prolog\PrologException;
 use App\Services\Solicitudes\PrevalidacionSolicitud;
@@ -15,7 +14,7 @@ use Tests\TestCase;
 /** Pre-validación informativa del paso 4 (RF-2.8) con el motor de G4 simulado por su interfaz. */
 class PrevalidacionSolicitudTest extends TestCase
 {
-    use RefreshDatabase, SesionEstudiantePrueba;
+    use LlavesAjenasPrueba, RefreshDatabase, SesionEstudiantePrueba;
 
     /** @var array<int, array> Entradas que recibió el motor. */
     private array $entradas = [];
@@ -148,8 +147,7 @@ class PrevalidacionSolicitudTest extends TestCase
         $this->seed(CatalogoInformativoSeeder::class);
         $this->motor();
         $solicitud = Solicitud::factory()->create([
-            'carrera_estudiante_id' => 1, 'periodo_id' => 1, 'estado_solicitud_id' => 1,
-            'tipo_tramite_id' => TipoTramite::where('codigo', 'examen_recuperacion')->value('id'),
+            ...$this->llavesAjenas(),
             'gpa_declarado' => 72, 'fecha_ultima_recuperacion' => '2025-10-20',
         ]);
 
@@ -166,8 +164,7 @@ class PrevalidacionSolicitudTest extends TestCase
         $this->seed(CatalogoInformativoSeeder::class);
         $this->motor(PrologException::noDisponible());
         $solicitud = Solicitud::factory()->create([
-            'carrera_estudiante_id' => 1, 'periodo_id' => 1, 'estado_solicitud_id' => 1,
-            'tipo_tramite_id' => TipoTramite::where('codigo', 'examen_recuperacion')->value('id'),
+            ...$this->llavesAjenas(),
         ]);
 
         app(PrevalidacionSolicitud::class)->registrar($solicitud);
