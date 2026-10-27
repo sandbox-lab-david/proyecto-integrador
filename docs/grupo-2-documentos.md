@@ -59,6 +59,36 @@ uno opcional. Si Prolog falla o no coincide la versión de la base de conocimien
 se conserva el borrador y no se anuncia un envío exitoso. El motor es informativo:
 no aprueba ni rechaza la solicitud. Recuperación conserva el GPA general.
 
+### Comprobación previa del paso 4 (RF-2.8)
+
+Al entrar al paso 4, el formulario llama a `POST solicitudes.prevalidacion`
+(`PrevalidacionController`, `PrevalidarSolicitudRequest`), que usa
+`PrevalidacionSolicitud::consultar()` sobre la fachada C72 de G4,
+`PrologService::evaluar(tramite_id, perfil)`. La respuesta es un fragmento HTML
+(`partials/prevalidacion`) que reutiliza `<x-resultado-elegibilidad>` para las
+comprobaciones y añade los textos y el aviso del motor.
+
+- El motor v3 de G4 no emite dictámenes: el validador del puente rechaza cualquier
+  `resultado`. Por eso no se muestra «cumple / no cumple / revisión manual», como
+  pedía RF-2.8, sino las comprobaciones informativas de G4: en recuperación, la
+  diferencia del GPA general con la referencia (75) y los días desde el último
+  examen de recuperación (365); en los otros 19 trámites, el texto general del motor.
+- Solo viajan al motor los datos que `PrologService::camposFormulario()` admite para
+  el trámite y que el formulario muestra. Hoy son únicamente `gpa_general` y
+  `fecha_ultima_recuperacion` de recuperación; la fecha no viaja si
+  «Exámenes de recuperación anteriores» no es «con_fecha». El GPA de ayudante de
+  cátedra no se envía.
+- La comprobación no bloquea nada: ni su resultado ni un fallo de Prolog deshabilitan
+  la descarga ni el envío. Si Prolog no responde, el bloque lo dice y ofrece
+  «Volver a consultar». No hay «reglas firmes» que bloqueen (pregunta 27 sin respuesta).
+- Al enviar o reenviar, `EnvioSolicitud` llama a `PrevalidacionSolicitud::registrar()`
+  después del commit: `PrologService::evaluar($solicitud)` guarda la respuesta en
+  `comprobaciones_informativas` (G4), visible para revisión mediante
+  `Solicitud::evaluacionesElegibilidad()`. Un reintento idempotente no la repite y un
+  fallo del motor en ese momento solo se registra en el log.
+- Ruta limitada a 30 consultas por minuto; las pruebas están en
+  `PrevalidacionSolicitudTest` y en `EnvioSolicitudTest`.
+
 `solicitudes.edit` y `solicitudes.reenviar` permiten al propietario activo corregir
 una solicitud observada. Conservan su código, las versiones y archivos anteriores;
 exigen una nueva descarga y PDF firmado, y registran el reenvío desde el estado

@@ -9,6 +9,7 @@ use App\Services\Archivos\RespaldosTemporales;
 use App\Services\Solicitudes\DocumentosTemporales;
 use App\Services\Solicitudes\EnvioSolicitud;
 use App\Services\Solicitudes\IntegracionEnvio;
+use App\Services\Solicitudes\PrevalidacionSolicitud;
 use App\Services\Solicitudes\TramitesSimulados;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Storage;
@@ -159,6 +160,29 @@ class EnvioSolicitudTest extends TestCase
         $this->assertDatabaseCount('documentos_firmados', 1);
         $this->assertSame($archivos, Storage::disk('local')->allFiles('expedientes'));
         $this->assertSame(1, app(IntegracionEnvio::class)->envios);
+    }
+
+    public function test_registra_la_comprobacion_informativa_una_vez_por_envio(): void
+    {
+        $this->integrar();
+        $datos = $this->preparar();
+        $this->partialMock(PrevalidacionSolicitud::class)->shouldReceive('registrar')->once()
+            ->with(\Mockery::on(fn ($solicitud) => $solicitud instanceof Solicitud && $solicitud->exists));
+        $usuario = User::factory()->create();
+        $servicio = app(EnvioSolicitud::class);
+
+        $servicio->enviar($usuario, $datos);
+        $servicio->enviar($usuario, $datos);
+    }
+
+    public function test_un_envio_fallido_no_registra_comprobacion(): void
+    {
+        $this->integrar(fallar: true);
+        $datos = $this->preparar();
+        $this->partialMock(PrevalidacionSolicitud::class)->shouldReceive('registrar')->never();
+
+        $this->expectException(\RuntimeException::class);
+        app(EnvioSolicitud::class)->enviar(User::factory()->create(), $datos);
     }
 
     public function test_no_reutiliza_una_clave_con_datos_distintos(): void

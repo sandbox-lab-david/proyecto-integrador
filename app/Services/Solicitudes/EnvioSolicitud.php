@@ -25,6 +25,7 @@ class EnvioSolicitud
         private readonly BorradoresTemporales $borradores,
         private readonly TramitesSimulados $catalogo,
         private readonly SolicitudService $solicitudes,
+        private readonly PrevalidacionSolicitud $prevalidacion,
     ) {}
 
     public static function revision(Solicitud $solicitud): string
@@ -48,8 +49,10 @@ class EnvioSolicitud
         }
 
         $carpeta = 'expedientes/'.Str::uuid();
+        $guardada = false;
         try {
-            $solicitud = DB::transaction(function () use ($usuario, $datos, $clave, $carpeta, $correccion, $revisionBase) {
+            $solicitud = DB::transaction(function () use ($usuario, $datos, $clave, $carpeta, $correccion, $revisionBase, &$guardada) {
+                $guardada = false;
                 // Serializa los envíos del mismo usuario antes de comprobar el duplicado.
                 // La consulta y el expediente se confirman en la misma transacción.
                 User::query()->whereKey($usuario->getKey())->lockForUpdate()->firstOrFail();
@@ -67,7 +70,9 @@ class EnvioSolicitud
                     throw ValidationException::withMessages(['clave_envio' => 'El documento cambió. Descarga la versión actual y sube su PDF firmado.']);
                 }
                 $datos['envio_usuario_id'] = $usuario->getKey();
-                return $this->crearExpediente($usuario, $datos, $carpeta, $correccion, $revisionBase);
+                $solicitud = $this->crearExpediente($usuario, $datos, $carpeta, $correccion, $revisionBase);
+                $guardada = true;
+                return $solicitud;
             }, 5);
         } catch (\Throwable $error) {
             Storage::disk(ArchivoService::DISCO)->deleteDirectory($carpeta);
@@ -85,6 +90,10 @@ class EnvioSolicitud
             } catch (\Throwable $error) {
                 report($error);
             }
+        }
+        // Un reintento idempotente devuelve el expediente sin volver a registrar la comprobación.
+        if ($guardada) {
+            $this->prevalidacion->registrar($solicitud);
         }
         return $solicitud;
     }

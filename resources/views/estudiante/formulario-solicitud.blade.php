@@ -357,6 +357,11 @@
 
         .lista-resumen { margin: 0; font-size: 14px; line-height: 1.6; }
 
+        .bloque-resumen > .ayuda { margin: 0; font-size: 14px; }
+        .resultado-prevalidacion p { margin: 12px 0 0; font-size: 14px; }
+        .resultado-prevalidacion .aviso { margin: 12px 0 0; }
+        .resultado-prevalidacion button { margin-top: 12px; }
+
         .bloque-firmado {
             margin-top: 24px;
             padding: 20px;
@@ -779,6 +784,21 @@
                             </button>
                         </div>
                         <ul id="lista-respaldos" class="lista-resumen"></ul>
+                    </section>
+
+                    <section class="bloque-resumen"
+                        aria-labelledby="resumen-prevalidacion">
+                        <div class="encabezado-resumen">
+                            <h3 id="resumen-prevalidacion">Comprobación previa</h3>
+                        </div>
+                        <p class="ayuda">
+                            Prolog compara los datos que declaraste con las
+                            referencias del trámite. Es orientativa: no aprueba
+                            ni rechaza tu solicitud y no impide enviarla.
+                            La facultad revisa cada caso.
+                        </p>
+                        <div id="resultado-prevalidacion"
+                            class="resultado-prevalidacion" aria-live="polite"></div>
                     </section>
 
                     @if ($requisitosMotor['aviso'])
@@ -1669,6 +1689,7 @@
                 errorArchivos.textContent = '';
                 pintarResumen();
                 mostrarPaso(4);
+                consultarPrevalidacion();
             });
 
         // Paso 4: resumen editable.
@@ -1741,6 +1762,69 @@
 
             document.getElementById('mensaje-confirmacion').textContent = '';
         }
+
+        // Pre-validación (RF-2.8): Prolog informa referencias con los datos declarados.
+        // Es orientativa: su resultado o un fallo del motor no deshabilitan la confirmación.
+        const urlPrevalidacion = @json(route('solicitudes.prevalidacion'));
+        const resultadoPrevalidacion = document.getElementById('resultado-prevalidacion');
+        let consultaPrevalidacion = 0;
+
+        function mensajePrevalidacion(texto, clase, reintentar = false) {
+            const parrafo = document.createElement('p');
+            parrafo.className = clase;
+            parrafo.textContent = texto;
+            resultadoPrevalidacion.replaceChildren(parrafo);
+
+            if (reintentar) {
+                parrafo.setAttribute('role', 'alert');
+                const boton = document.createElement('button');
+                boton.className = 'secundario';
+                boton.type = 'button';
+                boton.dataset.reintentarPrevalidacion = '';
+                boton.textContent = 'Volver a consultar';
+                resultadoPrevalidacion.append(boton);
+            }
+        }
+
+        async function consultarPrevalidacion() {
+            // Solo se pinta la última consulta si el estudiante entra varias veces al paso 4.
+            const numero = ++consultaPrevalidacion;
+            resultadoPrevalidacion.setAttribute('aria-busy', 'true');
+            mensajePrevalidacion('Consultando a Prolog…', 'ayuda');
+
+            let html = null;
+            let error = 'No se pudo consultar a Prolog. Revisa tu conexión y vuelve a intentarlo.';
+            try {
+                const respuesta = await fetchSolicitud(urlPrevalidacion, {
+                    method: 'POST',
+                    headers: { ...cabecerasRespaldos, 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ tramite: @json($codigoTramite), campos: datosBorrador().campos })
+                });
+                if (respuesta.ok) {
+                    html = await respuesta.text();
+                } else if (respuesta.status === 429) {
+                    error = 'Hiciste muchas consultas seguidas. Espera un minuto y vuelve a intentarlo.';
+                } else {
+                    const cuerpo = await respuesta.json().catch(() => ({}));
+                    error = Object.values(cuerpo.errors || {}).flat().join(' ') || error;
+                }
+            } catch {
+                // Se conserva el mensaje de error de conexión.
+            }
+
+            if (numero !== consultaPrevalidacion) return;
+            resultadoPrevalidacion.removeAttribute('aria-busy');
+
+            if (html === null) {
+                mensajePrevalidacion(error, 'error', true);
+                return;
+            }
+            resultadoPrevalidacion.innerHTML = html;
+        }
+
+        resultadoPrevalidacion.addEventListener('click', evento => {
+            if (evento.target.closest('[data-reintentar-prevalidacion]')) consultarPrevalidacion();
+        });
 
         document.querySelectorAll('[data-ir-a]').forEach(boton => {
             boton.addEventListener('click', () => {
