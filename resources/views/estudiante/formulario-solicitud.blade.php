@@ -433,6 +433,9 @@
         <h1>{{ ($solicitudCorreccion ?? null) ? 'Corregir solicitud '.$solicitudCorreccion->codigo : 'Solicitud de '.$tramite['nombre'] }}</h1>
         @if ($solicitudCorreccion ?? null)
             <p class="introduccion">Revisa las observaciones, corrige los datos y vuelve a adjuntar los respaldos requeridos. Descarga el documento actualizado y sube su nuevo PDF firmado. Las versiones anteriores se conservan.</p>
+            @if (request()->attributes->get('correccion_desactualizada'))
+                <p class="aviso" role="alert">La solicitud cambió desde que empezaste esta corrección. Conservamos tu borrador, pero deberás descartarlo y volver a abrir la solicitud antes de reenviar.</p>
+            @endif
             <section class="panel" aria-label="Observaciones de revisión">
                 <h2>Observaciones de la facultad</h2>
                 @if ($observacionesCorreccion === null)
@@ -452,7 +455,7 @@
         </p>
 
         <div class="introduccion">
-            Completa tus datos manualmente y selecciona las materias del catálogo académico.
+            Revisa tus datos, completa los que falten y selecciona las materias del catálogo académico.
             La solicitud todavía no se envía.
             @if ($solicitudCorreccion)
                 Los cambios de la corrección y sus archivos se conservan en este
@@ -501,7 +504,7 @@
                     <h2 id="titulo-datos" tabindex="-1">Primero, tus datos</h2>
 
                     <p class="introduccion">
-                        Completa tus datos personales y académicos.
+                        Los datos disponibles en tu perfil se completan para que los revises y puedas corregirlos.
                         @if ($datosCuenta)
                             El nombre y el correo disponibles en tu cuenta se completan automáticamente.
                         @endif
@@ -517,7 +520,7 @@
                                         <select id="facultad" name="facultad" required>
                                             <option value="">Selecciona tu facultad</option>
                                             @foreach ($catalogoFacultades as $nombreFacultad => $carrerasFacultad)
-                                                <option value="{{ $nombreFacultad }}">{{ $nombreFacultad }}</option>
+                                                <option value="{{ $nombreFacultad }}" @selected(($datosIniciales['facultad'] ?? '') === $nombreFacultad)>{{ $nombreFacultad }}</option>
                                             @endforeach
                                         </select>
                                     @elseif ($campoPersonal === 'carrera')
@@ -528,7 +531,7 @@
                                     @else
                                     <input id="{{ $campoPersonal }}" name="{{ $campoPersonal }}"
                                         type="{{ $campoPersonal === 'correo' ? 'email' : ($campoPersonal === 'celular' ? 'tel' : 'text') }}"
-                                        value="{{ $datosCuenta[$campoPersonal] ?? '' }}"
+                                        value="{{ $datosCuenta[$campoPersonal] ?? $datosIniciales[$campoPersonal] ?? '' }}"
                                         required maxlength="{{ $limitePersonal }}"
                                         @readonly(array_key_exists($campoPersonal, $datosCuenta))
                                         @if (in_array($campoPersonal, \App\Services\Solicitudes\DatosFormularioSolicitud::SOLO_DIGITOS, true))
@@ -582,6 +585,8 @@
                                     {{ $tramite['max_materias'] === 1 ? 'Materia de la solicitud' : 'Materias de la solicitud' }}
                                 </p>
 
+                                <label for="periodo-materias">Filtrar por período</label>
+                                <select id="periodo-materias" aria-describedby="ayuda-materia"><option value="">Todos los períodos disponibles</option></select>
                                 <div class="agregar-materia">
                                     <select id="materia" aria-label="Materia del catálogo académico">
                                         <option value="">Selecciona una materia</option>
@@ -598,7 +603,7 @@
                                         : 'Puedes agregar hasta '.$tramite['max_materias'].' materias.' }}
                                     Los cursos se consultan en la base de datos académica.
                                     @if (empty($materias))
-                                        No hay cursos disponibles. Solicita a la unidad académica que revise el catálogo.
+                                        No hay cursos disponibles. {{ app(\App\Services\Solicitudes\MateriasSolicitud::class)->avisoSinCursos() }}
                                     @endif
                                 </p>
                             </div>
@@ -942,13 +947,22 @@
         // Definición publicada del trámite y cursos de la base académica.
         const tramite = @json($tramite);
         const camposPersonales = @json($camposPersonales);
+        const datosIniciales = @json($datosIniciales);
         const camposMateriaManual = @json($camposMateriaManual);
         const materiasCatalogo = @json($materias);
         const selectorCatalogo = document.getElementById('materia');
+        const filtroPeriodo = document.getElementById('periodo-materias');
+        function llenarSelectorMaterias() {
+            if (!selectorCatalogo) return;
+            selectorCatalogo.replaceChildren(new Option('Selecciona una materia', ''));
+            materiasCatalogo.filter(materia => !filtroPeriodo.value || materia.periodo === filtroPeriodo.value)
+                .forEach(materia => selectorCatalogo.append(new Option(materia.codigo + ' — ' + materia.nombre + ' (' + materia.periodo + ', ' + materia.paralelo + ')', materia.id)));
+        }
         if (selectorCatalogo) {
-            materiasCatalogo.forEach(materia => {
-                selectorCatalogo.append(new Option(`${materia.codigo} — ${materia.nombre} (${materia.periodo}, ${materia.paralelo})`, materia.id));
-            });
+            [...new Set(materiasCatalogo.map(materia => materia.periodo))].sort((a,b) => a.localeCompare(b, 'es'))
+                .forEach(periodo => filtroPeriodo.append(new Option(periodo, periodo)));
+            llenarSelectorMaterias();
+            filtroPeriodo.addEventListener('change', () => { llenarSelectorMaterias(); pintarMaterias(); });
         }
         const catalogoFacultades = @json($catalogoFacultades);
 
@@ -979,7 +993,7 @@
 
         document.getElementById('facultad').addEventListener('change', () => actualizarCarreras());
         document.getElementById('carrera').addEventListener('change', validarFacultadYCarrera);
-        actualizarCarreras();
+        actualizarCarreras(datosIniciales.carrera ?? '');
         const cambioSolicitado = @json(\App\Services\Solicitudes\DatosFormularioSolicitud::CAMBIOS[$codigoTramite] ?? null);
         const tramiteActual = @json($codigoTramite);
         const relojFormulario = {
@@ -2182,7 +2196,7 @@
 
             cancelarGuardado();
             formularioDatos.reset();
-            actualizarCarreras();
+            actualizarCarreras(datosIniciales.carrera ?? '');
             document.getElementById('declaracion').checked = false;
             document.querySelectorAll(
                 '#campos-tramite input, #campos-tramite select, #campos-tramite textarea'

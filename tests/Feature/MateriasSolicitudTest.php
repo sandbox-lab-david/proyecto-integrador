@@ -27,12 +27,20 @@ class MateriasSolicitudTest extends TestCase
     private function curso(): void
     {
         // Filas de G1 con sus factories; los ids fijos son los que esperan las pruebas.
-        Curso::factory()->create([
+        $curso = Curso::factory()->create([
             'id' => 25, 'paralelo' => 'B',
             'materia_id' => Materia::factory()->create(['id' => 12, 'codigo' => 'BD401', 'nombre' => 'Bases de datos']),
             'periodo_id' => Periodo::factory()->create(['id' => 4, 'codigo' => '2026-2', 'nombre' => 'Ordinario II 2026']),
             'profesor_id' => Trabajador::factory()->create(['id' => 7, 'nombres' => 'Ana', 'apellidos' => 'Pérez']),
         ]);
+        $usuario = \App\Models\User::factory()->create(['tipo' => 'estudiante', 'activo' => true]);
+        $malla = \App\Models\Malla::factory()->create();
+        $malla->materias()->attach($curso->materia_id, ['nivel' => 1]);
+        \App\Models\CarreraEstudiante::factory()->create([
+            'estudiante_id' => \App\Models\Estudiante::factory()->create(['user_id' => $usuario->id])->id,
+            'malla_id' => $malla->id,
+        ]);
+        $this->actingAs($usuario);
     }
 
     public function test_catalogo_usa_curso_periodo_y_docente_de_la_base(): void
@@ -102,8 +110,7 @@ class MateriasSolicitudTest extends TestCase
     public function test_borrador_conserva_datos_manuales_y_valida_curso_real(): void
     {
         $this->curso();
-        $this->actingAs((new \App\Models\User)->forceFill(['id' => 99, 'tipo' => 'estudiante',
-            'activo' => true, 'name' => 'Nombre de la cuenta', 'email' => 'cuenta@uees.edu.ec']));
+        auth()->user()->forceFill(['name' => 'Nombre de la cuenta', 'email' => 'cuenta@uees.edu.ec'])->save();
         $this->putJson(route('borradores-temporales.update', 'recuperacion'), [
             'paso' => 1, 'nombre' => 'Ana Pérez', 'codigo' => '123',
             'correo' => 'ana@uees.edu.ec', 'carrera' => 'Computación',
@@ -113,10 +120,10 @@ class MateriasSolicitudTest extends TestCase
             'materias' => [['id' => '25', 'nombre' => 'Nombre manipulado', 'datos' => []]],
         ])->assertOk();
         $respuesta = $this->get(route('solicitudes.create', ['tramite' => 'recuperacion']))->assertOk();
-        $this->assertSame('Ana Pérez', $respuesta->viewData('borrador')['nombre']);
-        $this->assertSame('ana@uees.edu.ec', $respuesta->viewData('borrador')['correo']);
+        $this->assertSame('Nombre de la cuenta', $respuesta->viewData('borrador')['nombre']);
+        $this->assertSame('cuenta@uees.edu.ec', $respuesta->viewData('borrador')['correo']);
         $this->assertSame('catalogo', $respuesta->viewData('borrador')['origen_materias']);
-        $this->assertSame([], $respuesta->viewData('datosCuenta'));
+        $this->assertSame(['nombre' => 'Nombre de la cuenta', 'correo' => 'cuenta@uees.edu.ec'], $respuesta->viewData('datosCuenta'));
         $this->assertSame('25', $respuesta->viewData('borrador')['materias'][0]['id']);
         $this->assertSame('Bases de datos', $respuesta->viewData('borrador')['materias'][0]['nombre']);
     }

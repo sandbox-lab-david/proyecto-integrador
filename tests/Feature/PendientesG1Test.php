@@ -63,7 +63,7 @@ class PendientesG1Test extends TestCase
     public function test_la_factory_de_solicitudes_del_g2_ya_encuentra_las_del_g1(): void
     {
         $this->seed();
-        $tipo = TipoTramite::create(['codigo' => 'retiro_materia', 'nombre' => 'Retiro de materia', 'slug' => 'retiro-materia', 'contenido' => []]);
+        $tipo = TipoTramite::firstOrCreate(['codigo' => 'retiro_materia'], ['nombre' => 'Retiro de materia', 'slug' => 'retiro-materia', 'contenido' => []]);
 
         $solicitud = Solicitud::factory()->create([
             'tipo_tramite_id' => $tipo->id,

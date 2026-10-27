@@ -13,8 +13,8 @@ ese PDF se conserva junto al Word (`documentos_generados.ruta_pdf`), pasa al
 expediente al enviar y se muestra como «Documento generado» en el seguimiento
 de la solicitud; si se descarga en Word, `ruta_pdf` queda vacío. Los borradores se guardan
 en la cuenta con sus respaldos, su Word y su PDF firmado (ver «Borrador en la
-cuenta»); los de una corrección los guardan en la sesión hasta el envío,
-separados por sesión, trámite y expediente en corrección.
+cuenta»). Las correcciones usan una copia privada en la cuenta, separada del
+expediente observado; requieren la migración propia de G2 descrita abajo.
 
 El documento incluye los datos del estudiante, los campos del trámite y sus
 materias. Las tablas de materias se repiten cuando corresponde; tercer registro
@@ -22,8 +22,12 @@ incluye una tabla de registros anteriores por materia. Homologación solicita
 la cédula porque su plantilla identifica al estudiante con ese dato.
 Los campos declarados sin un espacio propio en la plantilla se incorporan
 antes de la despedida. La firma permanece vacía para firmarla manualmente.
-Los datos personales del portal se escriben a mano, incluso con sesión iniciada.
-El nombre y correo declarados no sustituyen la identidad autenticada del dueño.
+El paso 1 precarga código, cédula, celular y, si hay una única inscripción,
+facultad, carrera y modalidad mediante C12 de G1; el período procede de C07.
+Esos datos permanecen editables y los valores del borrador tienen prioridad.
+Nombre y correo proceden de la cuenta autenticada y son de solo lectura;
+el servidor sustituye cualquier identidad distinta enviada desde el navegador.
+La precarga no modifica el perfil ni las inscripciones de G1.
 
 Las plantillas originales no se sobrescriben. Las copias temporales son privadas
 y se conservan con los datos de la versión descargada. Al descartar el borrador
@@ -45,13 +49,40 @@ registradas» y el personal (`SolicitudPolicy::view`) solo ven las enviadas.
 `solicitudes.show` de un borrador redirige al formulario. Al enviar,
 `EnvioSolicitud` completa esa misma fila y conserva su código; descartar el
 borrador borra la fila, así que pueden quedar huecos en la numeración.
-G3 no lee `solicitudes` para sus bandejas (usa `solicitudes_revision`).
+Desde la integración de `develop` del PR #20, G3 lee `solicitudes` para sus
+bandejas y utiliza su servicio de transiciones, historial y notificaciones.
 
-Siguen en la sesión (`BorradoresTemporales`) el borrador de una corrección, que
-no debe tocar la solicitud observada hasta reenviarla, y el de una cuenta sin
+Sigue en la sesión (`BorradoresTemporales`) el borrador de una cuenta sin
 inscripción activa, sin período vigente o sin el estado `borrador` sembrado:
 en ese caso el formulario dice «guardado en este navegador», y el primer
 guardado posible en la cuenta se lleva lo de la sesión.
+
+### Correcciones guardadas en la cuenta
+
+`CorreccionesGuardadas` conserva datos, metadatos de respaldos, Word y PDF
+firmado en `borradores_correccion_g2`, con una fila por usuario y expediente.
+El middleware propio `GuardarCorreccion` restaura la copia antes de cada
+petición de corrección y la guarda tras una respuesta exitosa. Los archivos
+viven en `correcciones-g2/{usuario}/{solicitud}`, dentro del disco privado.
+El expediente observado, su código y sus documentos anteriores no se modifican
+hasta confirmar el reenvío. La autorización sigue usando la política existente.
+
+La copia se ofrece en «Mis solicitudes» aunque se haya cerrado la sesión.
+Descartarla elimina únicamente esa copia y sus archivos. Reenviar conserva las
+versiones originales y elimina la copia de trabajo. Si cambió el expediente,
+se advierte que la corrección está desactualizada y se mantiene el rechazo de
+reenvíos que sobrescribirían una revisión posterior.
+
+Para activar esta persistencia, ejecutar la migración nueva de G2 sobre una
+base que ya tenga las migraciones previas:
+
+```sh
+php artisan migrate --path=database/migrations/2026_10_27_000001_create_borradores_correccion_g2_table.php
+```
+
+No usa `migrate:fresh`, no carga datos de prueba y no altera tablas de otros
+grupos. Sin la tabla nueva, la corrección mantiene el comportamiento anterior
+de guardado en la sesión; no se anuncia que quedó guardada en la cuenta.
 
 ### Archivos del borrador
 
@@ -108,11 +139,16 @@ carrera y período vigentes, y catálogo publicado. La propiedad se lee por
 `carrera_estudiante.estudiante_id` → `estudiantes.user_id` (tabla de G1 según el
 Excel, PR #14). El envío registra el estado `enviada` y un historial
 visible. La clave de versión evita duplicar el expediente al repetir el envío.
+Tras confirmar, G2 invoca su servicio de notificaciones una sola vez por envío
+o reenvío; una caída del canal de avisos se registra sin invalidar el expediente.
 
 `MateriasSolicitud` consulta cursos, materias, períodos y docentes de G1, sin
 modificarlos. Si el estudiante tiene inscripciones activas con malla (C11, C13),
-solo ofrece los cursos de las materias de esas mallas (C05, RF-2.5); sin malla
-conocida, ofrece todos los cursos de la base. El formulario envía
+solo ofrece cursos de las materias activas de esas mallas (C05, RF-2.5).
+Sin perfil, inscripción activa o malla, devuelve una lista vacía y explica qué
+información académica falta; nunca ofrece todo el catálogo como alternativa.
+El filtro por período organiza esos cursos y conserva períodos anteriores,
+que pueden ser necesarios para recuperación o correcciones. El formulario envía
 `origen_materias=catalogo`: el servidor valida los IDs contra esa misma lista y
 recupera sus metadatos de la base. Si no hay cursos, informa la ausencia;
 no ofrece las materias ficticias que conserva `TramitesSimulados` para fixtures.
@@ -231,8 +267,9 @@ el personal de revisión. No se cambiaron el middleware ni el login de G1.
   para el selector de materias y lee la propiedad por `estudiante()`. Los
   accesores `user_id` y `carrera_id` del modelo son de compatibilidad de G1; no
   depender de ellos.
-- C12 (`perfil()`) y la API C32–C35 ya están entregados. C12 no se usa: los
-  datos personales del paso 1 siguen siendo manuales (ver abajo).
+- C12 (`perfil()`) precarga los datos editables del paso 1 mediante
+  `PerfilFormularioSolicitud`. Ante varias inscripciones no se escoge una
+  carrera arbitraria. Nombre y correo se toman de la cuenta autenticada.
 - La selección final actual de G2 representa un **curso**, no solo una materia.
   Propuesta de respuesta para normalizar en el adaptador de G2:
 
@@ -257,8 +294,9 @@ Si C34 devuelve únicamente materias de la malla, G2 deberá pedir sus cursos co
 C35, pasando `materia_id` y `periodo_id`. No confundir esos IDs: en el formulario
 actual `materias[].id` es el ID del curso. La API y el servicio deben limitar los
 datos al estudiante autenticado y validar su inscripción, malla y período.
-Los datos personales del formulario seguirán siendo manuales; C12 no debe
-sobrescribirlos ni permitir escoger al propietario mediante nombre o correo.
+Los datos personales precargados con C12 siguen siendo editables, excepto
+nombre y correo de la cuenta. Un borrador recuperado conserva sus valores
+editables. La precarga nunca permite escoger al propietario de la solicitud.
 
 ### GPA pendiente de acuerdo
 
@@ -280,9 +318,9 @@ ejecuta seeders ni modifica tablas de otros grupos.
   actualiza con `php artisan migrate:fresh --seed` (borra los datos locales).
 - El chatbot flotante recibe el trámite tanto desde una ficha como desde las
   rutas directas del formulario. Sus respuestas siguen usando el servicio de G4.
-- Las pruebas de datos personales verifican el llenado manual solicitado. La
-  propiedad del expediente sigue dependiendo del usuario autenticado, no del
-  nombre o correo declarados.
+- Las pruebas de datos personales verifican la precarga de C12, la edición de
+  los demás datos y el rechazo de identidades manipuladas. La propiedad del
+  expediente sigue dependiendo del usuario autenticado.
 
 Para revisar antes del push, usar `git diff --check`, `git diff --stat` y
 `php artisan test`. La prueba general de estilos espera `build/assets/app-`;
@@ -292,3 +330,52 @@ Los datos académicos y las inscripciones de G1 se cargan en la base de cada
 entorno; no se distribuyen con el push del portal.
 
 Configuración local y comprobación de subidas de 10 MB: [Archivos y PDF](grupo-2-archivos-pdf.md).
+
+## Pendientes que requieren coordinación entre grupos
+
+- G1 ya entregó los servicios académicos que consume G2. Una cuenta sin perfil,
+  inscripción, malla o cursos necesita que esos datos estén cargados en su
+  entorno; G2 no crea matrículas ni materias ficticias para llenar el selector.
+- Las bandejas y transiciones reales de G3 ya están integradas desde el PR #20;
+  los avisos posteriores se invocan allí. G2 confirma su envío y reenvío una
+  sola vez, incluso ante reintentos HTTP.
+- G4 debe incorporar `CatalogoInformativoSeeder` a `DatabaseSeeder` para que
+  una instalación limpia tenga los trámites y sus documentos requeridos.
+  Esta integración de G2 no modifica el seeder compartido.
+- El estado intermedio «Documento generado» requiere acordar el catálogo y las
+  transiciones institucionales. G2 conserva el archivo y su versión, pero no
+  agrega estados por su cuenta.
+- La prevalidación muestra las comprobaciones y advertencias que devuelve
+  Prolog v3; no inventa un dictamen automático de aprobación.
+- Sigue pendiente el acuerdo del GPA del período frente al GPA general del
+  motor, explicado arriba. No se cambió el significado de `gpa_declarado`.
+
+## Verificación de la integración de G2 (27/10/2026)
+
+La rama de integración parte de `develop` (`bbf3aa4`, PR #20) y recupera los
+commits `1313b8c` y `fe801ba` de G2. Los dos se aplicaron sin conflictos; la
+rama original se conserva como respaldo. El arreglo de `PrologServiceTest`
+crea sus registros referenciados mediante factories: no elimina las llaves.
+
+Suite completa con PHP 8.4.27, SQLite y correo en memoria: **533 pruebas
+pasaron, con 4696 aserciones y sin fallos ni pruebas omitidas**. Las dependencias
+locales se sincronizaron con `composer.lock` sin modificar los manifiestos.
+PHP 8.4 y su configuración de GD/SQLite se utilizaron desde una carpeta temporal;
+no se cambió el PHP global ni se migró o sembró la base local.
+
+Las pruebas cubren selección por malla, ausencia de perfil/malla, materias
+inactivas, períodos históricos, recuperación de correcciones con archivos entre
+sesiones, descarte sin borrar el expediente, acceso por propietario, revisión
+concurrente, reenvío HTTP con versiones y avisos sin duplicados. El filtro de
+período también se comprobó ejecutando su JavaScript con un DOM mínimo.
+La precarga de C12 se comprueba con un perfil real, varias inscripciones y
+ausencia de perfil. Los 20 formularios mantienen nombre/correo de la cuenta;
+los borradores, documentos y reenvíos ignoran identidades manipuladas y
+conservan los demás datos editables y las versiones anteriores.
+`git diff --check` y `npm run build` pasaron; la compilación se hizo en una
+carpeta temporal. Las pantallas activas no muestran el aviso «en desarrollo».
+
+La migración auxiliar de correcciones queda pendiente de aplicar en cada
+entorno. Para una instalación limpia sigue pendiente que G4 incluya
+`CatalogoInformativoSeeder` en `DatabaseSeeder`; este PR no modifica ese archivo
+compartido, los proveedores, los manifiestos ni la configuración de otros grupos.
