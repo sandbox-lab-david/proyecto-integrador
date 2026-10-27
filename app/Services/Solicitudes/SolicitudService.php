@@ -33,13 +33,14 @@ class SolicitudService
     }
 
     /**
-     * Solicitudes de un estudiante, de la más reciente a la más antigua.
+     * Solicitudes enviadas de un estudiante, de la más reciente a la más
+     * antigua. Sus borradores no salen de aquí.
      *
      * @return Collection<int, Solicitud>
      */
     public function delEstudiante(int $estudianteId): Collection
     {
-        return Solicitud::delEstudiante($estudianteId)
+        return Solicitud::delEstudiante($estudianteId)->enviadas()
             ->with(['tipoTramite', 'estadoSolicitud'])
             ->latest('id')
             ->get();
@@ -101,6 +102,16 @@ class SolicitudService
             ->orderByDesc('codigo')
             ->value('codigo');
 
+        $numero = $ultimo === null ? 1 : (int) substr($ultimo, strlen($prefijo)) + 1;
+
+        return $prefijo.str_pad((string) $numero, 5, '0', STR_PAD_LEFT);
+    }
+
+    /** Siguiente código de expediente para el Consejo (C47). */
+    public function siguienteCodigoSistema(?int $anio = null): string
+    {
+        $prefijo = sprintf('CAFI-%d-', $anio ?? now()->year);
+        $ultimo = Solicitud::where('codigo_sistema', 'like', $prefijo.'%')->orderByDesc('codigo_sistema')->value('codigo_sistema');
         $numero = $ultimo === null ? 1 : (int) substr($ultimo, strlen($prefijo)) + 1;
 
         return $prefijo.str_pad((string) $numero, 5, '0', STR_PAD_LEFT);

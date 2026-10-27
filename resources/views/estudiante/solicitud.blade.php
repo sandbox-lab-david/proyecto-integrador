@@ -117,6 +117,32 @@
 
                 <x-dynamic-component component="linea-tiempo" :solicitud="$solicitud" :internas="false" />
             </section>
+
+            @php
+                // El PDF solo existe si el estudiante descargó el documento en ese formato.
+                $documentoPdf = $solicitud->documentosGenerados
+                    ->filter(fn ($generado) => filled($generado->ruta_pdf))
+                    ->sortByDesc('version')
+                    ->first();
+            @endphp
+
+            @if ($documentoPdf !== null)
+                <section class="panel" aria-labelledby="titulo-documento-generado">
+                    <h2 id="titulo-documento-generado">Documento generado</h2>
+
+                    <x-visor-documento
+                        :ruta="$documentoPdf->ruta_pdf"
+                        mime="application/pdf"
+                        :nombre="$solicitud->codigo.' - versión '.$documentoPdf->version.'.pdf'"
+                    />
+                </section>
+            @endif
+
+            <section class="panel" aria-labelledby="titulo-datos-enviados">
+                <h2 id="titulo-datos-enviados">Datos enviados</h2>
+
+                <x-resumen-solicitud :solicitud="$solicitud" :encabezado="false" class="resumen-solicitud--sin-marco" />
+            </section>
         </div>
     </main>
     @include('estudiante.partials.chatbot-flotante')

@@ -7,15 +7,17 @@ use App\Services\Archivos\RespaldosTemporales;
 use Illuminate\Support\Str;
 
 /**
- * Lo que la sesión tiene empezado y sin enviar, un renglón por trámite: el
- * borrador con sus respaldos y su PDF firmado. Es lo único que «Mis
- * solicitudes» (RF-2.13) puede listar mientras las solicitudes no se guarden;
- * después serán filas de «solicitudes» sin enviar y esta clase se podrá borrar.
+ * Lo empezado y sin enviar, un renglón por trámite: los borradores guardados
+ * en la cuenta (BorradoresSolicitud), los que todavía están en la sesión y las
+ * correcciones en curso, cada uno con los respaldos y el PDF firmado que esta
+ * sesión tiene de ese trámite. «Mis solicitudes» (RF-2.13) y el catálogo los
+ * ofrecen para continuar o descartar.
  */
 class SolicitudesSinTerminar
 {
     public function __construct(
         private readonly BorradoresTemporales $borradores,
+        private readonly BorradoresSolicitud $enCuenta,
         private readonly TramitesSimulados $tramites,
         private readonly RespaldosTemporales $respaldos,
         private readonly FirmadosTemporales $firmados,
@@ -24,13 +26,32 @@ class SolicitudesSinTerminar
     /**
      * De la guardada más recientemente a la más antigua.
      *
-     * @return list<array{codigo: string, nombre: string, paso: int, guardado_at: string, respaldos: int, firmado: ?string}>
+     * @return list<array{codigo: string, nombre: string, paso: int, guardado_at: string, respaldos: int, firmado: ?string, en_cuenta: bool}>
      */
     public function todas(): array
     {
         $sinTerminar = [];
+        $guardados = [];
+
+        foreach ($this->enCuenta->enCuenta(auth()->user()) as $solicitud) {
+            $codigo = $solicitud->detalle['tramite'] ?? null;
+            $tramite = is_string($codigo) ? $this->tramites->buscar($codigo) : null;
+            if ($tramite === null || isset($guardados[$codigo])) continue;
+            $guardados[$codigo] = true;
+            $sinTerminar[] = [
+                'codigo' => $codigo,
+                'nombre' => Str::ucfirst($tramite['nombre']),
+                'paso' => (int) ($solicitud->detalle['paso'] ?? 1),
+                'guardado_at' => $solicitud->updated_at->toIso8601String(),
+                'respaldos' => count($this->respaldos->delTramite($codigo)),
+                'firmado' => $this->firmados->delTramite($codigo)['nombre_original'] ?? null,
+                'en_cuenta' => true,
+            ];
+        }
 
         foreach ($this->borradores->todos() as $codigo => $borrador) {
+            // El borrador de la cuenta manda sobre una copia vieja de la sesión.
+            if (isset($guardados[$codigo])) continue;
             $claveTemporal = $codigo;
             $enlaces = [];
             if (preg_match('/^correccion-(\d+)--([a-z0-9_-]+)$/', $codigo, $partes)) {
@@ -52,6 +73,7 @@ class SolicitudesSinTerminar
                     'guardado_at' => $borrador['guardado_at'],
                     'respaldos' => count($this->respaldos->delTramite($claveTemporal)),
                     'firmado' => $this->firmados->delTramite($claveTemporal)['nombre_original'] ?? null,
+                    'en_cuenta' => false,
                 ];
             }
         }

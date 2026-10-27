@@ -13,6 +13,7 @@ use Tests\TestCase;
  */
 class RespaldosTemporalesTest extends TestCase
 {
+    use FacultadesG1Prueba;
     use MateriasCatalogoPrueba;
 
     use ArchivosDePrueba;

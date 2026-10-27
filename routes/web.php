@@ -113,7 +113,6 @@ Route::middleware(['auth', 'rol:admin'])->group(function () {
 // ===== Grupo 3: Revisión y Consejo =====
 Route::middleware(['auth', 'rol:asistente,admin'])->group(function () {
     Route::get('/revision/asistente', [RevisionController::class, 'bandejaAsistente'])->name('revision.asistente');
-    Route::get('/revision/caso/{id}', [RevisionController::class, 'detalleCaso'])->name('revision.detalle');
     Route::post('/revision/caso/{id}', [RevisionController::class, 'guardarRevision'])->name('revision.guardar');
 
 });
@@ -126,11 +125,12 @@ Route::middleware(['auth', 'rol:consulta,admin'])->group(function () {
     Route::get('/revision/resoluciones', [ResolucionesConsejoController::class, 'index'])->name('revision.resoluciones');
     Route::get('/revision/agendas/{agenda}/resoluciones', [ResolucionesConsejoController::class, 'porAgenda'])->name('revision.agendas.resoluciones');
     Route::get('/revision/resoluciones/documento', [ResolucionesConsejoController::class, 'documento'])->name('revision.resoluciones.documento');
+    Route::get('/revision/resoluciones/exportar', [ResolucionesConsejoController::class, 'exportar'])->name('revision.resoluciones.exportar');
+    Route::get('/revision/agendas/{agenda}/documento', [ResolucionesConsejoController::class, 'documentoAgenda'])->name('revision.agendas.documento');
 });
 
 Route::middleware(['auth', 'rol:admin'])->group(function () {
     Route::post('/revision/agendas', [AgendaConsejoController::class, 'store'])->name('revision.agendas.store');
-    Route::post('/revision/agendas/solicitudes/{id}/rechazar', [AgendaConsejoController::class, 'rechazarSolicitud'])->name('revision.agendas.solicitudes.rechazar');
     Route::post('/revision/agendas/solicitudes/rechazar-varias', [AgendaConsejoController::class, 'rechazarVariasSolicitudes'])->name('revision.agendas.solicitudes.rechazar-varias');
 
     Route::post('/revision/agendas/{agenda}/resoluciones/{solicitud}', [ResolucionesConsejoController::class, 'guardar'])->name('revision.agendas.resoluciones.guardar');
@@ -140,4 +140,9 @@ Route::middleware(['auth', 'rol:admin'])->group(function () {
 Route::middleware(['auth', 'rol:director,admin'])->group(function () {
     Route::get('/revision/director', [RevisionController::class, 'bandejaDirector'])->name('revision.director');
     Route::post('/revision/director/caso/{id}', [RevisionController::class, 'guardarDecisionDirector'])->name('revision.director.guardar');
+});
+
+Route::middleware(['auth', 'rol:asistente,director,admin'])->group(function () {
+    Route::get('/revision/caso/{id}', [RevisionController::class, 'detalleCaso'])->name('revision.detalle');
+    Route::get('/revision/caso/{id}/documento/{documento}', [RevisionController::class, 'verDocumento'])->name('revision.documento');
 });

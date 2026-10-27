@@ -25,6 +25,7 @@ class NotificacionesTest extends TestCase
     {
         parent::setUp();
         config(['mail.default' => 'array', 'queue.default' => 'sync']);
+        $this->withoutVite();
     }
 
     private function aviso(User $usuario, string $titulo = 'Aviso propio', string $url = '/estudiante/solicitudes')
@@ -62,7 +63,8 @@ class NotificacionesTest extends TestCase
         $operador = User::factory()->create();
         $this->actingAs($operador);
         $solicitud = (new Solicitud)->forceFill(['id' => 42, 'codigo' => 'SOL-2026-00042']);
-        $solicitud->setRelation('carreraEstudiante', (new CarreraEstudiante)->forceFill(['user_id' => $dueno->id]));
+        $solicitud->setRelation('carreraEstudiante', (new CarreraEstudiante)
+            ->setRelation('estudiante', (new Estudiante)->forceFill(['user_id' => $dueno->id])));
         $estado = (new EstadoSolicitud)->forceFill([
             'nombre' => 'estado_interno', 'etiqueta_estudiante' => 'Requiere corrección',
             'descripcion' => 'Nota interna que no debe salir',
@@ -143,6 +145,16 @@ class NotificacionesTest extends TestCase
         $this->assertNull($propio->fresh()->read_at);
         $this->post(route('notificaciones.leer', $propio->id))->assertRedirect('/estudiante/solicitudes');
         $this->assertNotNull($propio->fresh()->read_at);
+    }
+
+    public function test_la_pagina_usa_el_marco_comun_y_el_menu_del_portal_solo_para_estudiantes(): void
+    {
+        $this->actingAs(User::factory()->create(['tipo' => 'estudiante']))->get(route('notificaciones.index'))
+            ->assertOk()->assertSee('Portal del estudiante')->assertSee('Catálogo de trámites')
+            ->assertSee('No tienes notificaciones');
+        $this->actingAs(User::factory()->create(['tipo' => 'trabajador']))->get(route('notificaciones.index'))
+            ->assertOk()->assertDontSee('Catálogo de trámites')->assertDontSee('Mis solicitudes')
+            ->assertSee('Los avisos del sistema aparecerán aquí.');
     }
 
     public function test_marcar_todas_no_afecta_a_otros_usuarios(): void

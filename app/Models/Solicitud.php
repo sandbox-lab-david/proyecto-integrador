@@ -111,6 +111,20 @@ class Solicitud extends Model
     }
 
     /**
+     * Las que el estudiante ya envió. Un borrador (RF-2.12) también es una
+     * fila de solicitudes, en estado «borrador» y sin enviada_at.
+     */
+    public function scopeEnviadas(Builder $query): Builder
+    {
+        return $query->whereNotNull($query->qualifyColumn('enviada_at'));
+    }
+
+    public function scopeBorradores(Builder $query): Builder
+    {
+        return $query->whereNull($query->qualifyColumn('enviada_at'));
+    }
+
+    /**
      * Busca por código de solicitud, código CAFI o datos del estudiante.
      * Cada palabra del texto debe aparecer en alguno de esos campos.
      */
@@ -174,7 +188,7 @@ class Solicitud extends Model
 
     public function cortesAgenda(): BelongsToMany
     {
-        return $this->belongsToMany(CorteAgenda::class, 'corte_solicitud')->using(CorteSolicitud::class);
+        return $this->belongsToMany(CorteAgenda::class, 'corte_solicitud', 'solicitud_id', 'corte_agenda_id')->withTimestamps();
     }
 
     public function evaluacionesElegibilidad(): HasMany

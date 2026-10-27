@@ -55,7 +55,17 @@
             }
         }
 
-        campana.addEventListener('toggle', () => { if (campana.open) cargar(); });
+        campana.addEventListener('toggle', () => {
+            if (!campana.open) return;
+            // Un solo panel abierto a la vez.
+            document.querySelectorAll('[data-campana-notificaciones][open]').forEach((otra) => {
+                if (otra !== campana) otra.open = false;
+            });
+            cargar();
+        });
+        document.addEventListener('click', (evento) => {
+            if (campana.open && !campana.contains(evento.target)) campana.open = false;
+        });
         campana.addEventListener('keydown', (evento) => {
             if (evento.key === 'Escape') {
                 campana.open = false;

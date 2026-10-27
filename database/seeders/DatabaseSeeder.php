@@ -24,10 +24,7 @@ class DatabaseSeeder extends Seeder
             CursoSeeder::class,
         ]);
 
-        // Grupo 3
-        $this->call([
-            SolicitudRevisionSeeder::class,
-            DemoModuloTresSeeder::class,
-        ]);
+        // Contratos compartidos del flujo; las solicitudes de prueba no se crean aquí.
+        $this->call(EstadosSolicitudSeeder::class);
     }
 }

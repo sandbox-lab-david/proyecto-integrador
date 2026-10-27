@@ -12,6 +12,7 @@ use ZipArchive;
 
 class DocumentoSolicitudTest extends TestCase
 {
+    use FacultadesG1Prueba;
     use MateriasCatalogoPrueba;
 
     public static function tramites(): array
@@ -134,6 +135,10 @@ class DocumentoSolicitudTest extends TestCase
                 ->assertOk()->assertHeader('Content-Type', 'application/pdf')
                 ->assertHeader('Content-Disposition', 'attachment; filename="solicitud-gracia.pdf"');
             $this->assertSame($pdf, $respuesta->getContent());
+            // El PDF descargado se conserva junto al Word para el expediente.
+            $guardado = app(\App\Services\Solicitudes\DocumentosTemporales::class)->buscar('gracia');
+            $this->assertSame($pdf, Storage::disk('local')->get($guardado['ruta_pdf']));
+            Storage::disk('local')->assertExists($guardado['ruta']);
             $this->assertDirectoryDoesNotExist($carpeta);
             $this->assertDirectoryDoesNotExist(dirname($rutaWord));
         } finally {
@@ -157,5 +162,6 @@ class DocumentoSolicitudTest extends TestCase
         $this->assertDirectoryDoesNotExist(dirname($rutaWord));
         $this->postJson(route('solicitudes.documento'), $datos)->assertOk()
             ->assertHeader('Content-Disposition', 'attachment; filename="solicitud-gracia.docx"');
+        $this->assertNull(app(\App\Services\Solicitudes\DocumentosTemporales::class)->buscar('gracia')['ruta_pdf']);
     }
 }

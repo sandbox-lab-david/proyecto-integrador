@@ -9,6 +9,7 @@ use Tests\TestCase;
 
 class RestriccionesFormularioSolicitudTest extends TestCase
 {
+    use FacultadesG1Prueba;
     use SesionEstudiantePrueba;
 
     protected function setUp(): void

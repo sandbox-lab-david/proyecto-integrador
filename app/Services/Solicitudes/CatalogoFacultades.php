@@ -2,32 +2,32 @@
 
 namespace App\Services\Solicitudes;
 
+use App\Services\Academico\CatalogoAcademicoService;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 
-/** Listas públicas de referencia, independientes de la base de datos de estudiantes. */
+/**
+ * Facultades y carreras de los selectores del paso 1, leídas del catálogo
+ * académico de G1 (contratos C01–C02). El estudiante sigue escribiendo su
+ * facultad y carrera; aquí solo se limitan a las que existen y están activas.
+ */
 final class CatalogoFacultades
 {
-    // Catálogo de grado consultado el 20/10/2026: https://uees.edu.ec/grado/
-    // Referencia interna del módulo 2; no importa datos del SIAC.
-    private const FACULTADES = [
-        'Arquitectura y Diseño' => ['Arquitectura', 'Arquitectura de Interiores', 'Arquitectura y Urbanismo'],
-        'Ciencias de la Comunicación' => [
-            'Comunicación', 'Diseño Gráfico Interactivo', 'Periodismo', 'Marketing y Transmedia',
-            'Producción para Medios de Comunicación', 'Gestión de Medios y Contenidos',
-        ],
-        'Ciencias de la Salud “Dr. Enrique Ortega Moreira”' => ['Medicina', 'Odontología', 'Nutrición y Dietética', 'Enfermería'],
-        'Derecho, Política y Desarrollo' => ['Derecho', 'Ciencias Políticas'],
-        'Emprendimiento, Negocios y Economía' => ['Negocios Digitales', 'Economía', 'Administración de Empresas', 'Comercio Exterior', 'Finanzas'],
-        'Turismo y Hospitalidad' => ['Turismo', 'Negocios de Entretenimiento', 'Negocios Turísticos Internacionales'],
-        'Humanidades' => ['Psicología Clínica', 'Psicología Organizacional', 'Educación', 'Danza', 'Artes Musicales', 'Producción Musical', 'Teatro Musical'],
-        'Ingeniería' => ['Ingeniería Civil', 'Ingeniería en Computación', 'Ingeniería Ambiental', 'Ingeniería en Biodiversidad y Recursos Genéticos', 'Ingeniería Industrial'],
-        'Estudios Internacionales' => ['Negocios Internacionales', 'Administración Internacional de Recursos Humanos'],
-    ];
-
+    /**
+     * @return array<string, list<string>> nombre de facultad => nombres de sus carreras
+     */
     public static function todas(): array
     {
-        return self::FACULTADES;
+        return once(function () {
+            $catalogo = app(CatalogoAcademicoService::class);
+            $carreras = $catalogo->carrerasPorFacultad()->groupBy('facultad_id');
+
+            return $catalogo->facultades()->sortBy('nombre')
+                ->mapWithKeys(fn ($facultad) => [
+                    $facultad->nombre => $carreras->get($facultad->id, collect())->pluck('nombre')->values()->all(),
+                ])
+                ->all();
+        });
     }
 
     public static function restricciones(mixed $facultad): array

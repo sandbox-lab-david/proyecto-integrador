@@ -4,6 +4,7 @@ use App\Http\Controllers\Estudiante\ArchivoController;
 use App\Http\Controllers\Estudiante\BorradorTemporalController;
 use App\Http\Controllers\Estudiante\CatalogoController;
 use App\Http\Controllers\Estudiante\FirmadoTemporalController;
+use App\Http\Controllers\Estudiante\PrevalidacionController;
 use App\Http\Controllers\Estudiante\RespaldoTemporalController;
 use App\Http\Controllers\Estudiante\SolicitudController;
 use Illuminate\Support\Facades\Route;
@@ -19,6 +20,10 @@ Route::post('/estudiante/solicitudes/documento', [SolicitudController::class, 'd
 
 Route::post('/estudiante/solicitudes/enviar', [SolicitudController::class, 'enviar'])
     ->middleware('throttle:10,1,envios-estudiante:')->block(30, 30)->name('solicitudes.enviar');
+
+// Pre-validación informativa del paso 4 con Prolog (RF-2.8); no bloquea el envío.
+Route::post('/estudiante/solicitudes/prevalidacion', PrevalidacionController::class)
+    ->middleware('throttle:30,1,prevalidacion-estudiante:')->name('solicitudes.prevalidacion');
 
 Route::get('/estudiante/tramites', [CatalogoController::class, 'index'])
     ->name('estudiante.catalogo');

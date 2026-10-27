@@ -13,6 +13,7 @@ use Tests\TestCase;
 
 class DatosManualesSolicitudTest extends TestCase
 {
+    use FacultadesG1Prueba;
     use RefreshDatabase, SesionEstudiantePrueba;
 
     protected function setUp(): void

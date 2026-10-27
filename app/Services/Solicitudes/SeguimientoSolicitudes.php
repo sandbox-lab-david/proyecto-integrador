@@ -32,7 +32,8 @@ class SeguimientoSolicitudes
             return new Collection;
         }
 
-        return Solicitud::whereHas('carreraEstudiante.estudiante', fn ($q) => $q->where('user_id', auth()->id()))
+        // Los borradores se listan aparte, con lo que la sesión tiene sin terminar.
+        return Solicitud::enviadas()->whereHas('carreraEstudiante.estudiante', fn ($q) => $q->where('user_id', auth()->id()))
             ->with(['tipoTramite', 'estadoSolicitud'])->latest('id')->get();
     }
 

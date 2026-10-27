@@ -8,9 +8,13 @@ DOM y ZipArchive preparan marcadores en una copia de las plantillas originales;
 `WordService::rellenarPlantilla` realiza el llenado definitivo con PhpWord.
 Los archivos temporales de preparación y llenado se eliminan al terminar.
 El formulario permite descargar Word o PDF. LibreOffice convierte el archivo
-en el servidor; el estudiante no necesita instalarlo. Los borradores viven
-en la sesión y los respaldos y PDF firmados se almacenan temporalmente hasta
-el envío, separados por sesión, trámite y expediente en corrección.
+en el servidor; el estudiante no necesita instalarlo. Si se descarga en PDF,
+ese PDF se conserva junto al Word (`documentos_generados.ruta_pdf`), pasa al
+expediente al enviar y se muestra como «Documento generado» en el seguimiento
+de la solicitud; si se descarga en Word, `ruta_pdf` queda vacío. Los borradores se guardan
+en la cuenta con sus respaldos, su Word y su PDF firmado (ver «Borrador en la
+cuenta»); los de una corrección los guardan en la sesión hasta el envío,
+separados por sesión, trámite y expediente en corrección.
 
 El documento incluye los datos del estudiante, los campos del trámite y sus
 materias. Las tablas de materias se repiten cuando corresponde; tercer registro
@@ -26,25 +30,93 @@ y se conservan con los datos de la versión descargada. Al descartar el borrador
 se eliminan también el Word y el PDF firmado. Cada descarga crea una nueva
 versión, elimina el PDF firmado anterior y requiere volver a adjuntarlo.
 
+## Borrador en la cuenta (RF-2.12)
+
+`BorradoresSolicitud` guarda el borrador de una solicitud nueva como fila de
+`solicitudes` en estado `borrador` y sin `enviada_at`, uno por estudiante y
+trámite (`detalle.tramite`). La fila lleva la inscripción activa del estudiante
+(la que coincide con la carrera declarada o, si no, la primera), el período
+vigente (el declarado o `periodoActual()` de G1), el tipo de trámite de G4 y un
+código `SOL-AAAA-00000` desde el primer guardado, porque `codigo` y las cuatro
+llaves no admiten nulo. `declaracion_veracidad` queda en falso hasta el envío.
+Se retoma desde cualquier navegador; los scopes `enviadas()` y `borradores()`
+del modelo los separan, y `SolicitudService::delEstudiante()`, «Solicitudes
+registradas» y el personal (`SolicitudPolicy::view`) solo ven las enviadas.
+`solicitudes.show` de un borrador redirige al formulario. Al enviar,
+`EnvioSolicitud` completa esa misma fila y conserva su código; descartar el
+borrador borra la fila, así que pueden quedar huecos en la numeración.
+G3 no lee `solicitudes` para sus bandejas (usa `solicitudes_revision`).
+
+Siguen en la sesión (`BorradoresTemporales`) el borrador de una corrección, que
+no debe tocar la solicitud observada hasta reenviarla, y el de una cuenta sin
+inscripción activa, sin período vigente o sin el estado `borrador` sembrado:
+en ese caso el formulario dice «guardado en este navegador», y el primer
+guardado posible en la cuenta se lleva lo de la sesión.
+
+### Archivos del borrador
+
+Los respaldos, el Word descargado y el PDF firmado de un borrador en la cuenta
+también se retoman desde cualquier navegador. `RespaldosTemporales`,
+`DocumentosTemporales` y `FirmadosTemporales` conservan su interfaz y eligen
+dónde guardar: si `BorradoresSolicitud::enCuentaDe($tramite)` encuentra el
+borrador, cada archivo es una fila de `respaldos`, `documentos_generados` o
+`documentos_firmados` de ese borrador, con el archivo en
+`borradores/<id de la solicitud>/`; si no (corrección o cuenta sin contexto),
+siguen en la carpeta temporal de la sesión.
+
+- Un respaldo guarda en `documento_requerido_id` el documento de G4 cuyo
+  `codigo` es el requisito elegido al subirlo. El navegador sigue conociendo
+  solo el uuid del archivo, que es el nombre del archivo en disco; las rutas
+  `respaldos-temporales.show|destroy` buscan ese uuid entre los borradores del
+  usuario actual, así que otra cuenta recibe 404.
+- Un borrador tiene un solo Word (versión 1, el de la última descarga), su PDF
+  si esa descarga fue en PDF y, a lo sumo, un PDF firmado de ese Word.
+  Descargar otra vez borra los tres.
+  `documentos_generados` no tiene columnas para la versión de descarga
+  (`X-Documento-Version`) ni para la huella de los datos, ni
+  `documentos_firmados` para el nombre original del PDF: esos tres datos van en
+  `detalle._archivos` del borrador. `BorradoresSolicitud::guardar()` los
+  conserva entre guardados, el formulario no los recibe y el envío los quita.
+- Subir el PDF firmado de un borrador en la cuenta exige haber descargado el
+  documento antes (en la sesión se aceptaba sin él y el envío lo rechazaba).
+- Lo que la sesión subió antes de que existiera el borrador en la cuenta pasa a
+  él la primera vez que se consulta, con el mismo uuid y la misma versión; un
+  PDF firmado de otra versión se descarta.
+- Al enviar, `EnvioSolicitud` copia los archivos a `expedientes/<uuid>/` como
+  antes, reemplaza dentro de la transacción las filas del borrador por las
+  definitivas y, tras el commit, borra la carpeta del borrador. Descartar el
+  borrador borra sus filas (primero `documentos_firmados`, que no se borra en
+  cascada) y su carpeta.
+
+Un borrador abandonado conserva sus archivos hasta que se envía o se descarta,
+igual que su fila.
+
 ## Guardado y envío institucional
 
 `EnvioSolicitud` guarda en una transacción solicitud, materias, registros previos,
-respaldos, versión Word y PDF firmado. Copia los archivos al storage privado
+respaldos, versión Word (con su PDF, si se descargó en PDF) y PDF firmado. Copia los archivos al storage privado
 definitivo antes de persistir y elimina las copias si falla la transacción.
 Los temporales se conservan ante errores y se descartan tras el envío exitoso.
 Se valida que el Word y el PDF correspondan a los datos actuales, que los
-respaldos pertenezcan a la sesión/trámite y que estén todos los obligatorios.
+respaldos pertenezcan al borrador (o a la sesión) y al trámite, y que estén
+todos los obligatorios. Cada respaldo queda con el requisito asignado al final
+en el formulario, aunque al subirlo se haya indicado otro.
 
 `solicitudes.enviar` utiliza `IntegracionEnvioInstitucional`, registrado por la
 integración recibida en el pull. Exige un estudiante activo, inscripción propia,
-carrera y período vigentes, y catálogo publicado. La relación de propiedad es
-`carrera_estudiante.user_id`. El envío registra el estado `enviada` y un historial
+carrera y período vigentes, y catálogo publicado. La propiedad se lee por
+`carrera_estudiante.estudiante_id` → `estudiantes.user_id` (tabla de G1 según el
+Excel, PR #14). El envío registra el estado `enviada` y un historial
 visible. La clave de versión evita duplicar el expediente al repetir el envío.
 
 `MateriasSolicitud` consulta cursos, materias, períodos y docentes de G1, sin
-modificarlos. El formulario envía `origen_materias=catalogo`: el servidor valida
-los IDs y recupera sus metadatos de la base. Si no hay cursos, informa la ausencia;
+modificarlos. Si el estudiante tiene inscripciones activas con malla (C11, C13),
+solo ofrece los cursos de las materias de esas mallas (C05, RF-2.5); sin malla
+conocida, ofrece todos los cursos de la base. El formulario envía
+`origen_materias=catalogo`: el servidor valida los IDs contra esa misma lista y
+recupera sus metadatos de la base. Si no hay cursos, informa la ausencia;
 no ofrece las materias ficticias que conserva `TramitesSimulados` para fixtures.
+Todavía no se usa el historial del estudiante: no existe en el modelo de datos.
 
 `RequisitosSolicitud` consulta Prolog v3 mediante `PrologClient`, utilizando el
 ID del catálogo publicado. Los requisitos, documentos y aviso amarillo proceden
@@ -53,6 +125,36 @@ consultar los obligatorios al enviar. Un documento condicional se distingue de
 uno opcional. Si Prolog falla o no coincide la versión de la base de conocimiento,
 se conserva el borrador y no se anuncia un envío exitoso. El motor es informativo:
 no aprueba ni rechaza la solicitud. Recuperación conserva el GPA general.
+
+### Comprobación previa del paso 4 (RF-2.8)
+
+Al entrar al paso 4, el formulario llama a `POST solicitudes.prevalidacion`
+(`PrevalidacionController`, `PrevalidarSolicitudRequest`), que usa
+`PrevalidacionSolicitud::consultar()` sobre la fachada C72 de G4,
+`PrologService::evaluar(tramite_id, perfil)`. La respuesta es un fragmento HTML
+(`partials/prevalidacion`) que reutiliza `<x-resultado-elegibilidad>` para las
+comprobaciones y añade los textos y el aviso del motor.
+
+- El motor v3 de G4 no emite dictámenes: el validador del puente rechaza cualquier
+  `resultado`. Por eso no se muestra «cumple / no cumple / revisión manual», como
+  pedía RF-2.8, sino las comprobaciones informativas de G4: en recuperación, la
+  diferencia del GPA general con la referencia (75) y los días desde el último
+  examen de recuperación (365); en los otros 19 trámites, el texto general del motor.
+- Solo viajan al motor los datos que `PrologService::camposFormulario()` admite para
+  el trámite y que el formulario muestra. Hoy son únicamente `gpa_general` y
+  `fecha_ultima_recuperacion` de recuperación; la fecha no viaja si
+  «Exámenes de recuperación anteriores» no es «con_fecha». El GPA de ayudante de
+  cátedra no se envía.
+- La comprobación no bloquea nada: ni su resultado ni un fallo de Prolog deshabilitan
+  la descarga ni el envío. Si Prolog no responde, el bloque lo dice y ofrece
+  «Volver a consultar». No hay «reglas firmes» que bloqueen (pregunta 27 sin respuesta).
+- Al enviar o reenviar, `EnvioSolicitud` llama a `PrevalidacionSolicitud::registrar()`
+  después del commit: `PrologService::evaluar($solicitud)` guarda la respuesta en
+  `comprobaciones_informativas` (G4), visible para revisión mediante
+  `Solicitud::evaluacionesElegibilidad()`. Un reintento idempotente no la repite y un
+  fallo del motor en ese momento solo se registra en el log.
+- Ruta limitada a 30 consultas por minuto; las pruebas están en
+  `PrevalidacionSolicitudTest` y en `EnvioSolicitudTest`.
 
 `solicitudes.edit` y `solicitudes.reenviar` permiten al propietario activo corregir
 una solicitud observada. Conservan su código, las versiones y archivos anteriores;
@@ -123,11 +225,14 @@ el personal de revisión. No se cambiaron el middleware ni el login de G1.
 
 ### Contratos que deben confirmar G1 y G2
 
-- C11 identifica al estudiante autenticado; C13 debe entregar sus inscripciones
-  activas con relaciones funcionales. En `origin/develop` revisado, C13 solicita
-  `carreraModalidad` y `malla`, que el modelo `CarreraEstudiante` todavía no define.
-  No sustituir las consultas actuales hasta que modelo y servicio sean coherentes.
-- C05 sigue devolviendo una colección vacía. C12 y C34 están pendientes de entrega.
+- Desde el PR #14 de G1 (22/10/2026), `carrera_estudiante` sigue el Excel
+  (`estudiante_id`, `carrera_modalidad_id`, `malla_id`) y `CarreraEstudiante`
+  define `estudiante()`, `carreraModalidad()` y `malla()`. G2 usa C11, C13 y C05
+  para el selector de materias y lee la propiedad por `estudiante()`. Los
+  accesores `user_id` y `carrera_id` del modelo son de compatibilidad de G1; no
+  depender de ellos.
+- C12 (`perfil()`) y la API C32–C35 ya están entregados. C12 no se usa: los
+  datos personales del paso 1 siguen siendo manuales (ver abajo).
 - La selección final actual de G2 representa un **curso**, no solo una materia.
   Propuesta de respuesta para normalizar en el adaptador de G2:
 

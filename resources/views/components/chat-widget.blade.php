@@ -15,8 +15,8 @@
 @if ($flotante)
     <div class="cb cb-flotante" data-cb-flotante>
         <button type="button" class="cb-lanzador" data-cb-abrir aria-expanded="false" aria-controls="{{ $id }}">
-            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5.5A2.5 2.5 0 0 1 6.5 3h11A2.5 2.5 0 0 1 20 5.5v8a2.5 2.5 0 0 1-2.5 2.5H10l-4.2 3.6A.5.5 0 0 1 5 19.2V16h-.5A.5.5 0 0 1 4 15.5z" fill="currentColor"/></svg>
-            <span>¿Dudas con un trámite?</span>
+            <img class="cb-lanzador-img" src="{{ asset('assets/chatbot/img/ueesito.png') }}" alt="" width="84" height="84">
+            <span class="cb-lanzador-tip"><strong>¿Dudas con un trámite?</strong> Pregúntame</span>
         </button>
 @endif
 

@@ -21,6 +21,16 @@ interface IntegracionEnvio
      */
     public function resolver(User $usuario, array $datos): array;
 
+    /**
+     * Contexto con el que se guarda un borrador (RF-2.12), que puede estar
+     * incompleto: la inscripción activa y el periodo vigente se toman de la
+     * cuenta, no de lo declarado. null si la cuenta no tiene con qué guardarlo
+     * (sin inscripción activa, sin periodo vigente o sin el estado «borrador»).
+     *
+     * @return array{carrera_estudiante_id: int, tipo_tramite_id: int, periodo_id: int, estado_solicitud_id: int}|null
+     */
+    public function contextoBorrador(User $usuario, string $tramite, array $datos): ?array;
+
     /** G3 registra el cambio a Enviado y su historial dentro de la transacción. */
     public function enviar(Solicitud $solicitud, User $usuario): void;
 }

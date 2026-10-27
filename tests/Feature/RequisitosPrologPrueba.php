@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Services\Solicitudes\PrevalidacionSolicitud;
 use App\Services\Solicitudes\RequisitosSolicitud;
 use App\Services\Solicitudes\TramitesSimulados;
 
@@ -18,5 +19,7 @@ trait RequisitosPrologPrueba
                 'documentos' => app(TramitesSimulados::class)->buscar($codigo)['documentos'] ?? [],
                 'aviso' => 'Aviso del motor de prueba', 'kb_version' => 'prueba',
             ]);
+        // La comprobación informativa del envío tiene sus propias pruebas (PrevalidacionSolicitudTest).
+        $this->partialMock(PrevalidacionSolicitud::class)->shouldReceive('registrar');
     }
 }
