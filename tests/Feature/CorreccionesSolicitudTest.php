@@ -74,7 +74,7 @@ class CorreccionesSolicitudTest extends TestCase
         $solicitud = Solicitud::create([
             'codigo' => 'SOL-2026-'.random_int(10000, 99999), 'carrera_estudiante_id' => $inscripcion,
             'tipo_tramite_id' => 1, 'periodo_id' => 1, 'estado_solicitud_id' => 1,
-            'detalle' => $this->datos(), 'gpa_verificado' => true,
+            'detalle' => $this->datos(), 'gpa_verificado' => true, 'enviada_at' => now(),
         ]);
         $doc = $solicitud->documentosGenerados()->create(['version' => 1, 'ruta_docx' => 'original/'.$solicitud->id.'.docx']);
         Storage::disk('local')->put($doc->ruta_docx, 'Word anterior');
@@ -118,6 +118,10 @@ class CorreccionesSolicitudTest extends TestCase
             {
                 return ['carrera_estudiante_id' => 1, 'tipo_tramite_id' => 1, 'periodo_id' => 1,
                     'estado_solicitud_id' => 1, 'cursos' => ['calculo-demo' => 1], 'requisitos' => ['respaldo' => 1]];
+            }
+            public function contextoBorrador(User $usuario, string $tramite, array $datos): ?array
+            {
+                return null;
             }
             public function enviar(Solicitud $solicitud, User $usuario): void
             {

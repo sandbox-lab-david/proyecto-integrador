@@ -454,8 +454,9 @@
         <div class="introduccion">
             Completa tus datos manualmente y selecciona las materias del catálogo académico.
             La solicitud todavía no se envía; lo que
-            escribas queda como borrador en este navegador mientras tu
-            sesión siga abierta.
+            escribas se guarda como borrador en tu cuenta y puedes retomarlo
+            desde «Mis solicitudes». Los archivos adjuntos se conservan solo
+            en este navegador mientras tu sesión siga abierta.
         </div>
 
         <ol class="pasos" aria-label="Pasos de la solicitud">
@@ -736,9 +737,9 @@
                     </div>
 
                     <p class="ayuda">
-                        Tus archivos se guardan de forma temporal mientras
-                        completas el formulario. Quedarán unidos a tu
-                        solicitud cuando el guardado esté disponible.
+                        Tus archivos se guardan de forma temporal en este
+                        navegador mientras completas el formulario y quedan
+                        unidos a tu solicitud al enviarla.
                     </p>
                 </section>
 
@@ -1062,7 +1063,8 @@
             destino.setCustomValidity(repetido ? cambioSolicitado.mensaje : '');
         }
 
-        // Borrador (RF-2.12): lo escrito se guarda en la sesión, uno por trámite.
+        // Borrador (RF-2.12): lo escrito se guarda en la cuenta, uno por trámite
+        // (en la sesión si la cuenta todavía no puede guardarlo, o si es una corrección).
         const borrador = @json($borrador);
         const urlBorrador = @json(route('borradores-temporales.update', $codigoTramite));
         const estadoBorrador = document.getElementById('estado-borrador');
@@ -2073,6 +2075,8 @@
         }
 
         function enviarBorrador(opciones = {}) {
+            // Un guardado después del envío crearía un borrador nuevo del mismo trámite.
+            if (enviandoSolicitud || solicitudEnviada) return Promise.resolve(null);
             return fetchSolicitud(urlBorrador, {
                 method: 'PUT',
                 headers: { ...cabecerasRespaldos, 'Content-Type': 'application/json' },
@@ -2116,6 +2120,8 @@
                 return;
             }
 
+            if (respuesta === null && (enviandoSolicitud || solicitudEnviada)) return;
+
             if (!respuesta?.ok) {
                 estadoBorrador.textContent = respuesta?.status === 419
                     ? 'Tu sesión expiró y el borrador no se guardó. Recarga la página.'
@@ -2124,7 +2130,9 @@
             }
 
             const guardado = await respuesta.json();
-            estadoBorrador.textContent = `Borrador guardado ${cuandoSeGuardo(guardado.guardado_at)}.`;
+            estadoBorrador.textContent = guardado.en_cuenta
+                ? `Borrador guardado en tu cuenta ${cuandoSeGuardo(guardado.guardado_at)}.`
+                : `Borrador guardado en este navegador ${cuandoSeGuardo(guardado.guardado_at)}.`;
             botonDescartar.hidden = false;
         }
 

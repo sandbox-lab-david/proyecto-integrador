@@ -8,9 +8,10 @@ DOM y ZipArchive preparan marcadores en una copia de las plantillas originales;
 `WordService::rellenarPlantilla` realiza el llenado definitivo con PhpWord.
 Los archivos temporales de preparación y llenado se eliminan al terminar.
 El formulario permite descargar Word o PDF. LibreOffice convierte el archivo
-en el servidor; el estudiante no necesita instalarlo. Los borradores viven
-en la sesión y los respaldos y PDF firmados se almacenan temporalmente hasta
-el envío, separados por sesión, trámite y expediente en corrección.
+en el servidor; el estudiante no necesita instalarlo. Los borradores se guardan
+en la cuenta (ver «Borrador en la cuenta») y los respaldos, el Word y el PDF
+firmado se almacenan temporalmente en la sesión hasta el envío, separados por
+sesión, trámite y expediente en corrección.
 
 El documento incluye los datos del estudiante, los campos del trámite y sus
 materias. Las tablas de materias se repiten cuando corresponde; tercer registro
@@ -25,6 +26,31 @@ Las plantillas originales no se sobrescriben. Las copias temporales son privadas
 y se conservan con los datos de la versión descargada. Al descartar el borrador
 se eliminan también el Word y el PDF firmado. Cada descarga crea una nueva
 versión, elimina el PDF firmado anterior y requiere volver a adjuntarlo.
+
+## Borrador en la cuenta (RF-2.12)
+
+`BorradoresSolicitud` guarda el borrador de una solicitud nueva como fila de
+`solicitudes` en estado `borrador` y sin `enviada_at`, uno por estudiante y
+trámite (`detalle.tramite`). La fila lleva la inscripción activa del estudiante
+(la que coincide con la carrera declarada o, si no, la primera), el período
+vigente (el declarado o `periodoActual()` de G1), el tipo de trámite de G4 y un
+código `SOL-AAAA-00000` desde el primer guardado, porque `codigo` y las cuatro
+llaves no admiten nulo. `declaracion_veracidad` queda en falso hasta el envío.
+Se retoma desde cualquier navegador; los scopes `enviadas()` y `borradores()`
+del modelo los separan, y `SolicitudService::delEstudiante()`, «Solicitudes
+registradas» y el personal (`SolicitudPolicy::view`) solo ven las enviadas.
+`solicitudes.show` de un borrador redirige al formulario. Al enviar,
+`EnvioSolicitud` completa esa misma fila y conserva su código; descartar el
+borrador borra la fila, así que pueden quedar huecos en la numeración.
+G3 no lee `solicitudes` para sus bandejas (usa `solicitudes_revision`).
+
+Siguen en la sesión (`BorradoresTemporales`) el borrador de una corrección, que
+no debe tocar la solicitud observada hasta reenviarla, y el de una cuenta sin
+inscripción activa, sin período vigente o sin el estado `borrador` sembrado:
+en ese caso el formulario dice «guardado en este navegador», y el primer
+guardado posible en la cuenta se lleva lo de la sesión. Los respaldos, el Word
+y el PDF firmado todavía son temporales de la sesión: al retomar el borrador
+en otro navegador hay que volver a adjuntarlos, descargar y firmar.
 
 ## Guardado y envío institucional
 

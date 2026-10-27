@@ -8,6 +8,7 @@ use App\Models\Periodo;
 use App\Models\Solicitud;
 use App\Models\TipoTramite;
 use App\Models\User;
+use App\Services\Academico\CatalogoAcademicoService;
 use App\Services\Academico\EstudianteService;
 use App\Services\Catalogo\CatalogoTramites;
 use Illuminate\Validation\ValidationException;
@@ -38,6 +39,31 @@ class IntegracionEnvioInstitucional implements IntegracionEnvio
         $tipo = TipoTramite::where('codigo', $codigo)->firstOrFail();
 
         return ['carrera_estudiante_id' => $inscripcion->id, 'tipo_tramite_id' => $tipo->id, 'periodo_id' => $periodos->first()->id, 'estado_solicitud_id' => EstadoSolicitud::where('codigo', 'borrador')->firstOrFail()->id, 'requisitos' => $tipo->documentos()->pluck('id', 'codigo')->all()];
+    }
+
+    public function contextoBorrador(User $usuario, string $tramite, array $datos): ?array
+    {
+        if (! $usuario->exists || ! $usuario->activo || $usuario->tipo !== 'estudiante' || ! $usuario->estudiante) {
+            return null;
+        }
+        $carreras = app(EstudianteService::class)->carrerasActivas($usuario->estudiante->id)
+            ->filter(fn ($i) => $i->carreraModalidad?->carrera?->activo)->sortBy('id');
+        $nombre = fn ($v) => mb_strtolower(trim((string) $v));
+        // La carrera declarada elige entre varias inscripciones; si no coincide, la primera activa.
+        $coincidentes = $carreras->filter(fn ($i) => $nombre($i->carreraModalidad->carrera->nombre) === $nombre($datos['carrera'] ?? ''));
+        $inscripcion = $coincidentes->count() === 1 ? $coincidentes->first() : $carreras->first();
+        $hoy = now(ReglasCampoSolicitud::zonaHoraria())->toDateString();
+        $periodo = Periodo::where('activo', true)->whereDate('fecha_inicio', '<=', $hoy)->whereDate('fecha_fin', '>=', $hoy)->get()
+            ->first(fn ($p) => in_array($nombre($datos['periodo'] ?? ''), [$nombre($p->codigo), $nombre($p->nombre)], true))
+            ?? app(CatalogoAcademicoService::class)->periodoActual();
+        $codigo = app(CatalogoTramites::class)->buscar($tramite)['id'] ?? null;
+        $tipo = $codigo === null ? null : TipoTramite::where('codigo', $codigo)->first();
+        $estado = EstadoSolicitud::where('codigo', 'borrador')->first();
+        if (! $inscripcion || ! $periodo || ! $tipo || ! $estado) {
+            return null;
+        }
+
+        return ['carrera_estudiante_id' => $inscripcion->id, 'tipo_tramite_id' => $tipo->id, 'periodo_id' => $periodo->id, 'estado_solicitud_id' => $estado->id];
     }
 
     public function enviar(Solicitud $solicitud, User $usuario): void

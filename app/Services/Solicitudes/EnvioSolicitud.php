@@ -23,6 +23,7 @@ class EnvioSolicitud
         private readonly FirmadosTemporales $firmados,
         private readonly RespaldosTemporales $respaldos,
         private readonly BorradoresTemporales $borradores,
+        private readonly BorradoresSolicitud $borradoresEnCuenta,
         private readonly TramitesSimulados $catalogo,
         private readonly SolicitudService $solicitudes,
         private readonly PrevalidacionSolicitud $prevalidacion,
@@ -168,7 +169,7 @@ class EnvioSolicitud
             }
             for ($intento = 0; ; $intento++) {
                 try {
-                    $solicitud = DB::transaction(function () use ($usuario, $datos, $contexto, $integracion, $word, $pdf, $firmado, $respaldos, $correccion, $revisionBase) {
+                    $solicitud = DB::transaction(function () use ($usuario, $tramite, $datos, $contexto, $integracion, $word, $pdf, $firmado, $respaldos, $correccion, $revisionBase) {
                         $gpa = $datos['campos']['gpa_general'] ?? null;
                         $version = 1;
                         $historialCorrecciones = [];
@@ -203,9 +204,17 @@ class EnvioSolicitud
                             'fecha_ultima_recuperacion' => ($datos['campos']['ultima_recuperacion'] ?? '') ?: null,
                             'declaracion_veracidad' => true,
                         ];
+                        // El borrador guardado en la cuenta (RF-2.12) se convierte en la solicitud
+                        // y conserva su código; si no hay, se crea la fila.
+                        $borrador = $correccion ? null
+                            : $this->borradoresEnCuenta->consulta($usuario, $tramite)->lockForUpdate()->first();
                         if ($correccion) {
                             unset($atributos['codigo'], $atributos['estado_solicitud_id']);
                             $atributos['gpa_verificado'] = false;
+                            $solicitud->forceFill($atributos)->save();
+                        } elseif ($borrador) {
+                            unset($atributos['codigo'], $atributos['estado_solicitud_id']);
+                            $solicitud = $borrador;
                             $solicitud->forceFill($atributos)->save();
                         } else {
                             $solicitud = Solicitud::create($atributos);

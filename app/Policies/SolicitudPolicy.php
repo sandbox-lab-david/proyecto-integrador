@@ -11,7 +11,7 @@ use App\Services\Academico\AutorizacionService;
  *
  * La propiedad se lee por carrera_estudiante → estudiantes.user_id. Solo el estudiante propietario
  * activo puede corregir una solicitud observada; el personal conserva los
- * permisos de lectura publicados por G1.
+ * permisos de lectura publicados por G1, salvo sobre los borradores.
  */
 class SolicitudPolicy
 {
@@ -39,6 +39,10 @@ class SolicitudPolicy
         }
         if ((int) $s->carreraEstudiante->estudiante?->user_id === (int) $u->id) {
             return true;
+        }
+        // Un borrador (sin enviada_at) es solo de su estudiante hasta que lo envía.
+        if ($s->enviada_at === null) {
+            return false;
         }
 
         return $this->autorizacion->puedeVerCarrera($u, (int) $s->carreraEstudiante->carreraModalidad?->carrera_id);

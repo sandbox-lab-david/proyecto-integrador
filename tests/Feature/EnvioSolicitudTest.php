@@ -42,6 +42,11 @@ class EnvioSolicitudTest extends TestCase
                     'estado_solicitud_id' => 1, 'requisitos' => ['respaldo' => 1]];
             }
 
+            public function contextoBorrador(User $usuario, string $tramite, array $datos): ?array
+            {
+                return null;
+            }
+
             public function enviar(Solicitud $solicitud, User $usuario): void
             {
                 $this->envios++;

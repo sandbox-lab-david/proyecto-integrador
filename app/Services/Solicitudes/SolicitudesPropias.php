@@ -21,7 +21,7 @@ class SolicitudesPropias
             if (! Schema::hasTable($tabla) || ! Schema::hasColumns($tabla, $columnas)) return null;
         }
         if ($usuario === null || ! $usuario->activo) return new Collection;
-        return Solicitud::whereHas('carreraEstudiante.estudiante', fn ($q) => $q->where('user_id', $usuario->getKey()))
+        return Solicitud::enviadas()->whereHas('carreraEstudiante.estudiante', fn ($q) => $q->where('user_id', $usuario->getKey()))
             ->with(Schema::hasTable('tipos_tramite') ? ['tipoTramite', 'estadoSolicitud'] : ['estadoSolicitud'])->latest('id')->get();
     }
 }

@@ -806,8 +806,13 @@
                 </ul>
 
                 <p>
-                    Los borradores se conservan en este navegador
-                    mientras tu sesión siga abierta.
+                    @if (collect($borradores)->every(fn ($borrador) => $borrador['en_cuenta']))
+                        Los borradores se conservan en tu cuenta hasta que los
+                        envíes o descartes.
+                    @else
+                        Algunos borradores se conservan solo en este navegador
+                        mientras tu sesión siga abierta.
+                    @endif
                 </p>
             </section>
         @endif
