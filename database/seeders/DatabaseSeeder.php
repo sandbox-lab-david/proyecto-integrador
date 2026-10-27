@@ -24,6 +24,8 @@ class DatabaseSeeder extends Seeder
             CursoSeeder::class,
         ]);
 
+        $this->call(CatalogoInformativoSeeder::class);
+
         // Contratos compartidos del flujo; las solicitudes de prueba no se crean aquí.
         $this->call(EstadosSolicitudSeeder::class);
     }

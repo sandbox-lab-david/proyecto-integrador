@@ -55,7 +55,8 @@ class ChatbotOrchestratorService
         if ($esComprobacion && empty($perfil) && ! ($datos['mostrar_referencias'] ?? false)) {
             $respuesta['estado'] = 'requiere_datos';
             $respuesta['campos_pendientes'] = $this->catalogoService->obtenerCamposDeTramite($id);
-            $respuesta['mensaje'] = 'La referencia de GPA general es 75 y el intervalo es de 365 días desde el último examen. Si quieres, introduce uno o ambos datos para calcular la comparación. También puedes continuar sin completarlos.';
+            $referencias = $this->catalogoService->referenciasRecuperacion();
+            $respuesta['mensaje'] = "La referencia de GPA general es {$referencias['gpa_general_minimo']} y el intervalo es de {$referencias['intervalo_recuperacion_dias']} días desde el último examen. Si quieres, introduce uno o ambos datos para calcular la comparación. También puedes continuar sin completarlos.";
         }
 
         return $respuesta;
