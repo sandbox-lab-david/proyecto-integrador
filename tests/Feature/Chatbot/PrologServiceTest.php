@@ -2,6 +2,9 @@
 
 namespace Tests\Feature\Chatbot;
 
+use App\Models\CarreraEstudiante;
+use App\Models\EstadoSolicitud;
+use App\Models\Periodo;
 use App\Models\Solicitud;
 use App\Models\TipoTramite;
 use App\Services\Chatbot\Prolog\PrologClient;
@@ -17,7 +20,11 @@ class PrologServiceTest extends TestCase
     public function test_solicitud_real_usa_gpa_general_y_nunca_nota_de_materia(): void
     {
         $tipo = TipoTramite::create(['codigo' => 'examen_recuperacion', 'nombre' => 'Recuperación', 'slug' => 'examen-recuperacion', 'contenido' => []]);
-        $s = Solicitud::factory()->create(['carrera_estudiante_id' => 1, 'periodo_id' => 1, 'estado_solicitud_id' => 1, 'tipo_tramite_id' => $tipo->id, 'gpa_declarado' => 72, 'fecha_ultima_recuperacion' => '2025-10-20', 'detalle' => ['campos' => ['gpa_periodo' => 99], 'materias' => [['datos' => ['nota' => 98]]]]]);
+        $s = Solicitud::factory()->create(['carrera_estudiante_id' => CarreraEstudiante::factory()->create()->id,
+            'periodo_id' => Periodo::factory()->create()->id,
+            'estado_solicitud_id' => EstadoSolicitud::firstOrCreate(['codigo' => 'enviada'], ['nombre' => 'Enviada'])->id,
+            'tipo_tramite_id' => $tipo->id, 'gpa_declarado' => 72, 'fecha_ultima_recuperacion' => '2025-10-20',
+            'detalle' => ['campos' => ['gpa_periodo' => 99], 'materias' => [['datos' => ['nota' => 98]]]]]);
         $motor = $this->createMock(PrologClient::class);
         $motor->expects($this->once())->method('evaluar')->with($this->callback(fn ($p) => $p['version'] === 3 && $p['perfil'] === ['gpa_general' => 72.0, 'fecha_ultima_recuperacion' => '2025-10-20'] && $p['origen_datos'] === 'manual'))->willReturn(['version' => 3, 'kb_version' => 'catalogo-informativo-001', 'resultado' => null, 'comprobaciones' => []]);
         $this->app->instance(PrologClient::class, $motor);
