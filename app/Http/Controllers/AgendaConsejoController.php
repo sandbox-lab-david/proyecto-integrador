@@ -43,7 +43,7 @@ class AgendaConsejoController extends Controller
             $career = $s->carreraEstudiante->carreraModalidad->carrera;
             abort_unless($admin || $authz->puedeVerFacultad(auth()->user(), (int) $career->facultad_id), 403);
         }
-        DB::transaction(function () use ($solicitudes, $data, $estados) {
+        DB::transaction(function () use ($solicitudes, $data, $estados, $solicitudService) {
             foreach ($solicitudes->groupBy(fn ($s) => $s->carreraEstudiante->carreraModalidad->carrera->facultad_id) as $facultyId => $group) {
                 $corte = CorteAgenda::create(['facultad_id' => $facultyId, 'fecha_sesion' => $data['fecha_sesion'], 'estado' => 'Agendado']);
                 if (filled($data['punto_titulo'] ?? null) || filled($data['punto_descripcion'] ?? null)) {

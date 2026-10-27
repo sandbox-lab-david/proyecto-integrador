@@ -3,14 +3,22 @@
 namespace Tests\Feature;
 
 use App\Models\EstadoSolicitud;
+use App\Models\Carrera;
+use App\Models\CarreraEstudiante;
+use App\Models\CarreraModalidad;
+use App\Models\Estudiante;
 use App\Models\HistorialSolicitud;
+use App\Models\Modalidad;
+use App\Models\Periodo;
 use App\Models\Resolucion;
 use App\Models\Solicitud;
+use App\Models\TipoTramite;
 use App\Models\User;
 use App\Services\Flujo\EstadoSolicitudService;
 use App\Services\Flujo\ResolucionService;
 use App\Support\RevisionSolicitudFilters;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 use Tests\TestCase;
 
@@ -68,8 +76,29 @@ class FlujoModuloTresTest extends TestCase
 
     private function crearSolicitud(int $estadoId): Solicitud
     {
-        $id = \DB::table('solicitudes')->insertGetId(['codigo' => 'SOL-TEST-'.uniqid(), 'carrera_estudiante_id' => 1, 'tipo_tramite_id' => 1, 'periodo_id' => 1, 'estado_solicitud_id' => $estadoId, 'declaracion_veracidad' => true, 'created_at' => now(), 'updated_at' => now()]);
+        $carrera = Carrera::factory()->create();
+        $modalidad = Modalidad::factory()->create();
+        $carreraModalidad = CarreraModalidad::create(['carrera_id' => $carrera->id, 'modalidad_id' => $modalidad->id]);
+        $estudiante = Estudiante::factory()->create();
+        $inscripcion = CarreraEstudiante::factory()->create([
+            'estudiante_id' => $estudiante->id,
+            'carrera_modalidad_id' => $carreraModalidad->id,
+        ]);
+        $periodo = Periodo::factory()->create();
+        $tramite = TipoTramite::create([
+            'codigo' => 'TEST-'.Str::upper(Str::random(8)),
+            'nombre' => 'Trámite de prueba',
+            'slug' => 'tramite-prueba-'.Str::lower(Str::random(8)),
+            'contenido' => [],
+        ]);
 
-        return Solicitud::findOrFail($id);
+        return Solicitud::create([
+            'codigo' => 'SOL-TEST-'.Str::upper(Str::random(8)),
+            'carrera_estudiante_id' => $inscripcion->id,
+            'tipo_tramite_id' => $tramite->id,
+            'periodo_id' => $periodo->id,
+            'estado_solicitud_id' => $estadoId,
+            'declaracion_veracidad' => true,
+        ]);
     }
 }

@@ -22,7 +22,7 @@
                     <div class="min-w-56 flex-1">
                         <p class="font-semibold text-slate-900">Expediente {{ $caso->codigo_solicitud }} · {{ $caso->estudiante }}</p>
                         <p class="text-sm text-slate-600">{{ $caso->tramite }} · {{ $caso->estado_solicitud }} · {{ $caso->carrera }}</p>
-                        <p class="text-xs text-slate-500">Código CAFI: {{ $caso->codigo_sistema ?: '—' }} · Sesión hace {{ \Illuminate\Support\Carbon::parse($agenda->fecha_sesion)->diffInDays(now()) }} días</p>
+                        <p class="text-xs text-slate-500">Código CAFI: {{ $caso->codigo_sistema ?: '—' }} · Sesión hace {{ (int) \Illuminate\Support\Carbon::parse($agenda->fecha_sesion)->diffInDays(now()) }} días</p>
                         @if($caso->numero_resolucion)<p class="mt-1 text-xs text-slate-500">Resolución {{ $caso->numero_resolucion }}</p>@endif
                     </div>
                     @if($caso->decision)
@@ -75,7 +75,7 @@
                         <tr class="hover:bg-[#faf9f6]">
                             <td class="p-4 font-semibold text-slate-900">{{ $item->numero }}<div class="text-xs font-normal text-slate-500">{{ $item->total_solicitudes }} solicitudes</div></td>
                             <td class="p-4 text-slate-700">{{ \Illuminate\Support\Carbon::parse($item->fecha_sesion)->format('d/m/Y') }}</td>
-                            <td class="p-4 text-slate-700">{{ \Illuminate\Support\Carbon::parse($item->fecha_sesion)->diffInDays(now()) }}</td>
+                            <td class="p-4 text-slate-700">{{ (int) \Illuminate\Support\Carbon::parse($item->fecha_sesion)->diffInDays(now()) }}</td>
                             <td class="p-4"><span class="rounded-full border border-sky-200 bg-sky-50 px-2.5 py-1 text-xs font-medium text-sky-800">{{ $item->estado }}</span></td>
                             <td class="p-4"><div class="flex flex-wrap gap-1.5">@foreach([['Enviado por estudiante', $item->total_enviadas], ['Revisado', $item->total_revisadas], ['Apto para consejo', $item->total_aptas_consejo], ['Agendado', $item->total_agendadas], ['Aprobado para ejecución', $item->total_aprobadas_ejecucion], ['Ejecutado', $item->total_ejecutadas], ['Observado', $item->total_observadas], ['Rechazado', $item->total_rechazadas]] as [$etiqueta, $cantidad]) @if($cantidad > 0)<span class="rounded-full border border-slate-200 bg-slate-50 px-2 py-1 text-xs text-slate-700">{{ $etiqueta }}: {{ $cantidad }}</span>@endif @endforeach</div></td>
                             <td class="p-4">@if($item->total_pendientes_resolucion > 0)<span class="rounded-full border border-amber-300 bg-amber-50 px-2.5 py-1 text-xs font-semibold text-amber-800">{{ $item->total_pendientes_resolucion }} pendiente(s)</span>@else<span class="text-emerald-700">Al día</span>@endif</td>

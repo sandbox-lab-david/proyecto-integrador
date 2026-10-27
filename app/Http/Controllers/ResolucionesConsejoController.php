@@ -31,7 +31,8 @@ class ResolucionesConsejoController extends Controller
         foreach ($agendas as $agenda) {
             $agenda->numero = 'AG-'.$agenda->id;
             $itemsQuery = $agenda->solicitudes()->with('estadoSolicitud');
-            $items = RevisionSolicitudFilters::apply($itemsQuery, $filtros)->get();
+            RevisionSolicitudFilters::apply($itemsQuery->getQuery(), $filtros);
+            $items = $itemsQuery->get();
             $agenda->setRelation('solicitudes', $items);
             $agenda->total_solicitudes = $items->count();
             $map = [Estados::ENVIADA => 'total_enviadas', Estados::REVISADA => 'total_revisadas', Estados::APTA_CONSEJO => 'total_aptas_consejo', Estados::AGENDADA => 'total_agendadas', Estados::APROBADA_EJECUCION => 'total_aprobadas_ejecucion', Estados::EJECUTADA => 'total_ejecutadas', Estados::OBSERVADA => 'total_observadas', Estados::RECHAZADA => 'total_rechazadas'];
@@ -94,7 +95,7 @@ class ResolucionesConsejoController extends Controller
         $rows = $query->orderBy('fecha_sesion')->get();
         foreach ($rows as $agenda) {
             $filtered = $agenda->solicitudes()->with('resolucion', 'estadoSolicitud');
-            RevisionSolicitudFilters::apply($filtered, $filtros);
+            RevisionSolicitudFilters::apply($filtered->getQuery(), $filtros);
             $agenda->setRelation('solicitudes', $filtered->get());
         }
         $filename = 'agendas-consejo-'.now()->format('Ymd-His').'.csv';
@@ -104,7 +105,7 @@ class ResolucionesConsejoController extends Controller
             fwrite($out, "\xEF\xBB\xBF");
             fputcsv($out, ['Agenda', 'Fecha de sesión', 'Días transcurridos', 'Solicitudes', 'Pendientes de resolución', 'Facultad']);
             foreach ($rows as $agenda) {
-                fputcsv($out, ['AG-'.$agenda->id, $agenda->fecha_sesion->format('d/m/Y'), $agenda->fecha_sesion->diffInDays(now()), $agenda->solicitudes->count(), $agenda->solicitudes->filter(fn ($s) => ! $s->resolucion || $s->resolucion->decision === 'Guardar')->count(), $agenda->facultad_id]);
+                fputcsv($out, ['AG-'.$agenda->id, $agenda->fecha_sesion->format('d/m/Y'), (int) $agenda->fecha_sesion->diffInDays(now()), $agenda->solicitudes->count(), $agenda->solicitudes->filter(fn ($s) => ! $s->resolucion || $s->resolucion->decision === 'Guardar')->count(), $agenda->facultad_id]);
             }
             fclose($out);
         }, $filename, ['Content-Type' => 'text/csv; charset=UTF-8']);
