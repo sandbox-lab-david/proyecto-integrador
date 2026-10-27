@@ -312,8 +312,8 @@ Cada grupo debe correr lo de la sección [Instalación](#instalación): como mí
 |---|---|---|---|
 | `admin@uees.edu.ec` | trabajador | `admin` | `/administracion` (G1) |
 | `asistente@uees.edu.ec` | trabajador | `asistente` | `/revision/asistente` (G3) |
-| `director@uees.edu.ec` | trabajador | `director` | `/revision/asistente` (G3) |
-| `consulta@uees.edu.ec` | trabajador | `consulta` | Página "Tu cuenta aún no tiene un módulo asignado" |
+| `director@uees.edu.ec` | trabajador | `director` | `/revision/director` (G3) |
+| `consulta@uees.edu.ec` | trabajador | `consulta` | `/revision/resoluciones` (G3) |
 | `estudiante@uees.edu.ec` | estudiante | — | `/estudiante/tramites` (G2) |
 
 ### Cómo funciona
