@@ -228,7 +228,7 @@ class EstructuraAcademicaTest extends TestCase
         $usado = Curso::where('id', '!=', $curso->id)->first();
         $solicitud = Solicitud::factory()->create([
             'carrera_estudiante_id' => CarreraEstudiante::first()->id,
-            'tipo_tramite_id' => TipoTramite::create(['codigo' => 'retiro_materia', 'nombre' => 'Retiro de materia', 'slug' => 'retiro-materia', 'contenido' => []])->id,
+            'tipo_tramite_id' => TipoTramite::firstOrCreate(['codigo' => 'retiro_materia'], ['nombre' => 'Retiro de materia', 'slug' => 'retiro-materia', 'contenido' => []])->id,
             'periodo_id' => $usado->periodo_id,
             'estado_solicitud_id' => DB::table('estados_solicitud')->value('id'),
         ]);
