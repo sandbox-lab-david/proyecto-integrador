@@ -18,19 +18,23 @@ class AgendaConsejoController extends Controller
     public function index(Request $request, AutorizacionService $authz)
     {
         $filtros = RevisionSolicitudFilters::validate($request);
-        $query = Solicitud::with(['carreraEstudiante.estudiante', 'carreraEstudiante.carreraModalidad.carrera', 'tipoTramite', 'estadoSolicitud'])
-            ->enEstado(Estados::APTA_CONSEJO)->whereDoesntHave('cortesAgenda');
-        if (! $authz->tieneRol(auth()->user(), 'admin')) {
-            $ids = $authz->facultadesDe(auth()->user()->trabajador)->modelKeys();
-            $query->whereHas('carreraEstudiante.carrera', fn ($c) => $c->whereIn('facultad_id', $ids));
-        }
-        RevisionSolicitudFilters::apply($query, $filtros);
-        $aprobadas = $query->latest('created_at')->get();
-        foreach ($aprobadas as $s) {
-            $this->presentar($s);
+        $aprobadas = collect();
+        if ($filtros['filtrar']) {
+            $query = Solicitud::with(['carreraEstudiante.estudiante', 'carreraEstudiante.carreraModalidad.carrera', 'tipoTramite', 'estadoSolicitud'])
+                ->enEstado(Estados::APTA_CONSEJO)->whereDoesntHave('cortesAgenda');
+            if (! $authz->tieneRol(auth()->user(), 'admin')) {
+                $trabajador = auth()->user()->trabajador;
+                $ids = $trabajador ? $authz->facultadesDe($trabajador)->modelKeys() : [];
+                $query->whereHas('carreraEstudiante.carrera', fn ($c) => $c->whereIn('facultad_id', $ids));
+            }
+            RevisionSolicitudFilters::apply($query, $filtros);
+            $aprobadas = $query->latest('created_at')->get();
+            foreach ($aprobadas as $s) {
+                $this->presentar($s);
+            }
         }
 
-        return view('revision.agendas', ['aprobadas' => $aprobadas, 'filtros' => $filtros, 'tramitesDisponibles' => RevisionSolicitudFilters::tramitesDisponibles(), 'estadosDisponibles' => RevisionSolicitudFilters::ESTADOS]);
+        return view('revision.agendas', ['aprobadas' => $aprobadas, 'filtros' => $filtros, 'filtrosAplicados' => $filtros['filtrar'], 'tramitesDisponibles' => RevisionSolicitudFilters::tramitesDisponibles(), 'estadosDisponibles' => RevisionSolicitudFilters::ESTADOS]);
     }
 
     public function store(Request $request, AutorizacionService $authz, EstadoSolicitudService $estados, SolicitudService $solicitudService)

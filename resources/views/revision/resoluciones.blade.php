@@ -53,6 +53,7 @@
         </div>
     @else
         <form method="GET" action="{{ route('revision.resoluciones') }}" autocomplete="off" class="mb-5 rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
+            <input type="hidden" name="filtrar" value="1">
             <div class="grid items-end gap-4 md:grid-cols-2 xl:grid-cols-3">
                 <div><label for="nombre" class="mb-2 block text-xs font-medium text-slate-600">Nombre del estudiante</label><input id="nombre" name="nombre" type="search" autocomplete="off" value="{{ $filtros['nombre'] }}" placeholder="Buscar por nombre" class="w-full rounded-lg border border-slate-300 bg-white px-3 py-2.5 text-sm text-slate-800"></div>
                 <div><label for="codigo" class="mb-2 block text-xs font-medium text-slate-600">Código de estudiante</label><input id="codigo" name="codigo" type="search" value="{{ $filtros['codigo'] }}" placeholder="Buscar por código SIAC" class="w-full rounded-lg border border-slate-300 bg-white px-3 py-2.5 text-sm text-slate-800"></div>
@@ -65,7 +66,7 @@
             @if($errors->any())<p class="mt-3 text-sm text-red-700">{{ $errors->first() }}</p>@endif
         </form>
 
-        <div class="mb-3 flex flex-wrap items-center justify-between gap-3"><h2 class="text-xl font-semibold text-slate-900">Agendas con solicitudes coincidentes</h2><div class="flex flex-wrap gap-2"><a href="{{ route('revision.resoluciones.exportar', array_filter($filtros, fn ($valor) => $valor !== '')) }}" class="rounded-lg border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700">Exportar CSV</a><a href="{{ route('revision.resoluciones.documento', array_filter($filtros, fn ($valor) => $valor !== '')) }}" class="rounded-lg bg-red-700 px-4 py-2 text-sm font-semibold text-white hover:bg-red-800">Documento de agendas filtradas</a></div></div>
+        <div class="mb-3 flex flex-wrap items-center justify-between gap-3"><h2 class="text-xl font-semibold text-slate-900">Agendas con solicitudes coincidentes</h2>@if($filtrosAplicados)<div class="flex flex-wrap gap-2"><a href="{{ route('revision.resoluciones.exportar', array_filter($filtros, fn ($valor) => $valor !== '' && $valor !== false)) }}" class="rounded-lg border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700">Exportar CSV</a><a href="{{ route('revision.resoluciones.documento', array_filter($filtros, fn ($valor) => $valor !== '' && $valor !== false)) }}" class="rounded-lg bg-red-700 px-4 py-2 text-sm font-semibold text-white hover:bg-red-800">Documento de agendas filtradas</a></div>@endif</div>
 
         <div class="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
             <div class="overflow-x-auto"><table class="w-full border-collapse text-left">
@@ -82,7 +83,7 @@
                             <td class="p-4 text-right"><a href="{{ route('revision.agendas.resoluciones', $item->id) }}" class="rounded-lg bg-red-700 px-3 py-2 text-xs font-semibold text-white hover:bg-red-800">Resoluciones</a></td>
                         </tr>
                     @empty
-                        <tr><td colspan="7" class="p-8 text-center text-slate-500">No hay agendas para los filtros seleccionados.</td></tr>
+                        <tr><td colspan="7" class="p-8 text-center text-slate-500">@if($filtrosAplicados)No hay agendas para los filtros seleccionados.@elseUsa los filtros y presiona “Filtrar agendas” para consultar los resultados.@endif</td></tr>
                     @endforelse
                 </tbody>
             </table></div>

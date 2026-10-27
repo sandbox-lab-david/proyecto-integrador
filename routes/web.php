@@ -117,7 +117,7 @@ Route::middleware(['auth', 'rol:asistente,admin'])->group(function () {
 
 });
 
-Route::middleware(['auth', 'rol:admin'])->group(function () {
+Route::middleware(['auth', 'rol:asistente,admin'])->group(function () {
     Route::get('/revision/agendas', [AgendaConsejoController::class, 'index'])->name('revision.agendas');
 });
 

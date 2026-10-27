@@ -20,29 +20,32 @@ class ResolucionesConsejoController extends Controller
     public function index(Request $request)
     {
         $filtros = RevisionSolicitudFilters::validateWithDateRange($request);
-        $query = CorteAgenda::with(['solicitudes.estadoSolicitud', 'resoluciones'])->whereHas('solicitudes', fn ($q) => $this->aplicarFiltrosSolicitud($q, $filtros));
-        if ($filtros['desde'] !== '') {
-            $query->whereDate('fecha_sesion', '>=', $filtros['desde']);
-        }
-        if ($filtros['hasta'] !== '') {
-            $query->whereDate('fecha_sesion', '<=', $filtros['hasta']);
-        }
-        $agendas = $query->orderByDesc('fecha_sesion')->get();
-        foreach ($agendas as $agenda) {
-            $agenda->numero = 'AG-'.$agenda->id;
-            $itemsQuery = $agenda->solicitudes()->with('estadoSolicitud');
-            RevisionSolicitudFilters::apply($itemsQuery->getQuery(), $filtros);
-            $items = $itemsQuery->get();
-            $agenda->setRelation('solicitudes', $items);
-            $agenda->total_solicitudes = $items->count();
-            $map = [Estados::ENVIADA => 'total_enviadas', Estados::REVISADA => 'total_revisadas', Estados::APTA_CONSEJO => 'total_aptas_consejo', Estados::AGENDADA => 'total_agendadas', Estados::APROBADA_EJECUCION => 'total_aprobadas_ejecucion', Estados::EJECUTADA => 'total_ejecutadas', Estados::OBSERVADA => 'total_observadas', Estados::RECHAZADA => 'total_rechazadas'];
-            foreach ($map as $code => $attribute) {
-                $agenda->{$attribute} = $items->filter(fn ($s) => $s->estadoSolicitud?->codigo === $code)->count();
+        $agendas = collect();
+        if ($filtros['filtrar']) {
+            $query = CorteAgenda::with(['solicitudes.estadoSolicitud', 'resoluciones'])->whereHas('solicitudes', fn ($q) => $this->aplicarFiltrosSolicitud($q, $filtros));
+            if ($filtros['desde'] !== '') {
+                $query->whereDate('fecha_sesion', '>=', $filtros['desde']);
             }
-            $agenda->total_pendientes_resolucion = $items->filter(fn ($s) => ! $s->resolucion || $s->resolucion->decision === 'Guardar')->count();
+            if ($filtros['hasta'] !== '') {
+                $query->whereDate('fecha_sesion', '<=', $filtros['hasta']);
+            }
+            $agendas = $query->orderByDesc('fecha_sesion')->get();
+            foreach ($agendas as $agenda) {
+                $agenda->numero = 'AG-'.$agenda->id;
+                $itemsQuery = $agenda->solicitudes()->with('estadoSolicitud');
+                RevisionSolicitudFilters::apply($itemsQuery->getQuery(), $filtros);
+                $items = $itemsQuery->get();
+                $agenda->setRelation('solicitudes', $items);
+                $agenda->total_solicitudes = $items->count();
+                $map = [Estados::ENVIADA => 'total_enviadas', Estados::REVISADA => 'total_revisadas', Estados::APTA_CONSEJO => 'total_aptas_consejo', Estados::AGENDADA => 'total_agendadas', Estados::APROBADA_EJECUCION => 'total_aprobadas_ejecucion', Estados::EJECUTADA => 'total_ejecutadas', Estados::OBSERVADA => 'total_observadas', Estados::RECHAZADA => 'total_rechazadas'];
+                foreach ($map as $code => $attribute) {
+                    $agenda->{$attribute} = $items->filter(fn ($s) => $s->estadoSolicitud?->codigo === $code)->count();
+                }
+                $agenda->total_pendientes_resolucion = $items->filter(fn ($s) => ! $s->resolucion || $s->resolucion->decision === 'Guardar')->count();
+            }
         }
 
-        return view('revision.resoluciones', ['agendas' => $agendas, 'filtros' => $filtros, 'tramitesDisponibles' => RevisionSolicitudFilters::tramitesDisponibles(), 'estadosDisponibles' => RevisionSolicitudFilters::ESTADOS]);
+        return view('revision.resoluciones', ['agendas' => $agendas, 'filtros' => $filtros, 'filtrosAplicados' => $filtros['filtrar'], 'tramitesDisponibles' => RevisionSolicitudFilters::tramitesDisponibles(), 'estadosDisponibles' => RevisionSolicitudFilters::ESTADOS]);
     }
 
     public function porAgenda(int $agenda, ResolucionService $resoluciones)

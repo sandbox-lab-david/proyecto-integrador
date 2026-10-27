@@ -29,7 +29,7 @@
                         </td>
                     </tr>
                 @empty
-                    <tr><td colspan="6" class="p-8 text-center text-slate-500">@if($filtros['filtrar'])No hay solicitudes que coincidan con los filtros.@elseNo hay casos pendientes de decisión del Director.@endif</td></tr>
+                        <tr><td colspan="6" class="p-8 text-center text-slate-500">@if($filtrosAplicados)No hay solicitudes que coincidan con los filtros.@elseUsa los filtros y presiona “Filtrar” para consultar las solicitudes.@endif</td></tr>
                 @endforelse
             </tbody>
         </table></div>
