@@ -54,7 +54,7 @@ class IntegracionInstitucionalTest extends TestCase
         $servicio = app(IntegracionEnvio::class);
         $ctx = $servicio->resolver($u, $datos);
         $this->assertSame($i->id, $ctx['carrera_estudiante_id']);
-        $s = Solicitud::create($ctx + ['codigo' => 'SOL-TEST', 'detalle' => $datos, 'declaracion_veracidad' => true]);
+        $s = Solicitud::create($ctx + ['codigo' => 'SOL-TEST', 'detalle' => $datos, 'declaracion_veracidad' => true, 'enviada_at' => now()]);
         $servicio->enviar($s, $u);
         $this->assertSame('enviada', $s->fresh()->estadoSolicitud->codigo);
         $this->assertSame(1, app(EstadoSolicitudService::class)->lineaDeTiempo($s, false)->count());
@@ -162,7 +162,7 @@ class IntegracionInstitucionalTest extends TestCase
     {
         [$u,$i,$datos] = $this->preparar();
         $ctx = app(IntegracionEnvio::class)->resolver($u, $datos);
-        $s = Solicitud::create($ctx + ['codigo' => 'SOL-DIRECTOR', 'detalle' => $datos, 'declaracion_veracidad' => true]);
+        $s = Solicitud::create($ctx + ['codigo' => 'SOL-DIRECTOR', 'detalle' => $datos, 'declaracion_veracidad' => true, 'enviada_at' => now()]);
         $director = User::factory()->create(['tipo' => 'trabajador']);
         $t = Trabajador::create(['user_id' => $director->id, 'codigo' => 'DIR-1', 'nombres' => 'Director', 'apellidos' => 'Prueba', 'correo' => $director->email, 'activo' => true]);
         $id = DB::table('directores_carrera')->insertGetId(['trabajador_id' => $t->id, 'carrera_id' => $i->carrera_id, 'fecha_inicio' => today()->subDays(20)]);

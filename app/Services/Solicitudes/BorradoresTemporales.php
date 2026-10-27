@@ -5,10 +5,11 @@ namespace App\Services\Solicitudes;
 use Illuminate\Contracts\Session\Session;
 
 /**
- * Borrador del formulario (RF-2.12) mientras la solicitud todavía no se puede
- * guardar. Vive en la sesión, uno por trámite, igual que los respaldos
- * temporales del paso 3. Cuando exista el guardado, el borrador será una
- * solicitud sin enviar y esta clase se podrá borrar.
+ * Borrador del formulario (RF-2.12) que no se guarda en la cuenta: el de una
+ * corrección y el de una cuenta que todavía no tiene inscripción activa o
+ * periodo vigente. Vive en la sesión, uno por trámite, igual que los
+ * respaldos temporales del paso 3. Se usa a través de BorradoresSolicitud,
+ * salvo al abrir una corrección.
  */
 class BorradoresTemporales
 {

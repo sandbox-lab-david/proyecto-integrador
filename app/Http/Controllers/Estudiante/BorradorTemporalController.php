@@ -5,7 +5,7 @@ namespace App\Http\Controllers\Estudiante;
 use App\Http\Controllers\Controller;
 use App\Services\Archivos\FirmadosTemporales;
 use App\Services\Archivos\RespaldosTemporales;
-use App\Services\Solicitudes\BorradoresTemporales;
+use App\Services\Solicitudes\BorradoresSolicitud;
 use App\Services\Solicitudes\TramitesSimulados;
 use App\Services\Solicitudes\DocumentosTemporales;
 use App\Services\Solicitudes\DatosFormularioSolicitud;
@@ -16,12 +16,14 @@ use Illuminate\Support\Arr;
 
 
 /**
- * Borrador del formulario mientras la solicitud todavía no existe (RF-2.12).
+ * Borrador del formulario (RF-2.12): una solicitud sin enviar guardada en la
+ * cuenta, o en la sesión cuando todavía no se puede (BorradoresSolicitud).
+ * Las rutas conservan el nombre «borradores-temporales».
  */
 class BorradorTemporalController extends Controller
 {
     public function __construct(
-        private readonly BorradoresTemporales $borradores,
+        private readonly BorradoresSolicitud $borradores,
         private readonly TramitesSimulados $tramites,
         private readonly RespaldosTemporales $respaldos,
         private readonly FirmadosTemporales $firmados,
@@ -54,7 +56,7 @@ class BorradorTemporalController extends Controller
             ),
         ]);
 
-        return response()->json(['guardado_at' => $borrador['guardado_at']]);
+        return response()->json(['guardado_at' => $borrador['guardado_at'], 'en_cuenta' => $borrador['en_cuenta']]);
     }
 
     public function destroy(string $tramite): Response

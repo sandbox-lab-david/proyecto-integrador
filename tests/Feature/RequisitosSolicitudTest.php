@@ -12,6 +12,7 @@ use Tests\TestCase;
 
 class RequisitosSolicitudTest extends TestCase
 {
+    use FacultadesG1Prueba;
     use ArchivosDePrueba, SesionEstudiantePrueba;
     private array $documentosMotor;
 

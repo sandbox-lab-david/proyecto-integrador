@@ -33,13 +33,14 @@ class SolicitudService
     }
 
     /**
-     * Solicitudes de un estudiante, de la más reciente a la más antigua.
+     * Solicitudes enviadas de un estudiante, de la más reciente a la más
+     * antigua. Sus borradores no salen de aquí.
      *
      * @return Collection<int, Solicitud>
      */
     public function delEstudiante(int $estudianteId): Collection
     {
-        return Solicitud::delEstudiante($estudianteId)
+        return Solicitud::delEstudiante($estudianteId)->enviadas()
             ->with(['tipoTramite', 'estadoSolicitud'])
             ->latest('id')
             ->get();

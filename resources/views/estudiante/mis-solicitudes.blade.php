@@ -39,6 +39,10 @@
                                             datetime="{{ $pendiente['guardado_at'] }}" data-guardado></time>
                                     </span>
 
+                                    @unless ($pendiente['en_cuenta'])
+                                        <span class="dato">En este navegador</span>
+                                    @endunless
+
                                     @if ($pendiente['respaldos'] > 0)
                                         <span class="dato">
                                             {{ $pendiente['respaldos'] === 1
@@ -71,7 +75,12 @@
                     </ul>
 
                     <p id="mensaje-descartar" class="nota" role="status">
-                        Se conservan en este navegador mientras tu sesión siga abierta.
+                        @if (collect($sinTerminar)->every(fn ($pendiente) => $pendiente['en_cuenta']))
+                            Se conservan en tu cuenta, con sus archivos adjuntos,
+                            hasta que las envíes o descartes.
+                        @else
+                            Las marcadas «en este navegador» se conservan solo mientras tu sesión siga abierta.
+                        @endif
                     </p>
                 @else
                     <p class="vacio">

@@ -7,5 +7,6 @@ return [
             'activo' => ['estudiante.catalogo', 'estudiante.tramites.*', 'estudiante.solicitudes.*', 'solicitudes.create']],
         ['texto' => 'Mis solicitudes', 'ruta' => 'solicitudes.index',
             'activo' => ['solicitudes.index', 'solicitudes.show', 'solicitudes.edit']],
+        ['texto' => 'Notificaciones', 'ruta' => 'notificaciones.index', 'activo' => ['notificaciones.index']],
     ],
 ];

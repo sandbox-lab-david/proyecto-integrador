@@ -357,6 +357,11 @@
 
         .lista-resumen { margin: 0; font-size: 14px; line-height: 1.6; }
 
+        .bloque-resumen > .ayuda { margin: 0; font-size: 14px; }
+        .resultado-prevalidacion p { margin: 12px 0 0; font-size: 14px; }
+        .resultado-prevalidacion .aviso { margin: 12px 0 0; }
+        .resultado-prevalidacion button { margin-top: 12px; }
+
         .bloque-firmado {
             margin-top: 24px;
             padding: 20px;
@@ -388,9 +393,11 @@
 
         .agregar-materia { display: flex; gap: 12px; }
         .agregar-materia button { flex-shrink: 0; }
-        .detalle-materia .encabezado-resumen { margin-bottom: 4px; }
+        .detalle-materia .encabezado-resumen { flex-wrap: wrap; row-gap: 4px; margin-bottom: 4px; }
         .detalle-materia .encabezado-resumen h3 { margin: 0; }
         .detalle-materia .campos { margin-top: 16px; }
+        .acciones-materia { display: flex; gap: 16px; flex-shrink: 0; }
+        .resumen-materia { margin: 4px 0 0; color: #596579; font-size: 14px; }
 
         @media (max-width: 850px) {
             .distribucion { grid-template-columns: 1fr; }
@@ -419,7 +426,6 @@
         }
     </style>
     <main>
-        <div class="portal-herramientas"><x-campana-notificaciones /></div>
         <a href="{{ route($tramite['ficha']) }}">
             ← Volver a los requisitos
         </a>
@@ -447,9 +453,15 @@
 
         <div class="introduccion">
             Completa tus datos manualmente y selecciona las materias del catálogo académico.
-            La solicitud todavía no se envía; lo que
-            escribas queda como borrador en este navegador mientras tu
-            sesión siga abierta.
+            La solicitud todavía no se envía.
+            @if ($solicitudCorreccion)
+                Los cambios de la corrección y sus archivos se conservan en este
+                navegador mientras tu sesión siga abierta.
+            @else
+                Lo que escribas, los archivos que adjuntes y el documento firmado
+                se guardan como borrador en tu cuenta, y puedes retomarlo desde
+                «Mis solicitudes».
+            @endif
         </div>
 
         <ol class="pasos" aria-label="Pasos de la solicitud">
@@ -730,9 +742,9 @@
                     </div>
 
                     <p class="ayuda">
-                        Tus archivos se guardan de forma temporal mientras
-                        completas el formulario. Quedarán unidos a tu
-                        solicitud cuando el guardado esté disponible.
+                        Tus archivos se guardan con el borrador mientras
+                        completas el formulario y quedan unidos a tu solicitud
+                        al enviarla.
                     </p>
                 </section>
 
@@ -778,6 +790,21 @@
                             </button>
                         </div>
                         <ul id="lista-respaldos" class="lista-resumen"></ul>
+                    </section>
+
+                    <section class="bloque-resumen"
+                        aria-labelledby="resumen-prevalidacion">
+                        <div class="encabezado-resumen">
+                            <h3 id="resumen-prevalidacion">Comprobación previa</h3>
+                        </div>
+                        <p class="ayuda">
+                            Prolog compara los datos que declaraste con las
+                            referencias del trámite. Es orientativa: no aprueba
+                            ni rechaza tu solicitud y no impide enviarla.
+                            La facultad revisa cada caso.
+                        </p>
+                        <div id="resultado-prevalidacion"
+                            class="resultado-prevalidacion" aria-live="polite"></div>
                     </section>
 
                     @if ($requisitosMotor['aviso'])
@@ -1041,7 +1068,8 @@
             destino.setCustomValidity(repetido ? cambioSolicitado.mensaje : '');
         }
 
-        // Borrador (RF-2.12): lo escrito se guarda en la sesión, uno por trámite.
+        // Borrador (RF-2.12): lo escrito se guarda en la cuenta, uno por trámite
+        // (en la sesión si la cuenta todavía no puede guardarlo, o si es una corrección).
         const borrador = @json($borrador);
         const urlBorrador = @json(route('borradores-temporales.update', $codigoTramite));
         const estadoBorrador = document.getElementById('estado-borrador');
@@ -1153,6 +1181,15 @@
             return campo;
         }
 
+        // Materias cuyos datos el estudiante ocultó; sobrevive a cada repintado.
+        const materiasCerradas = new WeakSet();
+
+        // Abre la tarjeta de materia que contiene el control antes de señalar su error.
+        function abrirMateriaDe(control) {
+            const alternar = control.closest('.detalle-materia')?.querySelector('[data-alternar-materia]');
+            if (alternar?.getAttribute('aria-expanded') === 'false') alternar.click();
+        }
+
         function pintarMaterias() {
             contenedorMaterias.innerHTML = '';
 
@@ -1166,6 +1203,32 @@
                 const titulo = document.createElement('h3');
                 titulo.textContent = `${materia.codigo} — ${materia.nombre}`;
 
+                const cuerpo = document.createElement('div');
+                cuerpo.id = `materia-${indice}-datos`;
+
+                const resumen = document.createElement('p');
+                resumen.className = 'resumen-materia';
+                resumen.textContent = [materia.periodo, materia.paralelo && `Paralelo ${materia.paralelo}`, materia.docente]
+                    .filter(Boolean).join(' · ');
+
+                const alternar = document.createElement('button');
+                alternar.type = 'button';
+                alternar.className = 'enlace';
+                alternar.dataset.alternarMateria = '';
+                alternar.setAttribute('aria-controls', cuerpo.id);
+                const aplicarAbierta = abierta => {
+                    cuerpo.hidden = !abierta;
+                    resumen.hidden = abierta;
+                    alternar.textContent = abierta ? 'Ocultar datos' : 'Mostrar datos';
+                    alternar.setAttribute('aria-expanded', String(abierta));
+                    alternar.setAttribute('aria-label', `${abierta ? 'Ocultar' : 'Mostrar'} los datos de ${materia.nombre}`);
+                };
+                alternar.addEventListener('click', () => {
+                    const abierta = cuerpo.hidden;
+                    abierta ? materiasCerradas.delete(materia) : materiasCerradas.add(materia);
+                    aplicarAbierta(abierta);
+                });
+
                 const quitar = document.createElement('button');
                 quitar.type = 'button';
                 quitar.className = 'enlace';
@@ -1178,9 +1241,13 @@
                     document.getElementById('agregar-materia').focus();
                 });
 
-                encabezado.append(titulo, quitar);
+                const acciones = document.createElement('div');
+                acciones.className = 'acciones-materia';
+                acciones.append(alternar, quitar);
+                encabezado.append(titulo, acciones);
 
-                tarjeta.append(encabezado);
+                tarjeta.append(encabezado, resumen, cuerpo);
+                aplicarAbierta(!materiasCerradas.has(materia));
                 titulo.textContent = materia.nombre ? `${materia.codigo} — ${materia.nombre}` : `Materia ${indice + 1}`;
                 const manuales = document.createElement('div');
                 manuales.className = 'campos';
@@ -1197,7 +1264,7 @@
                     });
                     manuales.append(campo);
                 });
-                tarjeta.append(manuales);
+                cuerpo.append(manuales);
 
                 if (tramite.campos_materia.length) {
                     const campos = document.createElement('div');
@@ -1219,7 +1286,7 @@
                         campos.append(campo);
                     });
 
-                    tarjeta.append(campos);
+                    cuerpo.append(campos);
                 }
 
                 contenedorMaterias.append(tarjeta);
@@ -1318,6 +1385,7 @@
 
                 for (const campo of campos) {
                     if (campo.id !== 'materia' && !campo.disabled && !campo.checkValidity()) {
+                        abrirMateriaDe(campo);
                         campo.reportValidity();
                         return;
                     }
@@ -1343,7 +1411,7 @@
             'application/pdf': 'PDF', 'image/jpeg': 'JPG', 'image/png': 'PNG'
         };
 
-        // Lo que ya está en el servidor, en la carpeta temporal de esta sesión.
+        // Lo que ya está en el servidor: en el borrador de la cuenta o en la sesión.
         const archivos = @json($respaldosSubidos)
             .map(respaldo => ({
                 ...respaldo,
@@ -1628,6 +1696,7 @@
                 errorArchivos.textContent = '';
                 pintarResumen();
                 mostrarPaso(4);
+                consultarPrevalidacion();
             });
 
         // Paso 4: resumen editable.
@@ -1701,6 +1770,69 @@
             document.getElementById('mensaje-confirmacion').textContent = '';
         }
 
+        // Pre-validación (RF-2.8): Prolog informa referencias con los datos declarados.
+        // Es orientativa: su resultado o un fallo del motor no deshabilitan la confirmación.
+        const urlPrevalidacion = @json(route('solicitudes.prevalidacion'));
+        const resultadoPrevalidacion = document.getElementById('resultado-prevalidacion');
+        let consultaPrevalidacion = 0;
+
+        function mensajePrevalidacion(texto, clase, reintentar = false) {
+            const parrafo = document.createElement('p');
+            parrafo.className = clase;
+            parrafo.textContent = texto;
+            resultadoPrevalidacion.replaceChildren(parrafo);
+
+            if (reintentar) {
+                parrafo.setAttribute('role', 'alert');
+                const boton = document.createElement('button');
+                boton.className = 'secundario';
+                boton.type = 'button';
+                boton.dataset.reintentarPrevalidacion = '';
+                boton.textContent = 'Volver a consultar';
+                resultadoPrevalidacion.append(boton);
+            }
+        }
+
+        async function consultarPrevalidacion() {
+            // Solo se pinta la última consulta si el estudiante entra varias veces al paso 4.
+            const numero = ++consultaPrevalidacion;
+            resultadoPrevalidacion.setAttribute('aria-busy', 'true');
+            mensajePrevalidacion('Consultando a Prolog…', 'ayuda');
+
+            let html = null;
+            let error = 'No se pudo consultar a Prolog. Revisa tu conexión y vuelve a intentarlo.';
+            try {
+                const respuesta = await fetchSolicitud(urlPrevalidacion, {
+                    method: 'POST',
+                    headers: { ...cabecerasRespaldos, 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ tramite: @json($codigoTramite), campos: datosBorrador().campos })
+                });
+                if (respuesta.ok) {
+                    html = await respuesta.text();
+                } else if (respuesta.status === 429) {
+                    error = 'Hiciste muchas consultas seguidas. Espera un minuto y vuelve a intentarlo.';
+                } else {
+                    const cuerpo = await respuesta.json().catch(() => ({}));
+                    error = Object.values(cuerpo.errors || {}).flat().join(' ') || error;
+                }
+            } catch {
+                // Se conserva el mensaje de error de conexión.
+            }
+
+            if (numero !== consultaPrevalidacion) return;
+            resultadoPrevalidacion.removeAttribute('aria-busy');
+
+            if (html === null) {
+                mensajePrevalidacion(error, 'error', true);
+                return;
+            }
+            resultadoPrevalidacion.innerHTML = html;
+        }
+
+        resultadoPrevalidacion.addEventListener('click', evento => {
+            if (evento.target.closest('[data-reintentar-prevalidacion]')) consultarPrevalidacion();
+        });
+
         document.querySelectorAll('[data-ir-a]').forEach(boton => {
             boton.addEventListener('click', () => {
                 mostrarPaso(Number(boton.dataset.irA));
@@ -1731,6 +1863,7 @@
                 for (const control of document.querySelectorAll(`#paso-${numero} input, #paso-${numero} select, #paso-${numero} textarea`)) {
                     if (!control.disabled && !control.checkValidity()) {
                         mostrarPaso(numero);
+                        abrirMateriaDe(control);
                         control.reportValidity();
                         return false;
                     }
@@ -1791,7 +1924,7 @@
                 }
             });
 
-        // PDF firmado (RF-2.11): uno por trámite, en la carpeta temporal de la sesión.
+        // PDF firmado (RF-2.11): uno por trámite, en el borrador de la cuenta o en la sesión.
         const urlFirmado = @json(route('firmados-temporales.store', $codigoTramite));
         const bloqueFirmado = document.getElementById('bloque-firmado');
         const entradaFirmado = document.getElementById('firmado');
@@ -1947,6 +2080,8 @@
         }
 
         function enviarBorrador(opciones = {}) {
+            // Un guardado después del envío crearía un borrador nuevo del mismo trámite.
+            if (enviandoSolicitud || solicitudEnviada) return Promise.resolve(null);
             return fetchSolicitud(urlBorrador, {
                 method: 'PUT',
                 headers: { ...cabecerasRespaldos, 'Content-Type': 'application/json' },
@@ -1990,6 +2125,8 @@
                 return;
             }
 
+            if (respuesta === null && (enviandoSolicitud || solicitudEnviada)) return;
+
             if (!respuesta?.ok) {
                 estadoBorrador.textContent = respuesta?.status === 419
                     ? 'Tu sesión expiró y el borrador no se guardó. Recarga la página.'
@@ -1998,7 +2135,9 @@
             }
 
             const guardado = await respuesta.json();
-            estadoBorrador.textContent = `Borrador guardado ${cuandoSeGuardo(guardado.guardado_at)}.`;
+            estadoBorrador.textContent = guardado.en_cuenta
+                ? `Borrador guardado en tu cuenta ${cuandoSeGuardo(guardado.guardado_at)}.`
+                : `Borrador guardado en este navegador ${cuandoSeGuardo(guardado.guardado_at)}.`;
             botonDescartar.hidden = false;
         }
 

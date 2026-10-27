@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\Estudiante\GenerarDocumentoRequest;
 use App\Services\Archivos\FirmadosTemporales;
 use App\Services\Archivos\RespaldosTemporales;
+use App\Services\Solicitudes\BorradoresSolicitud;
 use App\Services\Solicitudes\BorradoresTemporales;
 use App\Services\Solicitudes\SeguimientoSolicitudes;
 use App\Services\Solicitudes\SolicitudesSinTerminar;
@@ -100,9 +101,17 @@ class SolicitudController extends Controller
      * Seguimiento de una solicitud guardada: estado, línea de tiempo,
      * observaciones y resolución final.
      */
-    public function show(int $solicitud, SolicitudService $solicitudes): View
+    public function show(int $solicitud, SolicitudService $solicitudes): View|\Illuminate\Http\RedirectResponse
     {
         abort_unless(SeguimientoSolicitudes::disponible(), 404);
+
+        $borrador = \App\Models\Solicitud::borradores()->find($solicitud);
+        if ($borrador !== null) {
+            // Un borrador no tiene seguimiento: se retoma en el formulario.
+            Gate::authorize('view', $borrador);
+
+            return redirect()->route('solicitudes.create', ['tramite' => $borrador->detalle['tramite'] ?? '']);
+        }
 
         $expediente = $solicitudes->detalle($solicitud);
 
@@ -144,7 +153,8 @@ class SolicitudController extends Controller
                     }
                 }
             }
-            $temporales->guardar($datos['tramite'], $documento, $datos);
+            // El PDF descargado se conserva con el Word y pasa al expediente al enviar.
+            $temporales->guardar($datos['tramite'], $documento, $datos, $formato === 'pdf' ? $contenidoDescarga : null);
             // Cada descarga es una versión nueva, incluso si solo cambió la fecha.
             $firmados->quitar($datos['tramite']);
         } catch (\RuntimeException $error) {
@@ -168,7 +178,7 @@ class SolicitudController extends Controller
         Request $request,
         TramitesSimulados $tramites,
         RespaldosTemporales $respaldos,
-        BorradoresTemporales $borradores,
+        BorradoresSolicitud $borradores,
         FirmadosTemporales $firmados,
         DocumentosTemporales $temporales,
     ): View {

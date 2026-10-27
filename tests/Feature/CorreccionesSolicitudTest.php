@@ -2,6 +2,11 @@
 
 namespace Tests\Feature;
 
+use App\Models\CarreraEstudiante;
+use App\Models\Curso;
+use App\Models\EstadoSolicitud;
+use App\Models\Estudiante;
+use App\Models\Periodo;
 use App\Models\Solicitud;
 use App\Models\User;
 use App\Services\Archivos\FirmadosTemporales;
@@ -11,74 +16,63 @@ use App\Services\Solicitudes\DocumentosTemporales;
 use App\Services\Solicitudes\EnvioSolicitud;
 use App\Services\Solicitudes\IntegracionEnvio;
 use App\Services\Solicitudes\TramitesSimulados;
-use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
-use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Storage;
 use Tests\TestCase;
 
 class CorreccionesSolicitudTest extends TestCase
 {
+    use FacultadesG1Prueba, LlavesAjenasPrueba;
     use MateriasCatalogoPrueba, ArchivosDePrueba;
 
     private User $usuario;
+
+    private int $inscripcion;
+
+    private int $ajena;
+
+    private int $observada;
+
+    private int $enviada;
+
+    /** @var array{tipo_tramite_id: int, periodo_id: int, curso_id: int, documento_requerido_id: int} */
+    private array $llaves;
 
     protected function setUp(): void
     {
         parent::setUp();
         $this->discoTemporal();
-        Schema::create('users', function (Blueprint $t) { $t->id(); });
-        DB::table('users')->insert([['id' => 10], ['id' => 20]]);
-        // SQLite aislado: prueba el flujo de G2 sin cambiar migraciones ajenas.
-        Schema::create('estudiantes', function (Blueprint $t) { $t->id(); $t->integer('user_id'); });
-        Schema::create('carrera_estudiante', function (Blueprint $t) { $t->id(); $t->integer('user_id'); });
-        Schema::create('estados_solicitud', function (Blueprint $t) { $t->id(); $t->string('codigo'); });
-        Schema::create('solicitudes', function (Blueprint $t) {
-            $t->id(); $t->string('codigo')->unique(); $t->integer('carrera_estudiante_id');
-            $t->integer('tipo_tramite_id'); $t->integer('periodo_id'); $t->integer('estado_solicitud_id');
-            $t->json('detalle'); $t->decimal('gpa_declarado', 5, 2)->nullable();
-            $t->boolean('gpa_verificado')->default(false); $t->date('fecha_ultima_recuperacion')->nullable();
-            $t->boolean('declaracion_veracidad')->default(false); $t->timestamp('enviada_at')->nullable(); $t->timestamps();
-        });
-        Schema::create('solicitud_materia', function (Blueprint $t) {
-            $t->id(); $t->integer('solicitud_id'); $t->integer('curso_id');
-            $t->decimal('nota_declarada', 5, 2)->nullable(); $t->decimal('asistencia_declarada', 5, 2)->nullable();
-            $t->string('estado_declarado')->nullable(); $t->timestamps();
-        });
-        Schema::create('registros_anteriores', function (Blueprint $t) {
-            $t->id(); $t->integer('solicitud_materia_id'); $t->timestamps();
-        });
-        Schema::create('respaldos', function (Blueprint $t) {
-            $t->id(); $t->integer('solicitud_id'); $t->integer('documento_requerido_id')->nullable();
-            $t->string('nombre_original'); $t->string('ruta'); $t->string('mime'); $t->integer('tamano_bytes'); $t->timestamps();
-        });
-        Schema::create('documentos_generados', function (Blueprint $t) {
-            $t->id(); $t->integer('solicitud_id'); $t->integer('version'); $t->string('ruta_docx');
-            $t->string('ruta_pdf')->nullable(); $t->timestamps(); $t->unique(['solicitud_id', 'version']);
-        });
-        Schema::create('documentos_firmados', function (Blueprint $t) {
-            $t->id(); $t->integer('documento_generado_id'); $t->string('ruta'); $t->integer('tamano_bytes');
-            $t->integer('subido_por'); $t->timestamps();
-        });
-        DB::table('estudiantes')->insert([['id' => 1, 'user_id' => 10], ['id' => 2, 'user_id' => 20]]);
-        DB::table('carrera_estudiante')->insert([['id' => 1, 'user_id' => 10], ['id' => 2, 'user_id' => 20]]);
-        DB::table('estados_solicitud')->insert([['id' => 1, 'codigo' => 'observado'], ['id' => 2, 'codigo' => 'enviado']]);
-        $this->usuario = (new User)->forceFill(['id' => 10, 'tipo' => 'estudiante', 'activo' => true]);
+        // Filas reales de G1 (factories) y del catálogo de G4 (seeder), con las migraciones de cada dueño.
+        $this->usuario = User::factory()->create(['tipo' => 'estudiante', 'activo' => true]);
+        $this->inscripcion = CarreraEstudiante::factory()->create([
+            'estudiante_id' => Estudiante::factory()->create(['user_id' => $this->usuario->id]),
+        ])->id;
+        $this->ajena = CarreraEstudiante::factory()->create()->id;
+        $this->observada = EstadoSolicitud::create(['codigo' => 'observado', 'nombre' => 'Observado'])->id;
+        $this->enviada = $this->estadoSolicitud('enviada');
+        $this->llaves = [
+            'tipo_tramite_id' => $this->tipoTramite('examen_gracia'),
+            'periodo_id' => Periodo::factory()->create()->id,
+            'curso_id' => Curso::factory()->create()->id,
+            'documento_requerido_id' => $this->documentoRequerido('examen_gracia'),
+        ];
         $this->actingAs($this->usuario);
     }
 
-    private function solicitud(int $inscripcion = 1): Solicitud
+    private function solicitud(?int $inscripcion = null): Solicitud
     {
         $solicitud = Solicitud::create([
-            'codigo' => 'SOL-2026-'.random_int(10000, 99999), 'carrera_estudiante_id' => $inscripcion,
-            'tipo_tramite_id' => 1, 'periodo_id' => 1, 'estado_solicitud_id' => 1,
-            'detalle' => $this->datos(), 'gpa_verificado' => true,
+            'codigo' => 'SOL-2026-'.random_int(10000, 99999), 'carrera_estudiante_id' => $inscripcion ?? $this->inscripcion,
+            'tipo_tramite_id' => $this->llaves['tipo_tramite_id'], 'periodo_id' => $this->llaves['periodo_id'],
+            'estado_solicitud_id' => $this->observada,
+            'detalle' => $this->datos(), 'declaracion_veracidad' => true, 'enviada_at' => now(),
         ]);
+        // gpa_verificado está fuera de $fillable: solo lo escribe SolicitudService.
+        $solicitud->forceFill(['gpa_verificado' => true])->save();
         $doc = $solicitud->documentosGenerados()->create(['version' => 1, 'ruta_docx' => 'original/'.$solicitud->id.'.docx']);
         Storage::disk('local')->put($doc->ruta_docx, 'Word anterior');
-        $doc->documentoFirmado()->create(['ruta' => 'original/'.$solicitud->id.'.pdf', 'tamano_bytes' => 10, 'subido_por' => 10]);
+        $doc->documentoFirmado()->create(['ruta' => 'original/'.$solicitud->id.'.pdf', 'tamano_bytes' => 10, 'subido_por' => $this->usuario->id]);
         Storage::disk('local')->put($doc->documentoFirmado->ruta, 'PDF anterior');
         return $solicitud;
     }
@@ -112,17 +106,23 @@ class CorreccionesSolicitudTest extends TestCase
 
     private function integrar(bool $fallar = false): void
     {
-        $this->app->instance(IntegracionEnvio::class, new class($fallar) implements IntegracionEnvio {
-            public function __construct(private bool $fallar) {}
+        $contexto = ['carrera_estudiante_id' => $this->inscripcion, 'tipo_tramite_id' => $this->llaves['tipo_tramite_id'],
+            'periodo_id' => $this->llaves['periodo_id'], 'estado_solicitud_id' => $this->observada,
+            'cursos' => ['calculo-demo' => $this->llaves['curso_id']], 'requisitos' => ['respaldo' => $this->llaves['documento_requerido_id']]];
+        $this->app->instance(IntegracionEnvio::class, new class($fallar, $contexto, $this->enviada) implements IntegracionEnvio {
+            public function __construct(private bool $fallar, private array $contexto, private int $enviada) {}
             public function resolver(User $usuario, array $datos): array
             {
-                return ['carrera_estudiante_id' => 1, 'tipo_tramite_id' => 1, 'periodo_id' => 1,
-                    'estado_solicitud_id' => 1, 'cursos' => ['calculo-demo' => 1], 'requisitos' => ['respaldo' => 1]];
+                return $this->contexto;
+            }
+            public function contextoBorrador(User $usuario, string $tramite, array $datos): ?array
+            {
+                return null;
             }
             public function enviar(Solicitud $solicitud, User $usuario): void
             {
                 if ($this->fallar) throw new \RuntimeException('Transición fallida');
-                $solicitud->forceFill(['estado_solicitud_id' => 2])->save();
+                $solicitud->forceFill(['estado_solicitud_id' => $this->enviada])->save();
             }
         });
     }
@@ -131,8 +131,8 @@ class CorreccionesSolicitudTest extends TestCase
     {
         $propia = $this->solicitud();
         $this->assertTrue(Gate::allows('update', $propia));
-        $this->assertFalse(Gate::allows('update', $this->solicitud(2)));
-        $propia->forceFill(['estado_solicitud_id' => 2])->save();
+        $this->assertFalse(Gate::allows('update', $this->solicitud($this->ajena)));
+        $propia->forceFill(['estado_solicitud_id' => $this->enviada])->save();
         $this->assertFalse(Gate::allows('update', $propia->fresh()));
         $this->get(route('solicitudes.edit', $propia))->assertForbidden();
     }
@@ -157,7 +157,7 @@ class CorreccionesSolicitudTest extends TestCase
         $this->assertSame($codigo, $guardada->codigo);
         $this->assertDatabaseCount('solicitudes', 1);
         $this->assertSame([1, 2], $guardada->documentosGenerados()->orderBy('version')->pluck('version')->all());
-        $this->assertSame(2, $guardada->estado_solicitud_id);
+        $this->assertSame($this->enviada, $guardada->estado_solicitud_id);
         $this->assertFalse($guardada->gpa_verificado);
         Storage::disk('local')->assertExists('original/'.$propia->id.'.docx');
         Storage::disk('local')->assertExists('original/'.$propia->id.'.pdf');
@@ -175,7 +175,7 @@ class CorreccionesSolicitudTest extends TestCase
 
     public function test_mis_solicitudes_muestra_solo_las_propias_y_permite_corregir_observadas(): void
     {
-        $propia = $this->solicitud(); $ajena = $this->solicitud(2);
+        $propia = $this->solicitud(); $ajena = $this->solicitud($this->ajena);
         $this->get(route('solicitudes.index'))->assertOk()->assertSee($propia->codigo)
             ->assertDontSee($ajena->codigo)->assertSee(route('solicitudes.edit', $propia), false);
     }
@@ -211,7 +211,7 @@ class CorreccionesSolicitudTest extends TestCase
         $datos['carrera'] = $facultades[$facultad][0];
         $this->postJson(route('solicitudes.reenviar', ['solicitud' => $propia->id, 'solicitud_correccion' => $propia->id]), $datos)
             ->assertStatus(503)->assertJsonPath('message', 'El reenvío está pendiente del adaptador de estados de revisión. Tu corrección sigue guardada como borrador.');
-        $this->assertSame(1, $propia->fresh()->estado_solicitud_id);
+        $this->assertSame($this->observada, $propia->fresh()->estado_solicitud_id);
     }
 
     public function test_no_sobrescribe_una_solicitud_que_cambio_mientras_se_editaba(): void
@@ -240,7 +240,7 @@ class CorreccionesSolicitudTest extends TestCase
         } catch (\RuntimeException $error) {
             $this->assertSame('Transición fallida', $error->getMessage());
         }
-        $this->assertSame(1, $propia->fresh()->estado_solicitud_id);
+        $this->assertSame($this->observada, $propia->fresh()->estado_solicitud_id);
         $this->assertDatabaseCount('documentos_generados', 1);
         $this->assertSame([], Storage::disk('local')->allFiles('expedientes'));
         $this->assertNotNull(app(FirmadosTemporales::class)->buscar('gracia'));

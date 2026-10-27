@@ -2,6 +2,7 @@
 
 namespace App\Services\Solicitudes;
 
+use App\Models\DocumentoFirmado;
 use App\Models\Solicitud;
 use App\Models\User;
 use App\Services\Archivos\ArchivoService;
@@ -23,8 +24,10 @@ class EnvioSolicitud
         private readonly FirmadosTemporales $firmados,
         private readonly RespaldosTemporales $respaldos,
         private readonly BorradoresTemporales $borradores,
+        private readonly BorradoresSolicitud $borradoresEnCuenta,
         private readonly TramitesSimulados $catalogo,
         private readonly SolicitudService $solicitudes,
+        private readonly PrevalidacionSolicitud $prevalidacion,
     ) {}
 
     public static function revision(Solicitud $solicitud): string
@@ -48,8 +51,10 @@ class EnvioSolicitud
         }
 
         $carpeta = 'expedientes/'.Str::uuid();
+        $guardada = false;
         try {
-            $solicitud = DB::transaction(function () use ($usuario, $datos, $clave, $carpeta, $correccion, $revisionBase) {
+            $solicitud = DB::transaction(function () use ($usuario, $datos, $clave, $carpeta, $correccion, $revisionBase, &$guardada) {
+                $guardada = false;
                 // Serializa los envíos del mismo usuario antes de comprobar el duplicado.
                 // La consulta y el expediente se confirman en la misma transacción.
                 User::query()->whereKey($usuario->getKey())->lockForUpdate()->firstOrFail();
@@ -67,7 +72,9 @@ class EnvioSolicitud
                     throw ValidationException::withMessages(['clave_envio' => 'El documento cambió. Descarga la versión actual y sube su PDF firmado.']);
                 }
                 $datos['envio_usuario_id'] = $usuario->getKey();
-                return $this->crearExpediente($usuario, $datos, $carpeta, $correccion, $revisionBase);
+                $solicitud = $this->crearExpediente($usuario, $datos, $carpeta, $correccion, $revisionBase);
+                $guardada = true;
+                return $solicitud;
             }, 5);
         } catch (\Throwable $error) {
             Storage::disk(ArchivoService::DISCO)->deleteDirectory($carpeta);
@@ -85,6 +92,16 @@ class EnvioSolicitud
             } catch (\Throwable $error) {
                 report($error);
             }
+        }
+        // Un reintento idempotente devuelve el expediente sin volver a registrar la comprobación.
+        if ($guardada) {
+            // Los archivos del borrador en la cuenta ya se copiaron al expediente.
+            try {
+                Storage::disk(ArchivoService::DISCO)->deleteDirectory(BorradoresSolicitud::carpeta($solicitud));
+            } catch (\Throwable $error) {
+                report($error);
+            }
+            $this->prevalidacion->registrar($solicitud);
         }
         return $solicitud;
     }
@@ -151,15 +168,18 @@ class EnvioSolicitud
         };
         try {
             $word = $copiar($documento['ruta'], 'documento-v1.docx');
+            // Solo existe si el estudiante descargó el documento en PDF.
+            $pdfGenerado = filled($documento['ruta_pdf'] ?? null) ? $copiar($documento['ruta_pdf'], 'documento-v1.pdf') : null;
             $pdf = $copiar($firmado['ruta'], 'firmado-v1.pdf');
             $respaldos = [];
             foreach ($archivos as $archivo) {
                 $original = $this->respaldos->buscar($archivo['id']);
-                $respaldos[] = $original + ['ruta_definitiva' => $copiar($original['ruta'], basename($original['ruta'])), 'requisito' => $asignaciones[$archivo['id']]];
+                // El requisito elegido al final manda sobre el que se indicó al subir el archivo.
+                $respaldos[] = ['ruta_definitiva' => $copiar($original['ruta'], basename($original['ruta'])), 'requisito' => $asignaciones[$archivo['id']]] + $original;
             }
             for ($intento = 0; ; $intento++) {
                 try {
-                    $solicitud = DB::transaction(function () use ($usuario, $datos, $contexto, $integracion, $word, $pdf, $firmado, $respaldos, $correccion, $revisionBase) {
+                    $solicitud = DB::transaction(function () use ($usuario, $tramite, $datos, $contexto, $integracion, $word, $pdfGenerado, $pdf, $firmado, $respaldos, $correccion, $revisionBase) {
                         $gpa = $datos['campos']['gpa_general'] ?? null;
                         $version = 1;
                         $historialCorrecciones = [];
@@ -194,9 +214,22 @@ class EnvioSolicitud
                             'fecha_ultima_recuperacion' => ($datos['campos']['ultima_recuperacion'] ?? '') ?: null,
                             'declaracion_veracidad' => true,
                         ];
+                        // El borrador guardado en la cuenta (RF-2.12) se convierte en la solicitud
+                        // y conserva su código; si no hay, se crea la fila.
+                        $borrador = $correccion ? null
+                            : $this->borradoresEnCuenta->consulta($usuario, $tramite)->lockForUpdate()->first();
                         if ($correccion) {
                             unset($atributos['codigo'], $atributos['estado_solicitud_id']);
                             $atributos['gpa_verificado'] = false;
+                            $solicitud->forceFill($atributos)->save();
+                        } elseif ($borrador) {
+                            unset($atributos['codigo'], $atributos['estado_solicitud_id']);
+                            // Sus archivos ya se copiaron al expediente: las filas del borrador
+                            // se reemplazan por las definitivas (los archivos se borran tras el commit).
+                            DocumentoFirmado::whereIn('documento_generado_id', $borrador->documentosGenerados()->select('id'))->delete();
+                            $borrador->documentosGenerados()->delete();
+                            $borrador->respaldos()->delete();
+                            $solicitud = $borrador;
                             $solicitud->forceFill($atributos)->save();
                         } else {
                             $solicitud = Solicitud::create($atributos);
@@ -228,7 +261,7 @@ class EnvioSolicitud
                                 'mime' => $archivo['mime'], 'tamano_bytes' => $archivo['tamano_bytes'],
                             ]);
                         }
-                        $generado = $solicitud->documentosGenerados()->create(['version' => $version, 'ruta_docx' => $word]);
+                        $generado = $solicitud->documentosGenerados()->create(['version' => $version, 'ruta_docx' => $word, 'ruta_pdf' => $pdfGenerado]);
                         $generado->documentoFirmado()->create([
                             'ruta' => $pdf, 'tamano_bytes' => $firmado['tamano_bytes'], 'subido_por' => $usuario->getKey(),
                         ]);

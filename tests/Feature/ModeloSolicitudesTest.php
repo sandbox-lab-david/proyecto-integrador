@@ -19,25 +19,11 @@ use Tests\TestCase;
 
 class ModeloSolicitudesTest extends TestCase
 {
-    use RefreshDatabase;
+    use LlavesAjenasPrueba, RefreshDatabase;
 
-    /**
-     * Las tablas de G1, G3 y G4 todavía no existen, así que las llaves hacia
-     * ellas se pasan a mano. Cuando publiquen sus factories esto sobra.
-     */
     private function solicitud(array $atributos = []): Solicitud
     {
         return Solicitud::factory()->create($atributos + $this->llavesAjenas());
-    }
-
-    private function llavesAjenas(): array
-    {
-        return [
-            'carrera_estudiante_id' => 1,
-            'tipo_tramite_id' => 1,
-            'periodo_id' => 1,
-            'estado_solicitud_id' => 1,
-        ];
     }
 
     public function test_las_siete_tablas_tienen_las_columnas_del_diccionario(): void
