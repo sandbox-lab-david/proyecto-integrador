@@ -13,7 +13,7 @@ require __DIR__.'/notificaciones.php';
 
 Route::redirect('/estudiante/acceso', '/login')->name('estudiante.acceso');
 
-Route::middleware(['auth', 'estudiante'])->group(function () {
+Route::middleware(['auth', 'estudiante', \App\Http\Middleware\Estudiante\GuardarCorreccion::class])->group(function () {
 
 Route::post('/estudiante/solicitudes/documento', [SolicitudController::class, 'documento'])
     ->middleware('throttle:10,1,documentos-estudiante:')->name('solicitudes.documento');

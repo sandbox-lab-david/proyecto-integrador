@@ -13,8 +13,8 @@ ese PDF se conserva junto al Word (`documentos_generados.ruta_pdf`), pasa al
 expediente al enviar y se muestra como «Documento generado» en el seguimiento
 de la solicitud; si se descarga en Word, `ruta_pdf` queda vacío. Los borradores se guardan
 en la cuenta con sus respaldos, su Word y su PDF firmado (ver «Borrador en la
-cuenta»); los de una corrección los guardan en la sesión hasta el envío,
-separados por sesión, trámite y expediente en corrección.
+cuenta»). Las correcciones usan una copia privada en la cuenta, separada del
+expediente observado; requieren la migración propia de G2 descrita abajo.
 
 El documento incluye los datos del estudiante, los campos del trámite y sus
 materias. Las tablas de materias se repiten cuando corresponde; tercer registro
@@ -47,11 +47,37 @@ registradas» y el personal (`SolicitudPolicy::view`) solo ven las enviadas.
 borrador borra la fila, así que pueden quedar huecos en la numeración.
 G3 no lee `solicitudes` para sus bandejas (usa `solicitudes_revision`).
 
-Siguen en la sesión (`BorradoresTemporales`) el borrador de una corrección, que
-no debe tocar la solicitud observada hasta reenviarla, y el de una cuenta sin
+Sigue en la sesión (`BorradoresTemporales`) el borrador de una cuenta sin
 inscripción activa, sin período vigente o sin el estado `borrador` sembrado:
 en ese caso el formulario dice «guardado en este navegador», y el primer
 guardado posible en la cuenta se lleva lo de la sesión.
+
+### Correcciones guardadas en la cuenta
+
+`CorreccionesGuardadas` conserva datos, metadatos de respaldos, Word y PDF
+firmado en `borradores_correccion_g2`, con una fila por usuario y expediente.
+El middleware propio `GuardarCorreccion` restaura la copia antes de cada
+petición de corrección y la guarda tras una respuesta exitosa. Los archivos
+viven en `correcciones-g2/{usuario}/{solicitud}`, dentro del disco privado.
+El expediente observado, su código y sus documentos anteriores no se modifican
+hasta confirmar el reenvío. La autorización sigue usando la política existente.
+
+La copia se ofrece en «Mis solicitudes» aunque se haya cerrado la sesión.
+Descartarla elimina únicamente esa copia y sus archivos. Reenviar conserva las
+versiones originales y elimina la copia de trabajo. Si cambió el expediente,
+se advierte que la corrección está desactualizada y se mantiene el rechazo de
+reenvíos que sobrescribirían una revisión posterior.
+
+Para activar esta persistencia, ejecutar la migración nueva de G2 sobre una
+base que ya tenga las migraciones previas:
+
+```sh
+php artisan migrate --path=database/migrations/2026_10_27_000001_create_borradores_correccion_g2_table.php
+```
+
+No usa `migrate:fresh`, no carga datos de prueba y no altera tablas de otros
+grupos. Sin la tabla nueva, la corrección mantiene el comportamiento anterior
+de guardado en la sesión; no se anuncia que quedó guardada en la cuenta.
 
 ### Archivos del borrador
 
@@ -108,11 +134,16 @@ carrera y período vigentes, y catálogo publicado. La propiedad se lee por
 `carrera_estudiante.estudiante_id` → `estudiantes.user_id` (tabla de G1 según el
 Excel, PR #14). El envío registra el estado `enviada` y un historial
 visible. La clave de versión evita duplicar el expediente al repetir el envío.
+Tras confirmar, G2 invoca su servicio de notificaciones una sola vez por envío
+o reenvío; una caída del canal de avisos se registra sin invalidar el expediente.
 
 `MateriasSolicitud` consulta cursos, materias, períodos y docentes de G1, sin
 modificarlos. Si el estudiante tiene inscripciones activas con malla (C11, C13),
-solo ofrece los cursos de las materias de esas mallas (C05, RF-2.5); sin malla
-conocida, ofrece todos los cursos de la base. El formulario envía
+solo ofrece cursos de las materias activas de esas mallas (C05, RF-2.5).
+Sin perfil, inscripción activa o malla, devuelve una lista vacía y explica qué
+información académica falta; nunca ofrece todo el catálogo como alternativa.
+El filtro por período organiza esos cursos y conserva períodos anteriores,
+que pueden ser necesarios para recuperación o correcciones. El formulario envía
 `origen_materias=catalogo`: el servidor valida los IDs contra esa misma lista y
 recupera sus metadatos de la base. Si no hay cursos, informa la ausencia;
 no ofrece las materias ficticias que conserva `TramitesSimulados` para fixtures.
@@ -292,3 +323,41 @@ Los datos académicos y las inscripciones de G1 se cargan en la base de cada
 entorno; no se distribuyen con el push del portal.
 
 Configuración local y comprobación de subidas de 10 MB: [Archivos y PDF](grupo-2-archivos-pdf.md).
+
+## Pendientes que requieren coordinación entre grupos
+
+- G1 ya entregó los servicios académicos que consume G2. Una cuenta sin perfil,
+  inscripción, malla o cursos necesita que esos datos estén cargados en su
+  entorno; G2 no crea matrículas ni materias ficticias para llenar el selector.
+- Las bandejas de G3 consultan `solicitudes_revision` y el portal envía a
+  `solicitudes`. Falta acordar y conectar su contrato de revisión; los IDs de
+  ambas tablas no deben suponerse equivalentes. Registrar `enviada` en G2
+  no demuestra que el caso aparezca en la bandeja de G3.
+- Los avisos de observación, aprobación o resolución deben invocarse desde las
+  transiciones de G3. G2 ya conecta la confirmación de su envío y reenvío.
+- El estado intermedio «Documento generado» requiere acordar el catálogo y las
+  transiciones institucionales. G2 conserva el archivo y su versión, pero no
+  agrega estados por su cuenta.
+- La prevalidación muestra las comprobaciones y advertencias que devuelve
+  Prolog v3; no inventa un dictamen automático de aprobación.
+- Sigue pendiente el acuerdo del GPA del período frente al GPA general del
+  motor, explicado arriba. No se cambió el significado de `gpa_declarado`.
+
+## Verificación del avance de G2 (27/10/2026)
+
+Se ejecutó la suite completa con SQLite en memoria y correo en memoria, sin
+migrar ni sembrar la base local: **515 pruebas pasaron y 11 fallaron**.
+Los 11 fallos son los mismos que ya estaban antes de este avance
+(`AccesoYRolesTest`, `Auth/EmailVerificationTest`, ocho casos de
+`ImportacionTest` y `PendientesG1Test`). Se añadieron 11 casos de G2 y no quedan
+regresiones nuevas respecto de esa ejecución inicial.
+
+Las pruebas cubren selección por malla, ausencia de perfil/malla, materias
+inactivas, períodos históricos, recuperación de correcciones con archivos entre
+sesiones, descarte sin borrar el expediente, acceso por propietario, revisión
+concurrente, reenvío HTTP con versiones y avisos sin duplicados. El filtro de
+período también se comprobó ejecutando su JavaScript con un DOM mínimo.
+`git diff --check` y la sintaxis PHP de los archivos nuevos pasaron.
+
+La migración auxiliar de correcciones queda pendiente de aplicar en cada
+entorno. No se ejecutaron commits, push ni cambios en archivos de otros grupos.

@@ -778,7 +778,7 @@
             </p>
 
             <span class="estado-catalogo">
-                Formularios y envío de solicitudes en desarrollo
+                Prepara, envía y consulta tus solicitudes
             </span>
         </section>
 

@@ -108,11 +108,39 @@ class MateriasMallaEstudianteTest extends TestCase
         $this->assertSame([(string) $this->deLaMalla->id], $this->ofrecidos());
     }
 
-    public function test_sin_malla_conocida_ofrece_todo_el_catalogo(): void
+    public function test_sin_malla_no_ofrece_cursos_ajenos(): void
     {
         $this->actingAs($this->estudiante(null));
 
-        $this->assertSame(
-            [(string) $this->deLaMalla->id, (string) $this->fueraDeLaMalla->id], $this->ofrecidos());
+        $this->assertSame([], $this->ofrecidos());
+        $this->get(route('solicitudes.create', ['tramite' => 'recuperacion']))->assertOk()->assertSee('no tiene una malla asociada');
+    }
+
+    public function test_sin_perfil_academico_no_ofrece_el_catalogo_completo(): void
+    {
+        $this->actingAs(User::factory()->create(['tipo' => 'estudiante', 'activo' => true]));
+        $this->assertSame([], $this->ofrecidos());
+        $this->get(route('solicitudes.create', ['tramite' => 'recuperacion']))->assertOk()
+            ->assertSee('no tiene un perfil académico asociado');
+    }
+
+    public function test_no_ofrece_materias_desactivadas(): void
+    {
+        $this->actingAs($this->estudiante($this->malla($this->deLaMalla->materia)));
+        $this->deLaMalla->materia->update(['activo' => false]);
+        $this->assertSame([], $this->ofrecidos());
+    }
+
+    public function test_permite_consultar_periodos_anteriores_de_las_materias_de_la_malla(): void
+    {
+        $this->actingAs($this->estudiante($this->malla($this->deLaMalla->materia)));
+        $anterior = Curso::factory()->create([
+            'materia_id' => $this->deLaMalla->materia_id,
+            'periodo_id' => Periodo::factory()->create(['nombre' => 'Período anterior', 'activo' => false])->id,
+        ]);
+        $this->assertEqualsCanonicalizing([(string) $anterior->id, (string) $this->deLaMalla->id], $this->ofrecidos());
+        $vista = $this->get(route('solicitudes.create', ['tramite' => 'recuperacion']))->assertOk()
+            ->assertSee('id="periodo-materias"', false);
+        $this->assertContains('Período anterior', array_column($vista->viewData('materias'), 'periodo'));
     }
 }

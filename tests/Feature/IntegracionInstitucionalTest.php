@@ -94,6 +94,9 @@ class IntegracionInstitucionalTest extends TestCase
         [$u,$inscripcion,$base] = $this->preparar();
         $this->actingAs($u);
         $materiaId = DB::table('materias')->insertGetId(['codigo' => 'BD401', 'nombre' => 'Bases de datos', 'creditos' => 3]);
+        $malla = \App\Models\Malla::factory()->create();
+        $malla->materias()->attach($materiaId, ['nivel' => 1]);
+        $inscripcion->update(['malla_id' => $malla->id]);
         $curso = \App\Models\Curso::create(['materia_id' => $materiaId,
             'periodo_id' => Periodo::where('codigo', 'ACTUAL')->value('id'), 'paralelo' => 'A']);
         $catalogo = app(TramitesSimulados::class);

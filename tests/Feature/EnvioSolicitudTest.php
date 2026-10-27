@@ -280,4 +280,42 @@ class EnvioSolicitudTest extends TestCase
         $this->postJson(route('solicitudes.enviar'), $datos)->assertUnprocessable()->assertJsonValidationErrors('clave_envio');
         $this->assertDatabaseCount('solicitudes', 0);
     }
+
+    public function test_notifica_al_propietario_una_sola_vez_al_confirmar_el_envio(): void
+    {
+        \Illuminate\Support\Facades\Notification::fake();
+        $this->integrar();
+        $usuario = \App\Models\CarreraEstudiante::findOrFail($this->contexto['carrera_estudiante_id'])->estudiante->user;
+        $datos = $this->preparar();
+        $solicitud = app(EnvioSolicitud::class)->enviar($usuario, $datos);
+        app(EnvioSolicitud::class)->enviar($usuario, $datos);
+        \Illuminate\Support\Facades\Notification::assertSentTo($usuario, \App\Notifications\NotificacionPortal::class,
+            fn ($aviso) => str_contains($aviso->titulo, $solicitud->codigo)
+                && $aviso->url === route('solicitudes.show', $solicitud->id, false));
+        \Illuminate\Support\Facades\Notification::assertCount(1);
+    }
+
+    public function test_un_envio_revertido_no_produce_avisos(): void
+    {
+        \Illuminate\Support\Facades\Notification::fake();
+        $this->integrar(true);
+        try {
+            app(EnvioSolicitud::class)->enviar(User::factory()->create(), $this->preparar());
+            $this->fail('Debe fallar la transición.');
+        } catch (\RuntimeException $error) {
+            $this->assertSame('Error de transición', $error->getMessage());
+        }
+        \Illuminate\Support\Facades\Notification::assertNothingSent();
+    }
+
+    public function test_un_error_del_canal_de_avisos_no_desconoce_un_envio_confirmado(): void
+    {
+        $this->integrar();
+        $this->mock(\App\Services\Notificaciones\NotificacionService::class)
+            ->shouldReceive('notificarCambioEstado')->once()->andThrow(new \RuntimeException('Cola no disponible'));
+        $solicitud = app(EnvioSolicitud::class)->enviar(User::factory()->create(), $this->preparar());
+        $this->assertNotNull($solicitud->fresh()->enviada_at);
+        $this->assertSame($this->estadoSolicitud('enviada'), $solicitud->fresh()->estado_solicitud_id);
+        Storage::disk('local')->assertExists($solicitud->documentosGenerados()->firstOrFail()->ruta_docx);
+    }
 }
