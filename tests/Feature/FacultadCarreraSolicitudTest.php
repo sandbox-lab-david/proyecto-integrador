@@ -11,6 +11,7 @@ use Tests\TestCase;
 
 class FacultadCarreraSolicitudTest extends TestCase
 {
+    use FacultadesG1Prueba;
     use SesionEstudiantePrueba;
 
     protected function setUp(): void

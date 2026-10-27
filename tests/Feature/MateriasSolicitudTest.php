@@ -2,9 +2,12 @@
 
 namespace Tests\Feature;
 
+use App\Models\Curso;
+use App\Models\Materia;
+use App\Models\Periodo;
+use App\Models\Trabajador;
 use App\Services\Solicitudes\MateriasSolicitud;
 use App\Services\Solicitudes\TramitesSimulados;
-use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\Schema;
@@ -12,36 +15,24 @@ use Tests\TestCase;
 
 class MateriasSolicitudTest extends TestCase
 {
+    use FacultadesG1Prueba;
     use RequisitosPrologPrueba;
 
     protected function setUp(): void
     {
         parent::setUp();
         $this->withoutVite();
-        // Esquema mínimo aislado en SQLite :memory:, sin tocar migraciones de G1.
-        foreach (['materias', 'periodos', 'trabajadores'] as $tabla) {
-            Schema::create($tabla, function (Blueprint $t) use ($tabla) {
-                $t->id();
-                if ($tabla === 'trabajadores') {
-                    $t->string('nombres'); $t->string('apellidos');
-                } else {
-                    $t->string('codigo'); $t->string('nombre');
-                }
-            });
-        }
-        Schema::create('cursos', function (Blueprint $t) {
-            $t->id(); $t->unsignedBigInteger('materia_id');
-            $t->unsignedBigInteger('periodo_id'); $t->unsignedBigInteger('profesor_id')->nullable();
-            $t->string('paralelo');
-        });
     }
 
     private function curso(): void
     {
-        DB::table('materias')->insert(['id' => 12, 'codigo' => 'BD401', 'nombre' => 'Bases de datos']);
-        DB::table('periodos')->insert(['id' => 4, 'codigo' => '2026-2', 'nombre' => 'Ordinario II 2026']);
-        DB::table('trabajadores')->insert(['id' => 7, 'nombres' => 'Ana', 'apellidos' => 'Pérez']);
-        DB::table('cursos')->insert(['id' => 25, 'materia_id' => 12, 'periodo_id' => 4, 'profesor_id' => 7, 'paralelo' => 'B']);
+        // Filas de G1 con sus factories; los ids fijos son los que esperan las pruebas.
+        Curso::factory()->create([
+            'id' => 25, 'paralelo' => 'B',
+            'materia_id' => Materia::factory()->create(['id' => 12, 'codigo' => 'BD401', 'nombre' => 'Bases de datos']),
+            'periodo_id' => Periodo::factory()->create(['id' => 4, 'codigo' => '2026-2', 'nombre' => 'Ordinario II 2026']),
+            'profesor_id' => Trabajador::factory()->create(['id' => 7, 'nombres' => 'Ana', 'apellidos' => 'Pérez']),
+        ]);
     }
 
     public function test_catalogo_usa_curso_periodo_y_docente_de_la_base(): void

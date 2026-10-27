@@ -13,6 +13,7 @@ use Tests\TestCase;
 
 class NotasYFechasSolicitudTest extends TestCase
 {
+    use FacultadesG1Prueba;
     use SesionEstudiantePrueba;
 
     protected function setUp(): void

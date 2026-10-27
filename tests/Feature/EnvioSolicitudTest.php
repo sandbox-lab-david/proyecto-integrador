@@ -20,6 +20,7 @@ use Tests\TestCase;
 
 class EnvioSolicitudTest extends TestCase
 {
+    use FacultadesG1Prueba;
     use ArchivosDePrueba, LlavesAjenasPrueba, RefreshDatabase, RequisitosPrologPrueba;
 
     /** Contexto que devuelve la integración: filas reales del catálogo y de G1. */

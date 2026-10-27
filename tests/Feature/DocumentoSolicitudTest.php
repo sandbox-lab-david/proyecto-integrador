@@ -12,6 +12,7 @@ use ZipArchive;
 
 class DocumentoSolicitudTest extends TestCase
 {
+    use FacultadesG1Prueba;
     use MateriasCatalogoPrueba;
 
     public static function tramites(): array
