@@ -104,14 +104,13 @@ class DatosDePruebaTest extends TestCase
         $destinos = [
             'admin@uees.edu.ec' => route('administracion.inicio'),
             'asistente@uees.edu.ec' => route('revision.asistente'),
-            'director@uees.edu.ec' => route('revision.asistente'),
+            'director@uees.edu.ec' => route('revision.director'),
+            'consulta@uees.edu.ec' => route('revision.resoluciones'),
             'estudiante@uees.edu.ec' => route('estudiante.catalogo'),
         ];
 
         foreach ($destinos as $correo => $destino) {
             $this->actingAs(User::where('email', $correo)->first())->get('/dashboard')->assertRedirect($destino);
         }
-
-        $this->actingAs(User::where('email', 'consulta@uees.edu.ec')->first())->get('/dashboard')->assertOk();
     }
 }

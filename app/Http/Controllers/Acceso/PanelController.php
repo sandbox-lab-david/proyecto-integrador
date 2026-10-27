@@ -13,7 +13,9 @@ class PanelController extends Controller
 {
     private const DESTINOS = [
         ['roles' => ['admin'], 'ruta' => 'administracion.inicio'],
-        ['roles' => ['asistente', 'director'], 'ruta' => 'revision.asistente'],
+        ['roles' => ['asistente'], 'ruta' => 'revision.asistente'],
+        ['roles' => ['director'], 'ruta' => 'revision.director'],
+        ['roles' => ['consulta'], 'ruta' => 'revision.resoluciones'],
     ];
 
     public function __invoke(Request $request, AutorizacionService $autorizacion): RedirectResponse|View

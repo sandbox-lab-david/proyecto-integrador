@@ -72,8 +72,9 @@ Al importar estudiantes se crea su **cuenta de acceso** (con su correo instituci
 
 | Rol | Llega a |
 |---|---|
-| Asistente o director | Bandeja de revisión (Módulo 3) |
-| Consulta | "Tu cuenta aún no tiene un módulo asignado" |
+| Asistente | Bandeja de solicitudes (Módulo 3) |
+| Director | Bandeja del director (Módulo 3) |
+| Consulta | Resoluciones del Consejo (Módulo 3) |
 | Docente | Normalmente no tiene cuenta. Si se la dan, llega a "Tu cuenta aún no tiene un módulo asignado" |
 
 Si su cuenta fue desactivada, el login muestra **"Tu cuenta está desactivada. Comunícate con la administración académica."**

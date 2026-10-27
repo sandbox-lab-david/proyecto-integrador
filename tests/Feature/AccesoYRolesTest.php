@@ -2,10 +2,12 @@
 
 namespace Tests\Feature;
 
+use App\Http\Controllers\Acceso\PanelController;
 use App\Models\Trabajador;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Route;
 use Tests\TestCase;
 
 class AccesoYRolesTest extends TestCase
@@ -56,13 +58,34 @@ class AccesoYRolesTest extends TestCase
         $this->get('/dashboard')->assertRedirect(route('revision.asistente'));
 
         $this->actingAs($this->usuarioConRol('director'));
-        $this->get('/dashboard')->assertRedirect(route('revision.asistente'));
+        $this->get('/dashboard')->assertRedirect(route('revision.director'));
+
+        $this->actingAs($this->usuarioConRol('consulta'));
+        $this->get('/dashboard')->assertRedirect(route('revision.resoluciones'));
 
         $this->actingAs(User::factory()->create(['tipo' => 'estudiante']));
         $this->get('/dashboard')->assertRedirect(route('estudiante.catalogo'));
 
-        $this->actingAs($this->usuarioConRol('consulta'));
+        $this->actingAs($this->usuarioConRol('docente'));
         $this->get('/dashboard')->assertOk()->assertSee('Tu cuenta aún no tiene un módulo asignado');
+    }
+
+    public function test_cada_destino_deja_entrar_a_su_rol(): void
+    {
+        $destinos = (new \ReflectionClassConstant(PanelController::class, 'DESTINOS'))->getValue();
+
+        foreach ($destinos as $destino) {
+            $this->assertTrue(Route::has($destino['ruta']), "No existe la ruta {$destino['ruta']}");
+
+            $permiso = collect(Route::getRoutes()->getByName($destino['ruta'])->gatherMiddleware())
+                ->first(fn ($middleware) => is_string($middleware) && str_starts_with($middleware, 'rol:'));
+            $this->assertNotNull($permiso, "La ruta {$destino['ruta']} no tiene permiso rol:");
+
+            $permitidos = explode(',', substr($permiso, 4));
+            foreach ($destino['roles'] as $rol) {
+                $this->assertContains($rol, $permitidos, "La ruta {$destino['ruta']} no deja entrar al rol {$rol}");
+            }
+        }
     }
 
     public function test_la_pagina_de_inicio_manda_al_login_o_al_panel(): void
