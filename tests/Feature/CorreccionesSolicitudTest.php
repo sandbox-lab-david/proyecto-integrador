@@ -92,10 +92,10 @@ class CorreccionesSolicitudTest extends TestCase
         $this->app->instance('request', $request);
     }
 
-    private function preparar(Solicitud $solicitud): array
+    private function preparar(Solicitud $solicitud, array $datos = []): array
     {
         $this->contexto($solicitud);
-        $datos = $this->datos();
+        $datos = $datos ?: $this->datos();
         app(DocumentosTemporales::class)->guardar('gracia', 'Word corregido', $datos);
         app(FirmadosTemporales::class)->guardar($this->pdf(), 'gracia');
         $archivo = app(RespaldosTemporales::class)->agregar($this->pdf(), 'gracia');
@@ -142,7 +142,7 @@ class CorreccionesSolicitudTest extends TestCase
         app(BorradoresTemporales::class)->guardar('gracia', ['paso' => 1, 'nombre' => 'Borrador nuevo']);
         $propia = $this->solicitud();
         $respuesta = $this->get(route('solicitudes.edit', $propia))->assertOk()->assertSee('Corregir solicitud');
-        $this->assertSame('Ana Pérez', $respuesta->viewData('borrador')['nombre']);
+        $this->assertSame($this->usuario->name, $respuesta->viewData('borrador')['nombre']);
         $this->assertSame('Borrador nuevo', app(BorradoresTemporales::class)->todos()['gracia']['nombre']);
         $this->assertArrayHasKey('correccion-'.$propia->id.'--gracia', app(BorradoresTemporales::class)->todos());
     }
@@ -244,5 +244,105 @@ class CorreccionesSolicitudTest extends TestCase
         $this->assertDatabaseCount('documentos_generados', 1);
         $this->assertSame([], Storage::disk('local')->allFiles('expedientes'));
         $this->assertNotNull(app(FirmadosTemporales::class)->buscar('gracia'));
+    }
+
+    public function test_la_correccion_y_sus_archivos_se_recuperan_en_otra_sesion(): void
+    {
+        $propia = $this->solicitud();
+        $this->get(route('solicitudes.edit', $propia))->assertOk();
+        $this->putJson(route('borradores-temporales.update', [
+            'tramite' => 'gracia', 'solicitud_correccion' => $propia->id,
+        ]), ['paso' => 3, 'nombre' => 'Nombre corregido', 'materias' => [], 'campos' => [], 'requisitos' => []])
+            ->assertOk()->assertJsonPath('en_cuenta', true);
+        $this->preparar($propia);
+        app(\App\Services\Solicitudes\CorreccionesGuardadas::class)->guardar($propia, 'gracia');
+        $word = app(DocumentosTemporales::class)->buscar('gracia');
+        $firmado = app(FirmadosTemporales::class)->buscar('gracia');
+        $respaldo = app(RespaldosTemporales::class)->delTramite('gracia')[0];
+        $this->assertStringStartsWith('correcciones-g2/'.$this->usuario->id.'/'.$propia->id.'/', $word['ruta']);
+        $this->flushSession();
+        $borrador = $this->get(route('solicitudes.edit', $propia))->assertOk()->viewData('borrador');
+        $this->assertSame($this->usuario->name, $borrador['nombre']);
+        $this->assertTrue($borrador['en_cuenta']);
+        $this->assertSame($word['version'], app(DocumentosTemporales::class)->buscar('gracia')['version']);
+        $this->assertSame($firmado['ruta'], app(FirmadosTemporales::class)->buscar('gracia')['ruta']);
+        $this->assertSame($respaldo['id'], app(RespaldosTemporales::class)->delTramite('gracia')[0]['id']);
+        Storage::disk('local')->assertExists([$word['ruta'], $firmado['ruta']]);
+        $this->assertSame('Ana Pérez', $propia->fresh()->detalle['nombre']);
+        $this->assertDatabaseCount('documentos_generados', 1);
+        Storage::disk('local')->assertExists('original/'.$propia->id.'.pdf');
+    }
+
+    public function test_descartar_la_correccion_no_borra_el_expediente_original(): void
+    {
+        $propia = $this->solicitud();
+        $this->get(route('solicitudes.edit', $propia))->assertOk();
+        $this->preparar($propia);
+        app(\App\Services\Solicitudes\CorreccionesGuardadas::class)->guardar($propia, 'gracia');
+        $ruta = app(DocumentosTemporales::class)->buscar('gracia')['ruta'];
+        $this->flushSession();
+        $this->deleteJson(route('borradores-temporales.destroy', [
+            'tramite' => 'gracia', 'solicitud_correccion' => $propia->id,
+        ]))->assertNoContent();
+        $this->assertDatabaseCount('borradores_correccion_g2', 0);
+        $this->assertDatabaseHas('solicitudes', ['id' => $propia->id, 'estado_solicitud_id' => $this->observada]);
+        Storage::disk('local')->assertMissing($ruta);
+        Storage::disk('local')->assertExists(['original/'.$propia->id.'.docx', 'original/'.$propia->id.'.pdf']);
+    }
+
+    public function test_otro_usuario_no_recupera_la_copia_privada_de_la_correccion(): void
+    {
+        $propia = $this->solicitud();
+        $this->get(route('solicitudes.edit', $propia))->assertOk();
+        $this->flushSession();
+        $this->actingAs(User::factory()->create(['tipo' => 'estudiante', 'activo' => true]));
+        $this->get(route('solicitudes.edit', $propia))->assertForbidden();
+        $this->putJson(route('borradores-temporales.update', ['tramite' => 'gracia', 'solicitud_correccion' => $propia->id]),
+            ['paso' => 2, 'nombre' => 'Intruso'])->assertForbidden();
+        $this->assertSame([], session('borradores_temporales', []));
+        $this->assertDatabaseCount('borradores_correccion_g2', 1);
+    }
+
+    public function test_advierte_si_el_expediente_cambio_despues_de_guardar_la_correccion(): void
+    {
+        $propia = $this->solicitud();
+        $this->get(route('solicitudes.edit', $propia))->assertOk();
+        $propia->forceFill(['detalle' => $propia->detalle + ['cambio_concurrente' => true]])->save();
+        $this->flushSession();
+        $this->get(route('solicitudes.edit', $propia))->assertOk()
+            ->assertSee('La solicitud cambió desde que empezaste esta corrección.');
+        $this->assertNotSame(EnvioSolicitud::revision($propia), session('correcciones_base.'.$propia->id));
+    }
+
+    public function test_reenvio_http_limpia_la_copia_de_trabajo_y_conserva_las_versiones(): void
+    {
+        \Illuminate\Support\Facades\Notification::fake();
+        $this->integrar();
+        $propia = $this->solicitud();
+        $this->get(route('solicitudes.edit', $propia))->assertOk();
+        $facultades = \App\Services\Solicitudes\CatalogoFacultades::todas();
+        $facultad = array_key_first($facultades);
+        $datos = $this->datos() + ['cedula' => '1234567890', 'facultad' => $facultad,
+            'modalidad' => 'Presencial', 'periodo' => '2026'];
+        $datos['carrera'] = $facultades[$facultad][0];
+        $datos = array_replace($datos, \App\Services\Solicitudes\DatosFormularioSolicitud::cuenta($this->usuario));
+        $datos = $this->preparar($propia, $datos);
+        app(\App\Services\Solicitudes\CorreccionesGuardadas::class)->guardar($propia, 'gracia');
+        $ruta = app(DocumentosTemporales::class)->buscar('gracia')['ruta'];
+        $this->flushSession();
+        // Alterar campos de solo lectura no cambia la identidad ni invalida el documento legítimo.
+        $datos['nombre'] = 'Identidad manipulada';
+        $datos['correo'] = 'otra.cuenta@uees.edu.ec';
+        $this->postJson(route('solicitudes.reenviar', ['solicitud' => $propia->id, 'solicitud_correccion' => $propia->id]), $datos)
+            ->assertOk()->assertJsonPath('codigo', $propia->codigo);
+        $this->assertSame($this->usuario->name, $propia->fresh()->detalle['nombre']);
+        $this->assertSame($this->usuario->email, $propia->fresh()->detalle['correo']);
+        $this->assertDatabaseCount('borradores_correccion_g2', 0);
+        $this->assertSame([1, 2], $propia->documentosGenerados()->orderBy('version')->pluck('version')->all());
+        Storage::disk('local')->assertMissing($ruta);
+        Storage::disk('local')->assertExists('original/'.$propia->id.'.docx');
+        Storage::disk('local')->assertExists($propia->documentosGenerados()->latest('version')->firstOrFail()->ruta_docx);
+        \Illuminate\Support\Facades\Notification::assertSentTo($this->usuario, \App\Notifications\NotificacionPortal::class);
+        \Illuminate\Support\Facades\Notification::assertCount(1);
     }
 }

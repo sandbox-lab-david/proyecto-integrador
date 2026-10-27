@@ -80,7 +80,8 @@ class GenerarDocumentoRequest extends FormRequest
         $this->merge(app(\App\Services\Solicitudes\MateriasSolicitud::class)->entrada($this->all()));
         $this->merge(DatosFormularioSolicitud::limpiarEntrada($this->all()));
         $this->merge(CatalogoFacultades::normalizar($this->all()));
-        // Los datos declarados son manuales; el propietario se resuelve con la cuenta autenticada.
+        // Los demás datos siguen siendo editables; la identidad procede de la cuenta.
+        $this->merge(DatosFormularioSolicitud::cuenta($this->user()));
     }
 
     public function withValidator(Validator $validador): void

@@ -99,6 +99,8 @@ class GuardarBorradorRequest extends FormRequest
         $this->merge(app(\App\Services\Solicitudes\MateriasSolicitud::class)->entrada($this->all()));
         $this->merge(DatosFormularioSolicitud::limpiarEntrada($this->all()));
         $this->merge(CatalogoFacultades::normalizar($this->all()));
+        // La cuenta autenticada es la fuente de nombre y correo, también ante un POST manipulado.
+        $this->merge(DatosFormularioSolicitud::cuenta($this->user()));
     }
 
     public function withValidator(Validator $validador): void
