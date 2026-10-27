@@ -119,9 +119,11 @@ Route::middleware(['auth', 'rol:asistente,admin'])->group(function () {
 
 Route::middleware(['auth', 'rol:asistente,admin'])->group(function () {
     Route::get('/revision/agendas', [AgendaConsejoController::class, 'index'])->name('revision.agendas');
+    Route::post('/revision/agendas', [AgendaConsejoController::class, 'store'])->name('revision.agendas.store');
+    Route::post('/revision/agendas/solicitudes/rechazar-varias', [AgendaConsejoController::class, 'rechazarVariasSolicitudes'])->name('revision.agendas.solicitudes.rechazar-varias');
 });
 
-Route::middleware(['auth', 'rol:consulta,admin'])->group(function () {
+Route::middleware(['auth', 'rol:consulta,asistente,admin'])->group(function () {
     Route::get('/revision/resoluciones', [ResolucionesConsejoController::class, 'index'])->name('revision.resoluciones');
     Route::get('/revision/agendas/{agenda}/resoluciones', [ResolucionesConsejoController::class, 'porAgenda'])->name('revision.agendas.resoluciones');
     Route::get('/revision/resoluciones/documento', [ResolucionesConsejoController::class, 'documento'])->name('revision.resoluciones.documento');
@@ -130,9 +132,6 @@ Route::middleware(['auth', 'rol:consulta,admin'])->group(function () {
 });
 
 Route::middleware(['auth', 'rol:admin'])->group(function () {
-    Route::post('/revision/agendas', [AgendaConsejoController::class, 'store'])->name('revision.agendas.store');
-    Route::post('/revision/agendas/solicitudes/rechazar-varias', [AgendaConsejoController::class, 'rechazarVariasSolicitudes'])->name('revision.agendas.solicitudes.rechazar-varias');
-
     Route::post('/revision/agendas/{agenda}/resoluciones/{solicitud}', [ResolucionesConsejoController::class, 'guardar'])->name('revision.agendas.resoluciones.guardar');
     Route::post('/revision/resoluciones/{id}', [ResolucionesConsejoController::class, 'actualizarEstado'])->name('revision.resoluciones.estado');
 });

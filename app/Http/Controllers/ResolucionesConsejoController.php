@@ -9,6 +9,7 @@ use App\Services\Flujo\AgendaWordService;
 use App\Services\Flujo\EstadoSolicitudService;
 use App\Services\Flujo\ResolucionService;
 use App\Services\Notificaciones\NotificacionService;
+use App\Services\Academico\AutorizacionService;
 use App\Support\Estados;
 use App\Support\RevisionSolicitudFilters;
 use Illuminate\Http\Request;
@@ -17,7 +18,7 @@ use Illuminate\Support\Str;
 
 class ResolucionesConsejoController extends Controller
 {
-    public function index(Request $request)
+    public function index(Request $request, AutorizacionService $authz)
     {
         $filtros = RevisionSolicitudFilters::validateWithDateRange($request);
         $agendas = collect();
@@ -28,6 +29,10 @@ class ResolucionesConsejoController extends Controller
             }
             if ($filtros['hasta'] !== '') {
                 $query->whereDate('fecha_sesion', '<=', $filtros['hasta']);
+            }
+            if ($authz->tieneRol(auth()->user(), 'asistente')) {
+                $facultades = $authz->facultadesDe(auth()->user()->trabajador)->modelKeys();
+                $query->whereIn('facultad_id', $facultades);
             }
             $agendas = $query->orderByDesc('fecha_sesion')->get();
             foreach ($agendas as $agenda) {
@@ -48,9 +53,12 @@ class ResolucionesConsejoController extends Controller
         return view('revision.resoluciones', ['agendas' => $agendas, 'filtros' => $filtros, 'filtrosAplicados' => $filtros['filtrar'], 'tramitesDisponibles' => RevisionSolicitudFilters::tramitesDisponibles(), 'estadosDisponibles' => RevisionSolicitudFilters::ESTADOS]);
     }
 
-    public function porAgenda(int $agenda, ResolucionService $resoluciones)
+    public function porAgenda(int $agenda, ResolucionService $resoluciones, AutorizacionService $authz)
     {
         $corte = CorteAgenda::with(['puntosInternos', 'solicitudes.carreraEstudiante.estudiante', 'solicitudes.carreraEstudiante.carreraModalidad.carrera', 'solicitudes.tipoTramite', 'solicitudes.estadoSolicitud', 'solicitudes.historial', 'solicitudes.resolucion'])->findOrFail($agenda);
+        if ($authz->tieneRol(auth()->user(), 'asistente')) {
+            abort_unless($authz->puedeVerFacultad(auth()->user(), (int) $corte->facultad_id), 403);
+        }
         $corte->numero = 'AG-'.$corte->id;
         $casos = $corte->solicitudes->map(function ($s) use ($resoluciones) {
             $student = $s->carreraEstudiante?->estudiante;
@@ -64,7 +72,7 @@ class ResolucionesConsejoController extends Controller
         return view('revision.resoluciones', compact('agenda', 'casos'));
     }
 
-    public function documento(Request $request, AgendaWordService $word)
+    public function documento(Request $request, AgendaWordService $word, AutorizacionService $authz)
     {
         $filtros = RevisionSolicitudFilters::validateWithDateRange($request);
         $query = CorteAgenda::query()->whereHas('solicitudes', fn ($q) => $this->aplicarFiltrosSolicitud($q, $filtros));
@@ -74,18 +82,24 @@ class ResolucionesConsejoController extends Controller
         if ($filtros['hasta'] !== '') {
             $query->whereDate('fecha_sesion', '<=', $filtros['hasta']);
         }
+        if ($authz->tieneRol(auth()->user(), 'asistente')) {
+            $query->whereIn('facultad_id', $authz->facultadesDe(auth()->user()->trabajador)->modelKeys());
+        }
 
         return $word->generarDocumento($query->pluck('id')->all(), $filtros);
     }
 
-    public function documentoAgenda(int $agenda, AgendaWordService $word)
+    public function documentoAgenda(int $agenda, AgendaWordService $word, AutorizacionService $authz)
     {
         $corte = CorteAgenda::findOrFail($agenda);
+        if ($authz->tieneRol(auth()->user(), 'asistente')) {
+            abort_unless($authz->puedeVerFacultad(auth()->user(), (int) $corte->facultad_id), 403);
+        }
 
         return $word->generarAgendaWord($corte->id);
     }
 
-    public function exportar(Request $request)
+    public function exportar(Request $request, AutorizacionService $authz)
     {
         $filtros = RevisionSolicitudFilters::validateWithDateRange($request);
         $query = CorteAgenda::with(['solicitudes.estadoSolicitud', 'resoluciones'])->whereHas('solicitudes', fn ($q) => $this->aplicarFiltrosSolicitud($q, $filtros));
@@ -94,6 +108,9 @@ class ResolucionesConsejoController extends Controller
         }
         if ($filtros['hasta'] !== '') {
             $query->whereDate('fecha_sesion', '<=', $filtros['hasta']);
+        }
+        if ($authz->tieneRol(auth()->user(), 'asistente')) {
+            $query->whereIn('facultad_id', $authz->facultadesDe(auth()->user()->trabajador)->modelKeys());
         }
         $rows = $query->orderBy('fecha_sesion')->get();
         foreach ($rows as $agenda) {
