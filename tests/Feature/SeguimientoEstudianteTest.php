@@ -75,6 +75,15 @@ class SeguimientoEstudianteTest extends TestCase
         $this->assertStringStartsWith('Adjunta certificado', $respuesta->viewData('observaciones')[0]['texto']);
     }
 
+    public function test_muestra_los_datos_enviados_con_el_resumen_de_la_solicitud(): void
+    {
+        $this->propia->forceFill(['detalle' => ['tramite' => 'recuperacion', 'nombre' => 'Estudiante Prueba 0',
+            'campos' => ['gpa_general' => '88']]])->save();
+        $this->get(route('solicitudes.show', $this->propia))->assertOk()
+            ->assertSeeInOrder(['Datos enviados', 'Nombres y apellidos', 'Estudiante Prueba 0', 'GPA general', '88'])
+            ->assertSee('resumen-solicitud--sin-marco', false);
+    }
+
     public function test_no_puede_abrir_expediente_ajeno(): void
     {
         $this->get(route('solicitudes.show', $this->ajena))->assertForbidden();

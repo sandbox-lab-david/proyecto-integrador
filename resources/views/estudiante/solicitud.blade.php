@@ -117,6 +117,12 @@
 
                 <x-dynamic-component component="linea-tiempo" :solicitud="$solicitud" :internas="false" />
             </section>
+
+            <section class="panel" aria-labelledby="titulo-datos-enviados">
+                <h2 id="titulo-datos-enviados">Datos enviados</h2>
+
+                <x-resumen-solicitud :solicitud="$solicitud" :encabezado="false" class="resumen-solicitud--sin-marco" />
+            </section>
         </div>
     </main>
     @include('estudiante.partials.chatbot-flotante')
