@@ -433,6 +433,9 @@
         <h1>{{ ($solicitudCorreccion ?? null) ? 'Corregir solicitud '.$solicitudCorreccion->codigo : 'Solicitud de '.$tramite['nombre'] }}</h1>
         @if ($solicitudCorreccion ?? null)
             <p class="introduccion">Revisa las observaciones, corrige los datos y vuelve a adjuntar los respaldos requeridos. Descarga el documento actualizado y sube su nuevo PDF firmado. Las versiones anteriores se conservan.</p>
+            @if (request()->attributes->get('correccion_desactualizada'))
+                <p class="aviso" role="alert">La solicitud cambió desde que empezaste esta corrección. Conservamos tu borrador, pero deberás descartarlo y volver a abrir la solicitud antes de reenviar.</p>
+            @endif
             <section class="panel" aria-label="Observaciones de revisión">
                 <h2>Observaciones de la facultad</h2>
                 @if ($observacionesCorreccion === null)
@@ -582,6 +585,8 @@
                                     {{ $tramite['max_materias'] === 1 ? 'Materia de la solicitud' : 'Materias de la solicitud' }}
                                 </p>
 
+                                <label for="periodo-materias">Filtrar por período</label>
+                                <select id="periodo-materias" aria-describedby="ayuda-materia"><option value="">Todos los períodos disponibles</option></select>
                                 <div class="agregar-materia">
                                     <select id="materia" aria-label="Materia del catálogo académico">
                                         <option value="">Selecciona una materia</option>
@@ -598,7 +603,7 @@
                                         : 'Puedes agregar hasta '.$tramite['max_materias'].' materias.' }}
                                     Los cursos se consultan en la base de datos académica.
                                     @if (empty($materias))
-                                        No hay cursos disponibles. Solicita a la unidad académica que revise el catálogo.
+                                        No hay cursos disponibles. {{ app(\App\Services\Solicitudes\MateriasSolicitud::class)->avisoSinCursos() }}
                                     @endif
                                 </p>
                             </div>
@@ -945,10 +950,18 @@
         const camposMateriaManual = @json($camposMateriaManual);
         const materiasCatalogo = @json($materias);
         const selectorCatalogo = document.getElementById('materia');
+        const filtroPeriodo = document.getElementById('periodo-materias');
+        function llenarSelectorMaterias() {
+            if (!selectorCatalogo) return;
+            selectorCatalogo.replaceChildren(new Option('Selecciona una materia', ''));
+            materiasCatalogo.filter(materia => !filtroPeriodo.value || materia.periodo === filtroPeriodo.value)
+                .forEach(materia => selectorCatalogo.append(new Option(materia.codigo + ' — ' + materia.nombre + ' (' + materia.periodo + ', ' + materia.paralelo + ')', materia.id)));
+        }
         if (selectorCatalogo) {
-            materiasCatalogo.forEach(materia => {
-                selectorCatalogo.append(new Option(`${materia.codigo} — ${materia.nombre} (${materia.periodo}, ${materia.paralelo})`, materia.id));
-            });
+            [...new Set(materiasCatalogo.map(materia => materia.periodo))].sort((a,b) => a.localeCompare(b, 'es'))
+                .forEach(periodo => filtroPeriodo.append(new Option(periodo, periodo)));
+            llenarSelectorMaterias();
+            filtroPeriodo.addEventListener('change', () => { llenarSelectorMaterias(); pintarMaterias(); });
         }
         const catalogoFacultades = @json($catalogoFacultades);
 

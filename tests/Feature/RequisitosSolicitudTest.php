@@ -23,8 +23,9 @@ class RequisitosSolicitudTest extends TestCase
         $this->discoTemporal();
         config(['chatbot.prolog.url' => 'http://motor.test']);
         // Esta prueba no depende de los cursos de G1.
-        $this->partialMock(\App\Services\Solicitudes\MateriasSolicitud::class)
-            ->shouldReceive('todas')->andReturn([]);
+        $materias = $this->partialMock(\App\Services\Solicitudes\MateriasSolicitud::class);
+        $materias->shouldReceive('todas')->andReturn([]);
+        $materias->shouldReceive('avisoSinCursos')->andReturn('Catálogo académico aislado de esta prueba.');
         $this->motor();
     }
 
