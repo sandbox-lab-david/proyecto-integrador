@@ -45,7 +45,11 @@ class SolicitudPolicy
             return false;
         }
 
-        return $this->autorizacion->puedeVerCarrera($u, (int) $s->carreraEstudiante->carreraModalidad?->carrera_id);
+        $carrera = $s->carreraEstudiante->carreraModalidad?->carrera;
+
+        return $carrera !== null
+            && ($this->autorizacion->puedeVerCarrera($u, $carrera->getKey())
+                || $this->autorizacion->puedeVerFacultad($u, $carrera->facultad_id));
     }
 
     /**
