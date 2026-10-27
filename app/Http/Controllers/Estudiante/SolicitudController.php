@@ -153,7 +153,8 @@ class SolicitudController extends Controller
                     }
                 }
             }
-            $temporales->guardar($datos['tramite'], $documento, $datos);
+            // El PDF descargado se conserva con el Word y pasa al expediente al enviar.
+            $temporales->guardar($datos['tramite'], $documento, $datos, $formato === 'pdf' ? $contenidoDescarga : null);
             // Cada descarga es una versión nueva, incluso si solo cambió la fecha.
             $firmados->quitar($datos['tramite']);
         } catch (\RuntimeException $error) {

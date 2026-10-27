@@ -168,6 +168,8 @@ class EnvioSolicitud
         };
         try {
             $word = $copiar($documento['ruta'], 'documento-v1.docx');
+            // Solo existe si el estudiante descargó el documento en PDF.
+            $pdfGenerado = filled($documento['ruta_pdf'] ?? null) ? $copiar($documento['ruta_pdf'], 'documento-v1.pdf') : null;
             $pdf = $copiar($firmado['ruta'], 'firmado-v1.pdf');
             $respaldos = [];
             foreach ($archivos as $archivo) {
@@ -177,7 +179,7 @@ class EnvioSolicitud
             }
             for ($intento = 0; ; $intento++) {
                 try {
-                    $solicitud = DB::transaction(function () use ($usuario, $tramite, $datos, $contexto, $integracion, $word, $pdf, $firmado, $respaldos, $correccion, $revisionBase) {
+                    $solicitud = DB::transaction(function () use ($usuario, $tramite, $datos, $contexto, $integracion, $word, $pdfGenerado, $pdf, $firmado, $respaldos, $correccion, $revisionBase) {
                         $gpa = $datos['campos']['gpa_general'] ?? null;
                         $version = 1;
                         $historialCorrecciones = [];
@@ -259,7 +261,7 @@ class EnvioSolicitud
                                 'mime' => $archivo['mime'], 'tamano_bytes' => $archivo['tamano_bytes'],
                             ]);
                         }
-                        $generado = $solicitud->documentosGenerados()->create(['version' => $version, 'ruta_docx' => $word]);
+                        $generado = $solicitud->documentosGenerados()->create(['version' => $version, 'ruta_docx' => $word, 'ruta_pdf' => $pdfGenerado]);
                         $generado->documentoFirmado()->create([
                             'ruta' => $pdf, 'tamano_bytes' => $firmado['tamano_bytes'], 'subido_por' => $usuario->getKey(),
                         ]);

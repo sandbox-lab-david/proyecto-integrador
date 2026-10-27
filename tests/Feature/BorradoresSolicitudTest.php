@@ -271,6 +271,24 @@ class BorradoresSolicitudTest extends TestCase
         $this->assertNull(app(FirmadosTemporales::class)->buscar('recuperacion'));
     }
 
+    public function test_el_pdf_descargado_queda_en_la_cuenta_y_una_descarga_en_word_lo_quita(): void
+    {
+        $this->guardar()->assertOk();
+        $temporales = app(DocumentosTemporales::class);
+        $temporales->guardar('recuperacion', 'Word de prueba', ['tramite' => 'recuperacion'], '%PDF-1.4 de prueba');
+
+        $generado = DocumentoGenerado::sole();
+        $this->assertStringStartsWith(BorradoresSolicitud::carpeta(Solicitud::sole()).'/', $generado->ruta_pdf);
+        $this->assertSame('%PDF-1.4 de prueba', Storage::disk('local')->get($generado->ruta_pdf));
+        $this->assertSame($generado->ruta_pdf, $temporales->buscar('recuperacion')['ruta_pdf']);
+
+        $temporales->guardar('recuperacion', 'Word nuevo', ['tramite' => 'recuperacion']);
+
+        Storage::disk('local')->assertMissing($generado->ruta_pdf);
+        $this->assertNull(DocumentoGenerado::sole()->ruta_pdf);
+        $this->assertNull($temporales->buscar('recuperacion')['ruta_pdf']);
+    }
+
     public function test_no_acepta_el_pdf_firmado_antes_de_descargar_el_documento(): void
     {
         $this->guardar()->assertOk();
@@ -287,8 +305,9 @@ class BorradoresSolicitudTest extends TestCase
         $this->guardar(['paso' => 3])->assertOk()->assertJson(['en_cuenta' => false]);
         $id = $this->postJson(route('respaldos-temporales.store'), ['tramite' => 'recuperacion', 'archivo' => $this->pdf()])
             ->assertCreated()->json('id');
-        app(DocumentosTemporales::class)->guardar('recuperacion', 'Word de prueba', ['tramite' => 'recuperacion']);
+        app(DocumentosTemporales::class)->guardar('recuperacion', 'Word de prueba', ['tramite' => 'recuperacion'], '%PDF-1.4 de prueba');
         $version = app(DocumentosTemporales::class)->buscar('recuperacion')['version'];
+        $pdfSesion = session('documentos_temporales.recuperacion.ruta_pdf');
         $this->postJson(route('firmados-temporales.store', 'recuperacion'), ['archivo' => $this->pdf('firmado.pdf')])->assertCreated();
         $this->assertDatabaseCount('respaldos', 0);
 
@@ -302,7 +321,9 @@ class BorradoresSolicitudTest extends TestCase
         $this->assertSame('firmado.pdf', $vista->viewData('firmado')['nombre_original']);
         $this->assertSame($borrador->id, Respaldo::sole()->solicitud_id);
         $this->assertSame(DocumentoGenerado::sole()->id, DocumentoFirmado::sole()->documento_generado_id);
-        Storage::disk('local')->assertExists([Respaldo::sole()->ruta, DocumentoGenerado::sole()->ruta_docx, DocumentoFirmado::sole()->ruta]);
+        Storage::disk('local')->assertExists([Respaldo::sole()->ruta, DocumentoGenerado::sole()->ruta_docx, DocumentoGenerado::sole()->ruta_pdf, DocumentoFirmado::sole()->ruta]);
+        $this->assertStringStartsWith(BorradoresSolicitud::carpeta($borrador).'/', DocumentoGenerado::sole()->ruta_pdf);
+        Storage::disk('local')->assertMissing($pdfSesion);
         $this->assertSame([], session('respaldos_temporales.archivos', []));
         $this->assertNull(session('documentos_temporales.recuperacion'));
         $this->assertNull(session('firmados_temporales.recuperacion'));
@@ -357,7 +378,7 @@ class BorradoresSolicitudTest extends TestCase
         $borrador = Solicitud::sole();
 
         $temporales = app(DocumentosTemporales::class);
-        $temporales->guardar($tramite, app(DocumentoSolicitud::class)->generarWord($datos), $datos);
+        $temporales->guardar($tramite, app(DocumentoSolicitud::class)->generarWord($datos), $datos, '%PDF-1.4 descargado');
         $datos['clave_envio'] = $temporales->buscar($tramite)['version'];
         app(FirmadosTemporales::class)->guardar($this->pdf(), $tramite);
         // Un respaldo por documento, subido con el requisito del siguiente y reasignado después.
@@ -386,6 +407,9 @@ class BorradoresSolicitudTest extends TestCase
         }
         $generado = DocumentoGenerado::sole();
         $this->assertStringStartsWith('expedientes/', $generado->ruta_docx);
+        // El PDF que se descargó pasa al expediente junto al Word.
+        $this->assertStringStartsWith('expedientes/', $generado->ruta_pdf);
+        $this->assertSame('%PDF-1.4 descargado', Storage::disk('local')->get($generado->ruta_pdf));
         $this->assertStringStartsWith('expedientes/', DocumentoFirmado::sole()->ruta);
         $this->assertSame([], Storage::disk('local')->allFiles(BorradoresSolicitud::carpeta($borrador)));
         $this->assertSame([], $this->get(route('solicitudes.index'))->viewData('sinTerminar'));

@@ -14,6 +14,7 @@ use RuntimeException;
 
 /**
  * Word que efectivamente se descargó y la versión y huella de sus datos.
+ * Si se descargó en PDF, ese PDF se conserva junto al Word.
  * Con un borrador en la cuenta (RF-2.12) es la fila de «documentos_generados»
  * de ese borrador; si no, vive en la sesión.
  */
@@ -27,13 +28,17 @@ class DocumentosTemporales
         private readonly BorradoresSolicitud $borradores,
     ) {}
 
-    public function guardar(string $tramite, string $word, array $datos): void
+    public function guardar(string $tramite, string $word, array $datos, ?string $pdf = null): void
     {
         $clave = ContextoCorreccion::clave($tramite);
         $borrador = $this->borradores->enCuentaDe($tramite);
         $carpeta = $borrador === null ? $this->respaldos->carpeta() : BorradoresSolicitud::carpeta($borrador);
-        $ruta = $carpeta.'/'.Str::uuid().'.docx';
-        if (! Storage::disk(ArchivoService::DISCO)->put($ruta, $word)) {
+        $nombre = $carpeta.'/'.Str::uuid();
+        $ruta = $nombre.'.docx';
+        $rutaPdf = $pdf === null ? null : $nombre.'.pdf';
+        $disco = Storage::disk(ArchivoService::DISCO);
+        if (! $disco->put($ruta, $word) || ($rutaPdf !== null && ! $disco->put($rutaPdf, $pdf))) {
+            $disco->delete(array_filter([$ruta, $rutaPdf]));
             throw new RuntimeException('No se pudo conservar el documento generado.');
         }
         $this->quitar($tramite);
@@ -41,17 +46,17 @@ class DocumentosTemporales
 
         if ($borrador !== null) {
             // Un borrador tiene un solo Word: el de la última descarga.
-            $borrador->documentosGenerados()->create(['version' => 1, 'ruta_docx' => $ruta]);
+            $borrador->documentosGenerados()->create(['version' => 1, 'ruta_docx' => $ruta, 'ruta_pdf' => $rutaPdf]);
             $this->borradores->anotarArchivos($borrador, ['documento' => $documento]);
 
             return;
         }
 
-        $this->sesion->put(self::SESION.'.'.$clave, ['ruta' => $ruta, 'datos' => $datos] + $documento);
+        $this->sesion->put(self::SESION.'.'.$clave, ['ruta' => $ruta, 'ruta_pdf' => $rutaPdf, 'datos' => $datos] + $documento);
     }
 
     /**
-     * @return array{ruta: string, version: string, hash_datos: string}|null
+     * @return array{ruta: string, ruta_pdf: ?string, version: string, hash_datos: string}|null
      */
     public function buscar(string $tramite): ?array
     {
@@ -59,10 +64,13 @@ class DocumentosTemporales
             $generado = $this->generadoDe($borrador, $tramite);
             $documento = $this->borradores->archivos($borrador)['documento'] ?? null;
 
-            return $generado !== null && $documento !== null ? ['ruta' => $generado->ruta_docx] + $documento : null;
+            return $generado !== null && $documento !== null
+                ? ['ruta' => $generado->ruta_docx, 'ruta_pdf' => $generado->ruta_pdf] + $documento : null;
         }
 
-        return $this->sesion->get(self::SESION.'.'.ContextoCorreccion::clave($tramite));
+        $documento = $this->sesion->get(self::SESION.'.'.ContextoCorreccion::clave($tramite));
+
+        return $documento === null ? null : $documento + ['ruta_pdf' => null];
     }
 
     /**
@@ -78,15 +86,20 @@ class DocumentosTemporales
         if ($sesion !== null) {
             $this->sesion->forget(self::SESION.'.'.$tramite);
             $disco = Storage::disk(ArchivoService::DISCO);
-            $destino = BorradoresSolicitud::carpeta($borrador).'/'.basename($sesion['ruta']);
+            $carpeta = BorradoresSolicitud::carpeta($borrador);
+            $destino = $carpeta.'/'.basename($sesion['ruta']);
+            $pdf = $sesion['ruta_pdf'] ?? null;
 
             if ($generado === null && $disco->exists($sesion['ruta']) && $disco->move($sesion['ruta'], $destino)) {
-                $generado = $borrador->documentosGenerados()->create(['version' => 1, 'ruta_docx' => $destino]);
+                // Si el PDF no se puede mover, el Word sigue valiendo sin él.
+                $destinoPdf = $pdf !== null && $disco->exists($pdf) && $disco->move($pdf, $carpeta.'/'.basename($pdf))
+                    ? $carpeta.'/'.basename($pdf) : null;
+                $generado = $borrador->documentosGenerados()->create(['version' => 1, 'ruta_docx' => $destino, 'ruta_pdf' => $destinoPdf]);
                 $this->borradores->anotarArchivos($borrador, [
                     'documento' => ['version' => $sesion['version'], 'hash_datos' => $sesion['hash_datos']],
                 ]);
             } else {
-                $disco->delete($sesion['ruta']);
+                $disco->delete(array_filter([$sesion['ruta'], $pdf]));
             }
         }
 
@@ -106,7 +119,7 @@ class DocumentosTemporales
         return hash('sha256', json_encode($ordenar($contenido), JSON_THROW_ON_ERROR));
     }
 
-    /** Quita el Word y, con él, el PDF firmado de esa versión. */
+    /** Quita el Word, su PDF y el PDF firmado de esa versión. */
     public function quitar(string $tramite): void
     {
         $disco = Storage::disk(ArchivoService::DISCO);
@@ -120,13 +133,13 @@ class DocumentosTemporales
                 }
             });
             foreach ($generados as $generado) {
-                $disco->delete(array_filter([$generado->ruta_docx, $generado->documentoFirmado?->ruta]));
+                $disco->delete(array_filter([$generado->ruta_docx, $generado->ruta_pdf, $generado->documentoFirmado?->ruta]));
             }
             $this->borradores->anotarArchivos($borrador, ['documento' => null, 'firmado' => null]);
         }
 
         if ($documento = $this->sesion->get(self::SESION.'.'.ContextoCorreccion::clave($tramite))) {
-            $disco->delete($documento['ruta']);
+            $disco->delete(array_filter([$documento['ruta'], $documento['ruta_pdf'] ?? null]));
         }
         $this->sesion->forget(self::SESION.'.'.ContextoCorreccion::clave($tramite));
     }

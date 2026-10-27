@@ -8,7 +8,10 @@ DOM y ZipArchive preparan marcadores en una copia de las plantillas originales;
 `WordService::rellenarPlantilla` realiza el llenado definitivo con PhpWord.
 Los archivos temporales de preparación y llenado se eliminan al terminar.
 El formulario permite descargar Word o PDF. LibreOffice convierte el archivo
-en el servidor; el estudiante no necesita instalarlo. Los borradores se guardan
+en el servidor; el estudiante no necesita instalarlo. Si se descarga en PDF,
+ese PDF se conserva junto al Word (`documentos_generados.ruta_pdf`), pasa al
+expediente al enviar y se muestra como «Documento generado» en el seguimiento
+de la solicitud; si se descarga en Word, `ruta_pdf` queda vacío. Los borradores se guardan
 en la cuenta con sus respaldos, su Word y su PDF firmado (ver «Borrador en la
 cuenta»); los de una corrección los guardan en la sesión hasta el envío,
 separados por sesión, trámite y expediente en corrección.
@@ -66,8 +69,9 @@ siguen en la carpeta temporal de la sesión.
   solo el uuid del archivo, que es el nombre del archivo en disco; las rutas
   `respaldos-temporales.show|destroy` buscan ese uuid entre los borradores del
   usuario actual, así que otra cuenta recibe 404.
-- Un borrador tiene un solo Word (versión 1, el de la última descarga) y, a lo
-  sumo, un PDF firmado de ese Word. Descargar otra vez borra los dos.
+- Un borrador tiene un solo Word (versión 1, el de la última descarga), su PDF
+  si esa descarga fue en PDF y, a lo sumo, un PDF firmado de ese Word.
+  Descargar otra vez borra los tres.
   `documentos_generados` no tiene columnas para la versión de descarga
   (`X-Documento-Version`) ni para la huella de los datos, ni
   `documentos_firmados` para el nombre original del PDF: esos tres datos van en
@@ -90,7 +94,7 @@ igual que su fila.
 ## Guardado y envío institucional
 
 `EnvioSolicitud` guarda en una transacción solicitud, materias, registros previos,
-respaldos, versión Word y PDF firmado. Copia los archivos al storage privado
+respaldos, versión Word (con su PDF, si se descargó en PDF) y PDF firmado. Copia los archivos al storage privado
 definitivo antes de persistir y elimina las copias si falla la transacción.
 Los temporales se conservan ante errores y se descartan tras el envío exitoso.
 Se valida que el Word y el PDF correspondan a los datos actuales, que los

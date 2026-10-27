@@ -84,6 +84,24 @@ class SeguimientoEstudianteTest extends TestCase
             ->assertSee('resumen-solicitud--sin-marco', false);
     }
 
+    public function test_muestra_el_pdf_generado_de_la_ultima_version_que_lo_tiene(): void
+    {
+        $this->propia->documentosGenerados()->create(['version' => 1, 'ruta_docx' => 'expedientes/a/documento-v1.docx', 'ruta_pdf' => 'expedientes/a/documento-v1.pdf']);
+        $this->propia->documentosGenerados()->create(['version' => 2, 'ruta_docx' => 'expedientes/b/documento-v1.docx', 'ruta_pdf' => 'expedientes/b/documento-v1.pdf']);
+        $this->propia->documentosGenerados()->create(['version' => 3, 'ruta_docx' => 'expedientes/c/documento-v1.docx']);
+
+        $this->get(route('solicitudes.show', $this->propia))->assertOk()
+            ->assertSeeInOrder(['Documento generado', $this->propia->codigo.' - versión 2.pdf', 'Datos enviados'])
+            ->assertDontSee('versión 1.pdf')->assertSee('/archivos/ver?', false);
+    }
+
+    public function test_sin_pdf_generado_no_muestra_el_documento(): void
+    {
+        $this->propia->documentosGenerados()->create(['version' => 1, 'ruta_docx' => 'expedientes/a/documento-v1.docx']);
+
+        $this->get(route('solicitudes.show', $this->propia))->assertOk()->assertDontSee('Documento generado');
+    }
+
     public function test_no_puede_abrir_expediente_ajeno(): void
     {
         $this->get(route('solicitudes.show', $this->ajena))->assertForbidden();
