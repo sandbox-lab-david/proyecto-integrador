@@ -106,4 +106,14 @@ class SolicitudService
 
         return $prefijo.str_pad((string) $numero, 5, '0', STR_PAD_LEFT);
     }
+
+    /** Siguiente código de expediente para el Consejo (C47). */
+    public function siguienteCodigoSistema(?int $anio = null): string
+    {
+        $prefijo = sprintf('CAFI-%d-', $anio ?? now()->year);
+        $ultimo = Solicitud::where('codigo_sistema', 'like', $prefijo.'%')->orderByDesc('codigo_sistema')->value('codigo_sistema');
+        $numero = $ultimo === null ? 1 : (int) substr($ultimo, strlen($prefijo)) + 1;
+
+        return $prefijo.str_pad((string) $numero, 5, '0', STR_PAD_LEFT);
+    }
 }

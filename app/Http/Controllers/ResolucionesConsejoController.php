@@ -2,160 +2,157 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\CorteAgenda;
+use App\Models\Resolucion;
+use App\Models\Solicitud;
+use App\Services\Flujo\AgendaWordService;
+use App\Services\Flujo\EstadoSolicitudService;
+use App\Services\Flujo\ResolucionService;
+use App\Services\Notificaciones\NotificacionService;
+use App\Support\Estados;
+use App\Support\RevisionSolicitudFilters;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
-use App\Support\RevisionSolicitudFilters;
+use Illuminate\Support\Str;
 
 class ResolucionesConsejoController extends Controller
 {
     public function index(Request $request)
     {
         $filtros = RevisionSolicitudFilters::validateWithDateRange($request);
-
-        $consulta = DB::table('agendas_consejo_m3 as a')
-            ->leftJoin('agenda_solicitud_m3 as ax', 'ax.agenda_id', '=', 'a.id')
-            ->leftJoin('solicitudes_revision as s', 's.id', '=', 'ax.solicitud_revision_id')
-            ->leftJoin('resoluciones_m3 as r', 'r.solicitud_revision_id', '=', 's.id')
-            ->select('a.id', 'a.numero', 'a.fecha_sesion', 'a.estado')
-            ->selectRaw('COUNT(s.id) as total_solicitudes')
-            ->selectRaw("SUM(CASE WHEN s.estado = 'Enviado por estudiante' THEN 1 ELSE 0 END) as total_enviadas")
-            ->selectRaw("SUM(CASE WHEN s.estado = 'Revisado' THEN 1 ELSE 0 END) as total_revisadas")
-            ->selectRaw("SUM(CASE WHEN s.estado = 'Apto para consejo' THEN 1 ELSE 0 END) as total_aptas_consejo")
-            ->selectRaw("SUM(CASE WHEN s.estado = 'Agendado' THEN 1 ELSE 0 END) as total_agendadas")
-            ->selectRaw("SUM(CASE WHEN s.estado = 'Aprobado para ejecución' THEN 1 ELSE 0 END) as total_aprobadas_ejecucion")
-            ->selectRaw("SUM(CASE WHEN s.estado = 'Ejecutado' THEN 1 ELSE 0 END) as total_ejecutadas")
-            ->selectRaw("SUM(CASE WHEN s.estado = 'Observado' THEN 1 ELSE 0 END) as total_observadas")
-            ->selectRaw("SUM(CASE WHEN s.estado = 'Rechazado' THEN 1 ELSE 0 END) as total_rechazadas")
-            ->selectRaw('SUM(CASE WHEN s.id IS NOT NULL AND r.id IS NULL THEN 1 ELSE 0 END) as total_pendientes_resolucion')
-            ->groupBy('a.id', 'a.numero', 'a.fecha_sesion', 'a.estado');
-
+        $query = CorteAgenda::with(['solicitudes.estadoSolicitud', 'resoluciones'])->whereHas('solicitudes', fn ($q) => $this->aplicarFiltrosSolicitud($q, $filtros));
         if ($filtros['desde'] !== '') {
-            $consulta->whereDate('a.fecha_sesion', '>=', $filtros['desde']);
+            $query->whereDate('fecha_sesion', '>=', $filtros['desde']);
         }
         if ($filtros['hasta'] !== '') {
-            $consulta->whereDate('a.fecha_sesion', '<=', $filtros['hasta']);
+            $query->whereDate('fecha_sesion', '<=', $filtros['hasta']);
         }
-        RevisionSolicitudFilters::applyMetadata($consulta, $filtros, 's');
+        $agendas = $query->orderByDesc('fecha_sesion')->get();
+        foreach ($agendas as $agenda) {
+            $agenda->numero = 'AG-'.$agenda->id;
+            $itemsQuery = $agenda->solicitudes()->with('estadoSolicitud');
+            $items = RevisionSolicitudFilters::apply($itemsQuery, $filtros)->get();
+            $agenda->setRelation('solicitudes', $items);
+            $agenda->total_solicitudes = $items->count();
+            $map = [Estados::ENVIADA => 'total_enviadas', Estados::REVISADA => 'total_revisadas', Estados::APTA_CONSEJO => 'total_aptas_consejo', Estados::AGENDADA => 'total_agendadas', Estados::APROBADA_EJECUCION => 'total_aprobadas_ejecucion', Estados::EJECUTADA => 'total_ejecutadas', Estados::OBSERVADA => 'total_observadas', Estados::RECHAZADA => 'total_rechazadas'];
+            foreach ($map as $code => $attribute) {
+                $agenda->{$attribute} = $items->filter(fn ($s) => $s->estadoSolicitud?->codigo === $code)->count();
+            }
+            $agenda->total_pendientes_resolucion = $items->filter(fn ($s) => ! $s->resolucion || $s->resolucion->decision === 'Guardar')->count();
+        }
 
-        $agendas = $consulta->orderByDesc('a.fecha_sesion')->get();
-        $tramitesDisponibles = DB::table('solicitudes_revision')->whereNotNull('tramite')->distinct()->orderBy('tramite')->pluck('tramite');
-        $estadosDisponibles = RevisionSolicitudFilters::ESTADOS;
-
-        return view('revision.resoluciones', compact('agendas', 'filtros', 'tramitesDisponibles', 'estadosDisponibles'));
+        return view('revision.resoluciones', ['agendas' => $agendas, 'filtros' => $filtros, 'tramitesDisponibles' => RevisionSolicitudFilters::tramitesDisponibles(), 'estadosDisponibles' => RevisionSolicitudFilters::ESTADOS]);
     }
 
-    public function porAgenda(int $agenda)
+    public function porAgenda(int $agenda, ResolucionService $resoluciones)
     {
-        $agenda = DB::table('agendas_consejo_m3')->where('id', $agenda)->first();
-        abort_unless($agenda, 404);
+        $corte = CorteAgenda::with(['puntosInternos', 'solicitudes.carreraEstudiante.estudiante', 'solicitudes.carreraEstudiante.carreraModalidad.carrera', 'solicitudes.tipoTramite', 'solicitudes.estadoSolicitud', 'solicitudes.historial', 'solicitudes.resolucion'])->findOrFail($agenda);
+        $corte->numero = 'AG-'.$corte->id;
+        $casos = $corte->solicitudes->map(function ($s) use ($resoluciones) {
+            $student = $s->carreraEstudiante?->estudiante;
+            $career = $s->carreraEstudiante?->carreraModalidad?->carrera;
+            $resolucion = $resoluciones->resolucionDe($s);
 
-        $casos = DB::table('agenda_solicitud_m3 as ax')
-            ->join('solicitudes_revision as s', 's.id', '=', 'ax.solicitud_revision_id')
-            ->leftJoin('resoluciones_m3 as r', 'r.solicitud_revision_id', '=', 's.id')
-            ->where('ax.agenda_id', $agenda->id)
-            ->select('s.id as solicitud_id', 's.codigo_solicitud', 's.codigo_siac', 's.estudiante', 's.carrera', 's.tramite', 's.materia', 's.motivo', 's.estado as estado_solicitud', 'r.id as resolucion_id', 'r.numero_resolucion', 'r.decision')
-            ->orderBy('s.id')->get();
+            return (object) ['solicitud_id' => $s->id, 'codigo_solicitud' => $s->codigo, 'codigo_siac' => $student?->codigo, 'codigo_sistema' => $s->codigo_sistema, 'estudiante' => trim(($student?->nombres ?? '').' '.($student?->apellidos ?? '')), 'carrera' => $career?->nombre, 'tramite' => $s->tipoTramite?->nombre, 'materia' => null, 'motivo' => data_get($s->detalle, 'motivo'), 'estado_solicitud' => $s->estadoSolicitud?->nombre, 'resolucion' => $resolucion, 'numero_resolucion' => $resolucion?->numero_resolucion, 'decision' => $resolucion?->decision, 'estado_codigo' => $s->estadoSolicitud?->codigo];
+        });
+        $agenda = $corte;
 
         return view('revision.resoluciones', compact('agenda', 'casos'));
     }
 
-    public function documento(Request $request)
+    public function documento(Request $request, AgendaWordService $word)
     {
         $filtros = RevisionSolicitudFilters::validateWithDateRange($request);
-
-        $consulta = DB::table('agendas_consejo_m3')->orderBy('fecha_sesion')->orderBy('numero');
+        $query = CorteAgenda::query()->whereHas('solicitudes', fn ($q) => $this->aplicarFiltrosSolicitud($q, $filtros));
         if ($filtros['desde'] !== '') {
-            $consulta->whereDate('fecha_sesion', '>=', $filtros['desde']);
+            $query->whereDate('fecha_sesion', '>=', $filtros['desde']);
         }
         if ($filtros['hasta'] !== '') {
-            $consulta->whereDate('fecha_sesion', '<=', $filtros['hasta']);
+            $query->whereDate('fecha_sesion', '<=', $filtros['hasta']);
         }
 
-        $agendasDocumentadas = $consulta->get()->map(function ($agenda) use ($filtros) {
-            $casos = DB::table('agenda_solicitud_m3 as ax')
-                ->join('solicitudes_revision as s', 's.id', '=', 'ax.solicitud_revision_id')
-                ->leftJoin('resoluciones_m3 as r', 'r.solicitud_revision_id', '=', 's.id')
-                ->where('ax.agenda_id', $agenda->id)
-                ->select('s.id', 's.codigo_solicitud', 's.codigo_siac', 's.estudiante', 's.carrera', 's.tramite', 's.materia', 's.motivo', 's.estado', 'r.numero_resolucion', 'r.decision');
-            RevisionSolicitudFilters::applyMetadata($casos, $filtros, 's');
-            $casos = $casos->orderBy('s.carrera')->orderBy('s.tramite')->orderBy('s.id')->get();
-
-            if (RevisionSolicitudFilters::hasMetadata($filtros) && $casos->isEmpty()) {
-                return null;
-            }
-
-            $agenda->solicitudesPorCarrera = $casos->groupBy(fn ($caso) => $caso->carrera ?: 'Carrera no especificada');
-
-            return $agenda;
-        })->filter()->values();
-
-        return view('revision.documento-agenda', compact('agendasDocumentadas', 'filtros'));
+        return $word->generarDocumento($query->pluck('id')->all(), $filtros);
     }
 
-    public function guardar(Request $request, int $agenda, int $solicitud)
+    public function documentoAgenda(int $agenda, AgendaWordService $word)
     {
-        $datos = $request->validate([
-            'decision' => ['required', 'in:Aprobado,Rechazado'],
-        ]);
+        $corte = CorteAgenda::findOrFail($agenda);
 
-        $agendaExiste = DB::table('agendas_consejo_m3')->where('id', $agenda)->exists();
-        $expediente = DB::table('agenda_solicitud_m3 as ax')
-            ->join('solicitudes_revision as s', 's.id', '=', 'ax.solicitud_revision_id')
-            ->where('ax.agenda_id', $agenda)->where('s.id', $solicitud)
-            ->select('s.id', 's.codigo_solicitud')->first();
-        abort_unless($agendaExiste && $expediente, 404);
+        return $word->generarAgendaWord($corte->id);
+    }
 
-        DB::transaction(function () use ($datos, $agenda, $solicitud, $expediente) {
-            $resolucionId = DB::table('resoluciones_m3')->where('solicitud_revision_id', $solicitud)->value('id');
-            if ($resolucionId) {
-                DB::table('resoluciones_m3')->where('id', $resolucionId)->update([
-                    'agenda_id' => $agenda,
-                    'decision' => $datos['decision'],
-                    'updated_at' => now(),
-                ]);
-                return;
+    public function exportar(Request $request)
+    {
+        $filtros = RevisionSolicitudFilters::validateWithDateRange($request);
+        $query = CorteAgenda::with(['solicitudes.estadoSolicitud', 'resoluciones'])->whereHas('solicitudes', fn ($q) => $this->aplicarFiltrosSolicitud($q, $filtros));
+        if ($filtros['desde'] !== '') {
+            $query->whereDate('fecha_sesion', '>=', $filtros['desde']);
+        }
+        if ($filtros['hasta'] !== '') {
+            $query->whereDate('fecha_sesion', '<=', $filtros['hasta']);
+        }
+        $rows = $query->orderBy('fecha_sesion')->get();
+        foreach ($rows as $agenda) {
+            $filtered = $agenda->solicitudes()->with('resolucion', 'estadoSolicitud');
+            RevisionSolicitudFilters::apply($filtered, $filtros);
+            $agenda->setRelation('solicitudes', $filtered->get());
+        }
+        $filename = 'agendas-consejo-'.now()->format('Ymd-His').'.csv';
+
+        return response()->streamDownload(function () use ($rows) {
+            $out = fopen('php://output', 'w');
+            fwrite($out, "\xEF\xBB\xBF");
+            fputcsv($out, ['Agenda', 'Fecha de sesión', 'Días transcurridos', 'Solicitudes', 'Pendientes de resolución', 'Facultad']);
+            foreach ($rows as $agenda) {
+                fputcsv($out, ['AG-'.$agenda->id, $agenda->fecha_sesion->format('d/m/Y'), $agenda->fecha_sesion->diffInDays(now()), $agenda->solicitudes->count(), $agenda->solicitudes->filter(fn ($s) => ! $s->resolucion || $s->resolucion->decision === 'Guardar')->count(), $agenda->facultad_id]);
             }
+            fclose($out);
+        }, $filename, ['Content-Type' => 'text/csv; charset=UTF-8']);
+    }
 
-            $resolucionId = DB::table('resoluciones_m3')->insertGetId([
-                'agenda_id' => $agenda,
-                'solicitud_revision_id' => $solicitud,
-                'numero_resolucion' => 'PENDIENTE-'.$solicitud,
-                'decision' => $datos['decision'],
-                'created_at' => now(),
-                'updated_at' => now(),
-            ]);
-            $numero = 'RES-M3-'.now()->format('Y').'-'.str_pad((string) $resolucionId, 6, '0', STR_PAD_LEFT);
-            DB::table('resoluciones_m3')->where('id', $resolucionId)->update([
-                'numero_resolucion' => $numero,
-                'updated_at' => now(),
-            ]);
+    public function guardar(Request $request, int $agenda, int $solicitud, EstadoSolicitudService $estados, NotificacionService $notificaciones)
+    {
+        $data = $request->validate(['decision' => ['required', 'in:Aprobado,Rechazado,Guardar'], 'observacion' => ['nullable', 'string', 'max:2000']]);
+        $corte = CorteAgenda::findOrFail($agenda);
+        $s = $corte->solicitudes()->with('estadoSolicitud')->whereKey($solicitud)->firstOrFail();
+        abort_unless($s->estadoSolicitud?->codigo === Estados::AGENDADA, 409, 'La resolución solo se puede registrar mientras el expediente está agendado.');
+        $user = auth()->user();
+        DB::transaction(function () use ($data, $corte, $s, $user, $estados) {
+            $resolution = Resolucion::where('solicitud_id', $s->id)->lockForUpdate()->first();
+            if (! $resolution) {
+                do {
+                    $numero = 'RES-'.now()->format('Y').'-'.strtoupper(Str::random(10));
+                } while (Resolucion::where('numero_resolucion', $numero)->exists());
+                $resolution = Resolucion::create(['solicitud_id' => $s->id, 'corte_agenda_id' => $corte->id, 'numero_resolucion' => $numero, 'fecha_resolucion' => now()->toDateString(), 'decision' => $data['decision'], 'observacion' => $data['observacion'] ?? null, 'registrada_por' => $user->id]);
+            } else {
+                $resolution->update(['corte_agenda_id' => $corte->id, 'decision' => $data['decision'], 'observacion' => $data['observacion'] ?? null, 'fecha_resolucion' => now()->toDateString(), 'registrada_por' => $user->id]);
+            }
+            if ($data['decision'] === 'Aprobado') {
+                $estados->transicionar($s, Estados::APROBADA_EJECUCION, $user, $data['observacion'] ?? 'Resolución del Consejo: aprobado.');
+            }
+            if ($data['decision'] === 'Rechazado') {
+                $estados->transicionar($s, Estados::RECHAZADA, $user, $data['observacion'] ?? 'Resolución del Consejo: rechazado.');
+            }
         });
-
-        return redirect()->route('revision.agendas.resoluciones', $agenda)
-            ->with('success', 'Resolución guardada para el expediente '.$expediente->codigo_solicitud.'.');
-    }
-
-    public function actualizarEstado(Request $request, int $id)
-    {
-        $datos = $request->validate([
-            'accion' => ['required', 'in:aprobar_ejecucion,ejecutar'],
-        ]);
-
-        [$estadoActual, $estadoNuevo, $mensaje] = match ($datos['accion']) {
-            'aprobar_ejecucion' => ['Agendado', 'Aprobado para ejecución', 'Solicitud aprobada para ejecución.'],
-            'ejecutar' => ['Aprobado para ejecución', 'Ejecutado', 'Solicitud marcada como ejecutada.'],
-        };
-
-        $actualizadas = DB::table('solicitudes_revision')
-            ->where('id', $id)
-            ->where('estado', $estadoActual)
-            ->update(['estado' => $estadoNuevo, 'updated_at' => now()]);
-
-        if ($actualizadas !== 1) {
-            return back()->withErrors(['estado' => 'La solicitud ya no está en el estado requerido para esta acción.']);
+        if ($data['decision'] === 'Guardar') {
+            $notificaciones->notificarResolucionGuardada($s->fresh(['carreraEstudiante']), $data['observacion'] ?? null);
         }
 
-        return redirect()->route('revision.resoluciones')->with('success', $mensaje);
+        return redirect()->route('revision.agendas.resoluciones', $agenda)->with('success', 'Resolución guardada para el expediente '.$s->codigo.'.');
     }
 
+    public function actualizarEstado(Request $request, int $id, EstadoSolicitudService $estados)
+    {
+        $data = $request->validate(['accion' => ['required', 'in:ejecutar']]);
+        $s = Solicitud::with('estadoSolicitud')->findOrFail($id);
+        abort_unless($s->estadoSolicitud?->codigo === Estados::APROBADA_EJECUCION, 409);
+        $estados->transicionar($s, Estados::EJECUTADA, auth()->user(), 'Ejecución registrada.');
+
+        return redirect()->route('revision.resoluciones')->with('success','La solicitud quedó marcada como ejecutada.');
+    }
+
+    private function aplicarFiltrosSolicitud($query,array $filtros): void
+    {
+        RevisionSolicitudFilters::apply($query,$filtros);
+    }
 }
