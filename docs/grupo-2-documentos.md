@@ -9,9 +9,9 @@ DOM y ZipArchive preparan marcadores en una copia de las plantillas originales;
 Los archivos temporales de preparación y llenado se eliminan al terminar.
 El formulario permite descargar Word o PDF. LibreOffice convierte el archivo
 en el servidor; el estudiante no necesita instalarlo. Los borradores se guardan
-en la cuenta (ver «Borrador en la cuenta») y los respaldos, el Word y el PDF
-firmado se almacenan temporalmente en la sesión hasta el envío, separados por
-sesión, trámite y expediente en corrección.
+en la cuenta con sus respaldos, su Word y su PDF firmado (ver «Borrador en la
+cuenta»); los de una corrección los guardan en la sesión hasta el envío,
+separados por sesión, trámite y expediente en corrección.
 
 El documento incluye los datos del estudiante, los campos del trámite y sus
 materias. Las tablas de materias se repiten cuando corresponde; tercer registro
@@ -48,9 +48,44 @@ Siguen en la sesión (`BorradoresTemporales`) el borrador de una corrección, qu
 no debe tocar la solicitud observada hasta reenviarla, y el de una cuenta sin
 inscripción activa, sin período vigente o sin el estado `borrador` sembrado:
 en ese caso el formulario dice «guardado en este navegador», y el primer
-guardado posible en la cuenta se lleva lo de la sesión. Los respaldos, el Word
-y el PDF firmado todavía son temporales de la sesión: al retomar el borrador
-en otro navegador hay que volver a adjuntarlos, descargar y firmar.
+guardado posible en la cuenta se lleva lo de la sesión.
+
+### Archivos del borrador
+
+Los respaldos, el Word descargado y el PDF firmado de un borrador en la cuenta
+también se retoman desde cualquier navegador. `RespaldosTemporales`,
+`DocumentosTemporales` y `FirmadosTemporales` conservan su interfaz y eligen
+dónde guardar: si `BorradoresSolicitud::enCuentaDe($tramite)` encuentra el
+borrador, cada archivo es una fila de `respaldos`, `documentos_generados` o
+`documentos_firmados` de ese borrador, con el archivo en
+`borradores/<id de la solicitud>/`; si no (corrección o cuenta sin contexto),
+siguen en la carpeta temporal de la sesión.
+
+- Un respaldo guarda en `documento_requerido_id` el documento de G4 cuyo
+  `codigo` es el requisito elegido al subirlo. El navegador sigue conociendo
+  solo el uuid del archivo, que es el nombre del archivo en disco; las rutas
+  `respaldos-temporales.show|destroy` buscan ese uuid entre los borradores del
+  usuario actual, así que otra cuenta recibe 404.
+- Un borrador tiene un solo Word (versión 1, el de la última descarga) y, a lo
+  sumo, un PDF firmado de ese Word. Descargar otra vez borra los dos.
+  `documentos_generados` no tiene columnas para la versión de descarga
+  (`X-Documento-Version`) ni para la huella de los datos, ni
+  `documentos_firmados` para el nombre original del PDF: esos tres datos van en
+  `detalle._archivos` del borrador. `BorradoresSolicitud::guardar()` los
+  conserva entre guardados, el formulario no los recibe y el envío los quita.
+- Subir el PDF firmado de un borrador en la cuenta exige haber descargado el
+  documento antes (en la sesión se aceptaba sin él y el envío lo rechazaba).
+- Lo que la sesión subió antes de que existiera el borrador en la cuenta pasa a
+  él la primera vez que se consulta, con el mismo uuid y la misma versión; un
+  PDF firmado de otra versión se descarta.
+- Al enviar, `EnvioSolicitud` copia los archivos a `expedientes/<uuid>/` como
+  antes, reemplaza dentro de la transacción las filas del borrador por las
+  definitivas y, tras el commit, borra la carpeta del borrador. Descartar el
+  borrador borra sus filas (primero `documentos_firmados`, que no se borra en
+  cascada) y su carpeta.
+
+Un borrador abandonado conserva sus archivos hasta que se envía o se descarta,
+igual que su fila.
 
 ## Guardado y envío institucional
 
@@ -59,7 +94,9 @@ respaldos, versión Word y PDF firmado. Copia los archivos al storage privado
 definitivo antes de persistir y elimina las copias si falla la transacción.
 Los temporales se conservan ante errores y se descartan tras el envío exitoso.
 Se valida que el Word y el PDF correspondan a los datos actuales, que los
-respaldos pertenezcan a la sesión/trámite y que estén todos los obligatorios.
+respaldos pertenezcan al borrador (o a la sesión) y al trámite, y que estén
+todos los obligatorios. Cada respaldo queda con el requisito asignado al final
+en el formulario, aunque al subirlo se haya indicado otro.
 
 `solicitudes.enviar` utiliza `IntegracionEnvioInstitucional`, registrado por la
 integración recibida en el pull. Exige un estudiante activo, inscripción propia,

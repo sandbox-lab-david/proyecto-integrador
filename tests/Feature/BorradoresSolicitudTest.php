@@ -5,13 +5,17 @@ namespace Tests\Feature;
 use App\Models\Carrera;
 use App\Models\CarreraEstudiante;
 use App\Models\CarreraModalidad;
+use App\Models\DocumentoFirmado;
+use App\Models\DocumentoGenerado;
 use App\Models\Estudiante;
 use App\Models\Modalidad;
 use App\Models\Periodo;
+use App\Models\Respaldo;
 use App\Models\Solicitud;
 use App\Models\User;
 use App\Services\Archivos\FirmadosTemporales;
 use App\Services\Archivos\RespaldosTemporales;
+use App\Services\Solicitudes\BorradoresSolicitud;
 use App\Services\Solicitudes\CatalogoFacultades;
 use App\Services\Solicitudes\DocumentoSolicitud;
 use App\Services\Solicitudes\DocumentosTemporales;
@@ -165,15 +169,143 @@ class BorradoresSolicitudTest extends TestCase
         $this->assertFalse(User::factory()->create(['tipo' => 'trabajador'])->can('view', Solicitud::sole()));
     }
 
-    public function test_descartar_borra_la_fila_y_sus_respaldos(): void
+    public function test_descartar_borra_la_fila_sus_archivos_y_su_carpeta(): void
     {
         $this->guardar()->assertOk();
+        $borrador = Solicitud::sole();
         $this->postJson(route('respaldos-temporales.store'), ['tramite' => 'recuperacion', 'archivo' => $this->pdf()])->assertCreated();
+        app(DocumentosTemporales::class)->guardar('recuperacion', 'Word de prueba', ['tramite' => 'recuperacion']);
+        $this->postJson(route('firmados-temporales.store', 'recuperacion'), ['archivo' => $this->pdf('firmado.pdf')])->assertCreated();
 
         $this->deleteJson(route('borradores-temporales.destroy', 'recuperacion'))->assertNoContent();
 
-        $this->assertDatabaseCount('solicitudes', 0);
+        foreach (['solicitudes', 'respaldos', 'documentos_generados', 'documentos_firmados'] as $tabla) {
+            $this->assertDatabaseCount($tabla, 0);
+        }
         $this->assertSame([], app(RespaldosTemporales::class)->delTramite('recuperacion'));
+        $this->assertSame([], Storage::disk('local')->allFiles(BorradoresSolicitud::carpeta($borrador)));
+    }
+
+    public function test_los_respaldos_quedan_en_la_cuenta_y_se_retoman_desde_otra_sesion(): void
+    {
+        $this->guardar()->assertOk();
+        $borrador = Solicitud::sole();
+        $requisito = app(TramitesSimulados::class)->buscar('recuperacion')['documentos'][0]['id'];
+        $id = $this->postJson(route('respaldos-temporales.store'), [
+            'tramite' => 'recuperacion', 'archivo' => $this->pdf(), 'requisito' => $requisito,
+        ])->assertCreated()->json('id');
+
+        $this->flushSession();
+
+        $respaldo = Respaldo::sole();
+        $this->assertSame($borrador->id, $respaldo->solicitud_id);
+        $this->assertSame($requisito, $respaldo->documentoRequerido?->codigo);
+        $this->assertStringStartsWith(BorradoresSolicitud::carpeta($borrador).'/', $respaldo->ruta);
+        $subidos = $this->get(route('solicitudes.create', ['tramite' => 'recuperacion']))->assertOk()->viewData('respaldosSubidos');
+        $this->assertSame([['id' => $id, 'requisito' => $requisito]], array_map(
+            fn (array $subido) => array_intersect_key($subido, array_flip(['id', 'requisito'])), $subidos
+        ));
+        $this->get(route('respaldos-temporales.show', $id))->assertOk();
+
+        $this->deleteJson(route('respaldos-temporales.destroy', $id))->assertNoContent();
+
+        $this->assertModelMissing($respaldo);
+        Storage::disk('local')->assertMissing($respaldo->ruta);
+    }
+
+    public function test_otro_estudiante_no_ve_ni_quita_los_respaldos_del_borrador(): void
+    {
+        $this->guardar()->assertOk();
+        $id = $this->postJson(route('respaldos-temporales.store'), ['tramite' => 'recuperacion', 'archivo' => $this->pdf()])
+            ->assertCreated()->json('id');
+        [$otro] = $this->estudianteInscrito('2026000002');
+
+        $this->actingAs($otro);
+        $this->flushSession();
+        $this->get(route('respaldos-temporales.show', $id))->assertNotFound();
+        $this->deleteJson(route('respaldos-temporales.destroy', $id))->assertNoContent();
+
+        Storage::disk('local')->assertExists(Respaldo::sole()->ruta);
+    }
+
+    public function test_el_word_y_el_pdf_firmado_quedan_en_la_cuenta(): void
+    {
+        $this->guardar()->assertOk();
+        $borrador = Solicitud::sole();
+        app(DocumentosTemporales::class)->guardar('recuperacion', 'Word de prueba', ['tramite' => 'recuperacion']);
+        $version = app(DocumentosTemporales::class)->buscar('recuperacion')['version'];
+        $this->postJson(route('firmados-temporales.store', 'recuperacion'), ['archivo' => $this->pdf('firmado.pdf')])->assertCreated();
+
+        $this->flushSession();
+
+        $vista = $this->get(route('solicitudes.create', ['tramite' => 'recuperacion']))->assertOk();
+        $this->assertSame($version, $vista->viewData('versionDocumento'));
+        $this->assertSame('firmado.pdf', $vista->viewData('firmado')['nombre_original']);
+        // El formulario no recibe lo que el borrador sabe de sus archivos.
+        $this->assertArrayNotHasKey('_archivos', $vista->viewData('borrador'));
+        $generado = DocumentoGenerado::sole();
+        $this->assertSame($borrador->id, $generado->solicitud_id);
+        $this->assertSame($this->usuario->id, $generado->documentoFirmado->subido_por);
+        Storage::disk('local')->assertExists([$generado->ruta_docx, $generado->documentoFirmado->ruta]);
+        $this->get(route('firmados-temporales.show', 'recuperacion'))->assertOk();
+        // Guardar el formulario no borra lo que se sabe del Word.
+        $this->guardar(['paso' => 4])->assertOk();
+        $this->assertSame($version, app(DocumentosTemporales::class)->buscar('recuperacion')['version']);
+    }
+
+    public function test_una_descarga_nueva_reemplaza_el_word_y_quita_el_firmado(): void
+    {
+        $this->guardar()->assertOk();
+        $temporales = app(DocumentosTemporales::class);
+        $temporales->guardar('recuperacion', 'Primera versión', ['tramite' => 'recuperacion']);
+        $this->postJson(route('firmados-temporales.store', 'recuperacion'), ['archivo' => $this->pdf()])->assertCreated();
+        $anterior = DocumentoGenerado::sole();
+        $rutas = [$anterior->ruta_docx, $anterior->documentoFirmado->ruta];
+
+        $temporales->guardar('recuperacion', 'Segunda versión', ['tramite' => 'recuperacion', 'campos' => ['observacion' => 'Otra']]);
+
+        $this->assertModelMissing($anterior);
+        $this->assertDatabaseCount('documentos_generados', 1);
+        $this->assertDatabaseCount('documentos_firmados', 0);
+        Storage::disk('local')->assertMissing($rutas);
+        $this->assertNull(app(FirmadosTemporales::class)->buscar('recuperacion'));
+    }
+
+    public function test_no_acepta_el_pdf_firmado_antes_de_descargar_el_documento(): void
+    {
+        $this->guardar()->assertOk();
+
+        $this->postJson(route('firmados-temporales.store', 'recuperacion'), ['archivo' => $this->pdf()])
+            ->assertUnprocessable()->assertJsonValidationErrors(['archivo' => 'Descarga el documento']);
+
+        $this->assertDatabaseCount('documentos_firmados', 0);
+    }
+
+    public function test_lo_que_la_sesion_subio_antes_de_existir_el_borrador_pasa_a_la_cuenta(): void
+    {
+        $this->inscripcion->update(['estado' => 'retirado']);
+        $this->guardar(['paso' => 3])->assertOk()->assertJson(['en_cuenta' => false]);
+        $id = $this->postJson(route('respaldos-temporales.store'), ['tramite' => 'recuperacion', 'archivo' => $this->pdf()])
+            ->assertCreated()->json('id');
+        app(DocumentosTemporales::class)->guardar('recuperacion', 'Word de prueba', ['tramite' => 'recuperacion']);
+        $version = app(DocumentosTemporales::class)->buscar('recuperacion')['version'];
+        $this->postJson(route('firmados-temporales.store', 'recuperacion'), ['archivo' => $this->pdf('firmado.pdf')])->assertCreated();
+        $this->assertDatabaseCount('respaldos', 0);
+
+        $this->inscripcion->update(['estado' => 'activo']);
+        $this->guardar(['paso' => 3])->assertOk()->assertJson(['en_cuenta' => true]);
+        $vista = $this->get(route('solicitudes.create', ['tramite' => 'recuperacion']))->assertOk();
+
+        $borrador = Solicitud::sole();
+        $this->assertSame([$id], array_column($vista->viewData('respaldosSubidos'), 'id'));
+        $this->assertSame($version, $vista->viewData('versionDocumento'));
+        $this->assertSame('firmado.pdf', $vista->viewData('firmado')['nombre_original']);
+        $this->assertSame($borrador->id, Respaldo::sole()->solicitud_id);
+        $this->assertSame(DocumentoGenerado::sole()->id, DocumentoFirmado::sole()->documento_generado_id);
+        Storage::disk('local')->assertExists([Respaldo::sole()->ruta, DocumentoGenerado::sole()->ruta_docx, DocumentoFirmado::sole()->ruta]);
+        $this->assertSame([], session('respaldos_temporales.archivos', []));
+        $this->assertNull(session('documentos_temporales.recuperacion'));
+        $this->assertNull(session('firmados_temporales.recuperacion'));
     }
 
     public function test_sin_inscripcion_activa_el_borrador_queda_en_la_sesion(): void
@@ -228,11 +360,12 @@ class BorradoresSolicitudTest extends TestCase
         $temporales->guardar($tramite, app(DocumentoSolicitud::class)->generarWord($datos), $datos);
         $datos['clave_envio'] = $temporales->buscar($tramite)['version'];
         app(FirmadosTemporales::class)->guardar($this->pdf(), $tramite);
+        // Un respaldo por documento, subido con el requisito del siguiente y reasignado después.
         $datos['requisitos'] = [];
-        foreach ($def['documentos'] as $doc) {
-            if ($doc['obligatorio']) {
-                $datos['requisitos'][app(RespaldosTemporales::class)->agregar($this->pdf(), $tramite)['id']] = $doc['id'];
-            }
+        $ids = array_column($def['documentos'], 'id');
+        foreach ($ids as $i => $requisito) {
+            $subido = app(RespaldosTemporales::class)->agregar($this->pdf(), $tramite, $ids[($i + 1) % count($ids)]);
+            $datos['requisitos'][$subido['id']] = $requisito;
         }
 
         $this->postJson(route('solicitudes.enviar'), $datos)->assertCreated()->assertJson(['codigo' => $borrador->codigo]);
@@ -243,6 +376,18 @@ class BorradoresSolicitudTest extends TestCase
         $this->assertTrue($enviada->declaracion_veracidad);
         $this->assertSame('enviada', $enviada->estadoSolicitud->codigo);
         $this->assertSame(0, Solicitud::borradores()->count());
+        $this->assertArrayNotHasKey('_archivos', $enviada->detalle);
+        // Las filas del borrador se reemplazaron por las del expediente, con el requisito elegido al final.
+        $respaldos = Respaldo::with('documentoRequerido')->get();
+        $this->assertCount(count($ids), $respaldos);
+        foreach ($respaldos as $respaldo) {
+            $this->assertStringStartsWith('expedientes/', $respaldo->ruta);
+            $this->assertSame($datos['requisitos'][pathinfo($respaldo->ruta, PATHINFO_FILENAME)], $respaldo->documentoRequerido?->codigo);
+        }
+        $generado = DocumentoGenerado::sole();
+        $this->assertStringStartsWith('expedientes/', $generado->ruta_docx);
+        $this->assertStringStartsWith('expedientes/', DocumentoFirmado::sole()->ruta);
+        $this->assertSame([], Storage::disk('local')->allFiles(BorradoresSolicitud::carpeta($borrador)));
         $this->assertSame([], $this->get(route('solicitudes.index'))->viewData('sinTerminar'));
     }
 

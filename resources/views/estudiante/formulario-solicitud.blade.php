@@ -453,10 +453,15 @@
 
         <div class="introduccion">
             Completa tus datos manualmente y selecciona las materias del catálogo académico.
-            La solicitud todavía no se envía; lo que
-            escribas se guarda como borrador en tu cuenta y puedes retomarlo
-            desde «Mis solicitudes». Los archivos adjuntos se conservan solo
-            en este navegador mientras tu sesión siga abierta.
+            La solicitud todavía no se envía.
+            @if ($solicitudCorreccion)
+                Los cambios de la corrección y sus archivos se conservan en este
+                navegador mientras tu sesión siga abierta.
+            @else
+                Lo que escribas, los archivos que adjuntes y el documento firmado
+                se guardan como borrador en tu cuenta, y puedes retomarlo desde
+                «Mis solicitudes».
+            @endif
         </div>
 
         <ol class="pasos" aria-label="Pasos de la solicitud">
@@ -737,9 +742,9 @@
                     </div>
 
                     <p class="ayuda">
-                        Tus archivos se guardan de forma temporal en este
-                        navegador mientras completas el formulario y quedan
-                        unidos a tu solicitud al enviarla.
+                        Tus archivos se guardan con el borrador mientras
+                        completas el formulario y quedan unidos a tu solicitud
+                        al enviarla.
                     </p>
                 </section>
 
@@ -1406,7 +1411,7 @@
             'application/pdf': 'PDF', 'image/jpeg': 'JPG', 'image/png': 'PNG'
         };
 
-        // Lo que ya está en el servidor, en la carpeta temporal de esta sesión.
+        // Lo que ya está en el servidor: en el borrador de la cuenta o en la sesión.
         const archivos = @json($respaldosSubidos)
             .map(respaldo => ({
                 ...respaldo,
@@ -1919,7 +1924,7 @@
                 }
             });
 
-        // PDF firmado (RF-2.11): uno por trámite, en la carpeta temporal de la sesión.
+        // PDF firmado (RF-2.11): uno por trámite, en el borrador de la cuenta o en la sesión.
         const urlFirmado = @json(route('firmados-temporales.store', $codigoTramite));
         const bloqueFirmado = document.getElementById('bloque-firmado');
         const entradaFirmado = document.getElementById('firmado');

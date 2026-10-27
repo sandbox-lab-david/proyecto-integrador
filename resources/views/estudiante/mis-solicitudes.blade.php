@@ -76,8 +76,8 @@
 
                     <p id="mensaje-descartar" class="nota" role="status">
                         @if (collect($sinTerminar)->every(fn ($pendiente) => $pendiente['en_cuenta']))
-                            Se conservan en tu cuenta hasta que las envíes o descartes;
-                            los archivos adjuntos, solo mientras tu sesión siga abierta.
+                            Se conservan en tu cuenta, con sus archivos adjuntos,
+                            hasta que las envíes o descartes.
                         @else
                             Las marcadas «en este navegador» se conservan solo mientras tu sesión siga abierta.
                         @endif

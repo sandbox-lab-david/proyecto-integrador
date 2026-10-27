@@ -2,6 +2,7 @@
 
 namespace App\Services\Solicitudes;
 
+use App\Models\DocumentoFirmado;
 use App\Models\Solicitud;
 use App\Models\User;
 use App\Services\Archivos\ArchivoService;
@@ -94,6 +95,12 @@ class EnvioSolicitud
         }
         // Un reintento idempotente devuelve el expediente sin volver a registrar la comprobación.
         if ($guardada) {
+            // Los archivos del borrador en la cuenta ya se copiaron al expediente.
+            try {
+                Storage::disk(ArchivoService::DISCO)->deleteDirectory(BorradoresSolicitud::carpeta($solicitud));
+            } catch (\Throwable $error) {
+                report($error);
+            }
             $this->prevalidacion->registrar($solicitud);
         }
         return $solicitud;
@@ -165,7 +172,8 @@ class EnvioSolicitud
             $respaldos = [];
             foreach ($archivos as $archivo) {
                 $original = $this->respaldos->buscar($archivo['id']);
-                $respaldos[] = $original + ['ruta_definitiva' => $copiar($original['ruta'], basename($original['ruta'])), 'requisito' => $asignaciones[$archivo['id']]];
+                // El requisito elegido al final manda sobre el que se indicó al subir el archivo.
+                $respaldos[] = ['ruta_definitiva' => $copiar($original['ruta'], basename($original['ruta'])), 'requisito' => $asignaciones[$archivo['id']]] + $original;
             }
             for ($intento = 0; ; $intento++) {
                 try {
@@ -214,6 +222,11 @@ class EnvioSolicitud
                             $solicitud->forceFill($atributos)->save();
                         } elseif ($borrador) {
                             unset($atributos['codigo'], $atributos['estado_solicitud_id']);
+                            // Sus archivos ya se copiaron al expediente: las filas del borrador
+                            // se reemplazan por las definitivas (los archivos se borran tras el commit).
+                            DocumentoFirmado::whereIn('documento_generado_id', $borrador->documentosGenerados()->select('id'))->delete();
+                            $borrador->documentosGenerados()->delete();
+                            $borrador->respaldos()->delete();
                             $solicitud = $borrador;
                             $solicitud->forceFill($atributos)->save();
                         } else {
