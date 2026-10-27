@@ -455,7 +455,7 @@
         </p>
 
         <div class="introduccion">
-            Completa tus datos manualmente y selecciona las materias del catálogo académico.
+            Revisa tus datos, completa los que falten y selecciona las materias del catálogo académico.
             La solicitud todavía no se envía.
             @if ($solicitudCorreccion)
                 Los cambios de la corrección y sus archivos se conservan en este
@@ -504,7 +504,7 @@
                     <h2 id="titulo-datos" tabindex="-1">Primero, tus datos</h2>
 
                     <p class="introduccion">
-                        Completa tus datos personales y académicos.
+                        Los datos disponibles en tu perfil se completan para que los revises y puedas corregirlos.
                         @if ($datosCuenta)
                             El nombre y el correo disponibles en tu cuenta se completan automáticamente.
                         @endif
@@ -520,7 +520,7 @@
                                         <select id="facultad" name="facultad" required>
                                             <option value="">Selecciona tu facultad</option>
                                             @foreach ($catalogoFacultades as $nombreFacultad => $carrerasFacultad)
-                                                <option value="{{ $nombreFacultad }}">{{ $nombreFacultad }}</option>
+                                                <option value="{{ $nombreFacultad }}" @selected(($datosIniciales['facultad'] ?? '') === $nombreFacultad)>{{ $nombreFacultad }}</option>
                                             @endforeach
                                         </select>
                                     @elseif ($campoPersonal === 'carrera')
@@ -531,7 +531,7 @@
                                     @else
                                     <input id="{{ $campoPersonal }}" name="{{ $campoPersonal }}"
                                         type="{{ $campoPersonal === 'correo' ? 'email' : ($campoPersonal === 'celular' ? 'tel' : 'text') }}"
-                                        value="{{ $datosCuenta[$campoPersonal] ?? '' }}"
+                                        value="{{ $datosCuenta[$campoPersonal] ?? $datosIniciales[$campoPersonal] ?? '' }}"
                                         required maxlength="{{ $limitePersonal }}"
                                         @readonly(array_key_exists($campoPersonal, $datosCuenta))
                                         @if (in_array($campoPersonal, \App\Services\Solicitudes\DatosFormularioSolicitud::SOLO_DIGITOS, true))
@@ -947,6 +947,7 @@
         // Definición publicada del trámite y cursos de la base académica.
         const tramite = @json($tramite);
         const camposPersonales = @json($camposPersonales);
+        const datosIniciales = @json($datosIniciales);
         const camposMateriaManual = @json($camposMateriaManual);
         const materiasCatalogo = @json($materias);
         const selectorCatalogo = document.getElementById('materia');
@@ -992,7 +993,7 @@
 
         document.getElementById('facultad').addEventListener('change', () => actualizarCarreras());
         document.getElementById('carrera').addEventListener('change', validarFacultadYCarrera);
-        actualizarCarreras();
+        actualizarCarreras(datosIniciales.carrera ?? '');
         const cambioSolicitado = @json(\App\Services\Solicitudes\DatosFormularioSolicitud::CAMBIOS[$codigoTramite] ?? null);
         const tramiteActual = @json($codigoTramite);
         const relojFormulario = {
@@ -2195,7 +2196,7 @@
 
             cancelarGuardado();
             formularioDatos.reset();
-            actualizarCarreras();
+            actualizarCarreras(datosIniciales.carrera ?? '');
             document.getElementById('declaracion').checked = false;
             document.querySelectorAll(
                 '#campos-tramite input, #campos-tramite select, #campos-tramite textarea'
