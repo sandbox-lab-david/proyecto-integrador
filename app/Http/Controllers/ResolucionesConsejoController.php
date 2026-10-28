@@ -9,6 +9,7 @@ use App\Services\Flujo\AgendaWordService;
 use App\Services\Flujo\EstadoSolicitudService;
 use App\Services\Flujo\ResolucionService;
 use App\Services\Notificaciones\NotificacionService;
+use App\Services\Academico\AutorizacionService;
 use App\Support\Estados;
 use App\Support\RevisionSolicitudFilters;
 use Illuminate\Http\Request;
@@ -17,37 +18,49 @@ use Illuminate\Support\Str;
 
 class ResolucionesConsejoController extends Controller
 {
-    public function index(Request $request)
+    public function index(Request $request, AutorizacionService $authz)
     {
         $filtros = RevisionSolicitudFilters::validateWithDateRange($request);
-        $query = CorteAgenda::with(['solicitudes.estadoSolicitud', 'resoluciones'])->whereHas('solicitudes', fn ($q) => $this->aplicarFiltrosSolicitud($q, $filtros));
-        if ($filtros['desde'] !== '') {
-            $query->whereDate('fecha_sesion', '>=', $filtros['desde']);
-        }
-        if ($filtros['hasta'] !== '') {
-            $query->whereDate('fecha_sesion', '<=', $filtros['hasta']);
-        }
-        $agendas = $query->orderByDesc('fecha_sesion')->get();
-        foreach ($agendas as $agenda) {
-            $agenda->numero = 'AG-'.$agenda->id;
-            $itemsQuery = $agenda->solicitudes()->with('estadoSolicitud');
-            RevisionSolicitudFilters::apply($itemsQuery->getQuery(), $filtros);
-            $items = $itemsQuery->get();
-            $agenda->setRelation('solicitudes', $items);
-            $agenda->total_solicitudes = $items->count();
-            $map = [Estados::ENVIADA => 'total_enviadas', Estados::REVISADA => 'total_revisadas', Estados::APTA_CONSEJO => 'total_aptas_consejo', Estados::AGENDADA => 'total_agendadas', Estados::APROBADA_EJECUCION => 'total_aprobadas_ejecucion', Estados::EJECUTADA => 'total_ejecutadas', Estados::OBSERVADA => 'total_observadas', Estados::RECHAZADA => 'total_rechazadas'];
-            foreach ($map as $code => $attribute) {
-                $agenda->{$attribute} = $items->filter(fn ($s) => $s->estadoSolicitud?->codigo === $code)->count();
+        $agendas = collect();
+        if ($filtros['filtrar']) {
+            $query = CorteAgenda::with(['solicitudes.estadoSolicitud', 'resoluciones'])->whereHas('solicitudes', fn ($q) => $this->aplicarFiltrosSolicitud($q, $filtros));
+            if ($filtros['desde'] !== '') {
+                $query->whereDate('fecha_sesion', '>=', $filtros['desde']);
             }
-            $agenda->total_pendientes_resolucion = $items->filter(fn ($s) => ! $s->resolucion || $s->resolucion->decision === 'Guardar')->count();
+            if ($filtros['hasta'] !== '') {
+                $query->whereDate('fecha_sesion', '<=', $filtros['hasta']);
+            }
+            if ($authz->tieneRol(auth()->user(), 'asistente')) {
+                $facultades = $authz->facultadesDe(auth()->user()->trabajador)->modelKeys();
+                $query->whereIn('facultad_id', $facultades);
+            }
+            $agendas = $query->orderByDesc('fecha_sesion')->get();
+            foreach ($agendas as $agenda) {
+                $agenda->numero = 'AG-'.$agenda->id;
+                $itemsQuery = $agenda->solicitudes()->with('estadoSolicitud');
+                RevisionSolicitudFilters::apply($itemsQuery->getQuery(), $filtros);
+                $items = $itemsQuery->get();
+                $agenda->setRelation('solicitudes', $items);
+                $agenda->total_solicitudes = $items->count();
+                $map = [Estados::ENVIADA => 'total_enviadas', Estados::REVISADA => 'total_revisadas', Estados::APTA_CONSEJO => 'total_aptas_consejo', Estados::AGENDADA => 'total_agendadas', Estados::APROBADA_EJECUCION => 'total_aprobadas_ejecucion', Estados::EJECUTADA => 'total_ejecutadas', Estados::OBSERVADA => 'total_observadas', Estados::RECHAZADA => 'total_rechazadas'];
+                foreach ($map as $code => $attribute) {
+                    $agenda->{$attribute} = $items->filter(fn ($s) => $s->estadoSolicitud?->codigo === $code)->count();
+                }
+                $agenda->total_pendientes_resolucion = $items->filter(fn ($s) => ! $s->resolucion || $s->resolucion->decision === 'Guardar')->count();
+                $agenda->dias_diferencia_sesion = abs((int) now()->startOfDay()->diffInDays($agenda->fecha_sesion->copy()->startOfDay(), false));
+            }
         }
 
-        return view('revision.resoluciones', ['agendas' => $agendas, 'filtros' => $filtros, 'tramitesDisponibles' => RevisionSolicitudFilters::tramitesDisponibles(), 'estadosDisponibles' => RevisionSolicitudFilters::ESTADOS]);
+        return view('revision.resoluciones', ['agendas' => $agendas, 'filtros' => $filtros, 'filtrosAplicados' => $filtros['filtrar'], 'tramitesDisponibles' => RevisionSolicitudFilters::tramitesDisponibles(), 'estadosDisponibles' => RevisionSolicitudFilters::ESTADOS]);
     }
 
-    public function porAgenda(int $agenda, ResolucionService $resoluciones)
+    public function porAgenda(int $agenda, ResolucionService $resoluciones, AutorizacionService $authz)
     {
         $corte = CorteAgenda::with(['puntosInternos', 'solicitudes.carreraEstudiante.estudiante', 'solicitudes.carreraEstudiante.carreraModalidad.carrera', 'solicitudes.tipoTramite', 'solicitudes.estadoSolicitud', 'solicitudes.historial', 'solicitudes.resolucion'])->findOrFail($agenda);
+        if ($authz->tieneRol(auth()->user(), 'asistente')) {
+            abort_unless($authz->puedeVerFacultad(auth()->user(), (int) $corte->facultad_id), 403);
+        }
+        $corte->referencia_sesion = $this->referenciaSesion($corte->fecha_sesion);
         $corte->numero = 'AG-'.$corte->id;
         $casos = $corte->solicitudes->map(function ($s) use ($resoluciones) {
             $student = $s->carreraEstudiante?->estudiante;
@@ -61,7 +74,7 @@ class ResolucionesConsejoController extends Controller
         return view('revision.resoluciones', compact('agenda', 'casos'));
     }
 
-    public function documento(Request $request, AgendaWordService $word)
+    public function documento(Request $request, AgendaWordService $word, AutorizacionService $authz)
     {
         $filtros = RevisionSolicitudFilters::validateWithDateRange($request);
         $query = CorteAgenda::query()->whereHas('solicitudes', fn ($q) => $this->aplicarFiltrosSolicitud($q, $filtros));
@@ -71,18 +84,24 @@ class ResolucionesConsejoController extends Controller
         if ($filtros['hasta'] !== '') {
             $query->whereDate('fecha_sesion', '<=', $filtros['hasta']);
         }
+        if ($authz->tieneRol(auth()->user(), 'asistente')) {
+            $query->whereIn('facultad_id', $authz->facultadesDe(auth()->user()->trabajador)->modelKeys());
+        }
 
         return $word->generarDocumento($query->pluck('id')->all(), $filtros);
     }
 
-    public function documentoAgenda(int $agenda, AgendaWordService $word)
+    public function documentoAgenda(int $agenda, AgendaWordService $word, AutorizacionService $authz)
     {
         $corte = CorteAgenda::findOrFail($agenda);
+        if ($authz->tieneRol(auth()->user(), 'asistente')) {
+            abort_unless($authz->puedeVerFacultad(auth()->user(), (int) $corte->facultad_id), 403);
+        }
 
         return $word->generarAgendaWord($corte->id);
     }
 
-    public function exportar(Request $request)
+    public function exportar(Request $request, AutorizacionService $authz)
     {
         $filtros = RevisionSolicitudFilters::validateWithDateRange($request);
         $query = CorteAgenda::with(['solicitudes.estadoSolicitud', 'resoluciones'])->whereHas('solicitudes', fn ($q) => $this->aplicarFiltrosSolicitud($q, $filtros));
@@ -91,6 +110,9 @@ class ResolucionesConsejoController extends Controller
         }
         if ($filtros['hasta'] !== '') {
             $query->whereDate('fecha_sesion', '<=', $filtros['hasta']);
+        }
+        if ($authz->tieneRol(auth()->user(), 'asistente')) {
+            $query->whereIn('facultad_id', $authz->facultadesDe(auth()->user()->trabajador)->modelKeys());
         }
         $rows = $query->orderBy('fecha_sesion')->get();
         foreach ($rows as $agenda) {
@@ -103,9 +125,9 @@ class ResolucionesConsejoController extends Controller
         return response()->streamDownload(function () use ($rows) {
             $out = fopen('php://output', 'w');
             fwrite($out, "\xEF\xBB\xBF");
-            fputcsv($out, ['Agenda', 'Fecha de sesión', 'Días transcurridos', 'Solicitudes', 'Pendientes de resolución', 'Facultad']);
+            fputcsv($out, ['Agenda', 'Fecha de sesión', 'Días de diferencia con la sesión', 'Solicitudes', 'Pendientes de resolución', 'Facultad']);
             foreach ($rows as $agenda) {
-                fputcsv($out, ['AG-'.$agenda->id, $agenda->fecha_sesion->format('d/m/Y'), (int) $agenda->fecha_sesion->diffInDays(now()), $agenda->solicitudes->count(), $agenda->solicitudes->filter(fn ($s) => ! $s->resolucion || $s->resolucion->decision === 'Guardar')->count(), $agenda->facultad_id]);
+                fputcsv($out, ['AG-'.$agenda->id, $agenda->fecha_sesion->format('d/m/Y'), abs((int) now()->startOfDay()->diffInDays($agenda->fecha_sesion->copy()->startOfDay(), false)), $agenda->solicitudes->count(), $agenda->solicitudes->filter(fn ($s) => ! $s->resolucion || $s->resolucion->decision === 'Guardar')->count(), $agenda->facultad_id]);
             }
             fclose($out);
         }, $filename, ['Content-Type' => 'text/csv; charset=UTF-8']);
@@ -155,5 +177,16 @@ class ResolucionesConsejoController extends Controller
     private function aplicarFiltrosSolicitud($query,array $filtros): void
     {
         RevisionSolicitudFilters::apply($query,$filtros);
+    }
+
+    private function referenciaSesion($fecha): string
+    {
+        $diferencia = (int) now()->startOfDay()->diffInDays(\Illuminate\Support\Carbon::parse($fecha)->startOfDay(), false);
+
+        return match (true) {
+            $diferencia > 0 => 'Faltan '.$diferencia.' días',
+            $diferencia < 0 => 'Hace '.abs($diferencia).' días',
+            default => 'Hoy',
+        };
     }
 }

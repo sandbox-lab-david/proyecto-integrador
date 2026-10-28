@@ -34,10 +34,16 @@ class FlujoModuloTresTest extends TestCase
         $solicitud = $this->crearSolicitud($enviada->id);
         $actor = User::factory()->create();
 
-        app(EstadoSolicitudService::class)->transicionar($solicitud, 'revisada', $actor, 'Documentos verificados.', false);
+        $historial = app(EstadoSolicitudService::class)->transicionar($solicitud, 'revisada', $actor, 'Documentos verificados.', 'Validación interna completada.');
 
         $this->assertSame('revisada', $solicitud->fresh()->estadoSolicitud->codigo);
-        $this->assertDatabaseHas('historial_solicitud', ['solicitud_id' => $solicitud->id, 'estado_anterior' => 'enviada', 'estado_nuevo' => 'revisada', 'user_id' => $actor->id, 'visible_estudiante' => false]);
+        $this->assertInstanceOf(HistorialSolicitud::class, $historial);
+        $this->assertDatabaseHas('historial_solicitud', ['solicitud_id' => $solicitud->id, 'estado_anterior' => 'enviada', 'estado_nuevo' => 'revisada', 'user_id' => $actor->id, 'comentario' => 'Documentos verificados.', 'observacion_interna' => 'Validación interna completada.', 'visible_estudiante' => true]);
+        $publica = app(EstadoSolicitudService::class)->lineaDeTiempo($solicitud, false)->sole();
+        $this->assertSame('Documentos verificados.', $publica->comentario);
+        $this->assertArrayNotHasKey('observacion_interna', $publica->getAttributes());
+        $completa = app(EstadoSolicitudService::class)->lineaDeTiempo($solicitud, true)->sole();
+        $this->assertSame('Validación interna completada.', $completa->observacion_interna);
     }
 
     public function test_transicion_no_permitida_no_cambia_estado_ni_agrega_historial(): void
@@ -48,12 +54,20 @@ class FlujoModuloTresTest extends TestCase
         $actor = User::factory()->create();
 
         try {
-            app(EstadoSolicitudService::class)->transicionar($solicitud, 'ejecutada', $actor, 'Salto de estado.', false);
+            app(EstadoSolicitudService::class)->transicionar($solicitud, 'ejecutada', $actor, 'Salto de estado.');
             $this->fail('La transición inválida debía rechazarse.');
         } catch (ValidationException) {
             $this->assertSame('enviada', $solicitud->fresh()->estadoSolicitud->codigo);
             $this->assertSame(0, HistorialSolicitud::where('solicitud_id', $solicitud->id)->count());
         }
+    }
+
+    public function test_el_seeder_incluye_borrador_y_el_envio_inicial(): void
+    {
+        $this->seed(\Database\Seeders\EstadosSolicitudSeeder::class);
+
+        $this->assertDatabaseHas('estados_solicitud', ['codigo' => 'borrador', 'nombre' => 'Borrador']);
+        $this->assertDatabaseHas('transiciones_estado', ['estado_origen' => 'borrador', 'estado_destino' => 'enviada', 'activa' => true]);
     }
 
     public function test_resolucion_se_consulta_por_su_solicitud(): void

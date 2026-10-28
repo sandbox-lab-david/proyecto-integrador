@@ -19,7 +19,10 @@
             <div><dt class="text-slate-500">Fecha de envío</dt><dd class="font-medium text-slate-900">{{ $solicitud->fecha }}</dd></div>
             <div><dt class="text-slate-500">Código CAFI</dt><dd class="font-medium text-slate-900">{{ $solicitud->codigo_sistema ?: 'Pendiente de asignación' }}</dd></div>
         </dl>
-        <div class="mt-4 border-t border-slate-100 pt-4"><h3 class="text-sm font-semibold text-slate-700">Detalle declarado</h3><pre class="mt-2 whitespace-pre-wrap rounded-lg bg-slate-50 p-3 text-sm text-slate-700">{{ is_array($solicitud->detalle) ? json_encode($solicitud->detalle, JSON_PRETTY_PRINT|JSON_UNESCAPED_UNICODE) : ($solicitud->detalle ?: 'Sin detalle adicional.') }}</pre></div>
+        <div class="mt-4 border-t border-slate-100 pt-4">
+            <h3 class="mb-3 text-sm font-semibold text-slate-700">Detalles declarados</h3>
+            <x-resumen-solicitud :solicitud="$solicitud" :encabezado="false" class="resumen-solicitud--sin-marco" />
+        </div>
     </section>
 
     <section class="mb-6 rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
@@ -48,12 +51,43 @@
         @else
             <p class="mb-3 rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">{{ $requisitosProlog['error'] ?? 'El motor Prolog no está disponible en este momento.' }}</p>
         @endif
-        @if($validacionProlog)<pre class="mt-4 overflow-x-auto rounded-lg bg-slate-50 p-3 text-xs text-slate-700">{{ json_encode($validacionProlog,JSON_PRETTY_PRINT|JSON_UNESCAPED_UNICODE) }}</pre>@endif
+        @if($validacionProlog)
+            <div class="mt-5 border-t border-slate-100 pt-4">
+                <h3 class="mb-2 text-sm font-semibold text-slate-800">Comprobación informativa</h3>
+                <p class="mb-3 text-xs text-slate-500">Referencias consultadas · versión {{ $validacionProlog['kb_version'] }}</p>
+                @if($validacionProlog['comprobaciones'] !== [])
+                    <ul class="space-y-3">
+                        @foreach($validacionProlog['comprobaciones'] as $comprobacion)
+                            <li class="rounded-lg border border-slate-200 bg-slate-50 p-4">
+                                <p class="text-sm font-medium text-slate-800">{{ $comprobacion['texto'] }}</p>
+                                @if($comprobacion['datos'] !== [])
+                                    <dl class="mt-3 grid gap-3 text-sm sm:grid-cols-2">
+                                        @foreach($comprobacion['datos'] as $clave => $valor)
+                                            @if(is_scalar($valor) && (string) $valor !== '')
+                                                <div>
+                                                    <dt class="text-xs text-slate-500">{{ \Illuminate\Support\Str::headline(str_replace('_', ' ', (string) $clave)) }}</dt>
+                                                    <dd class="font-medium text-slate-800">{{ $valor }}</dd>
+                                                </div>
+                                            @endif
+                                        @endforeach
+                                    </dl>
+                                @endif
+                            </li>
+                        @endforeach
+                    </ul>
+                @else
+                    <p class="text-sm text-slate-600">No hay comprobaciones de referencia adicionales para los datos declarados.</p>
+                @endif
+                @if($validacionProlog['aviso'])
+                    <p class="mt-3 rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">{{ $validacionProlog['aviso'] }}</p>
+                @endif
+            </div>
+        @endif
     </section>
 
     <section class="mb-6 rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
         <h2 class="mb-4 text-lg font-semibold text-slate-900">Historial del expediente</h2>
-        <ol class="space-y-3 border-l-2 border-red-100 pl-4">@forelse($lineaTiempo as $evento)<li class="relative"><span class="absolute -left-[22px] top-1 h-3 w-3 rounded-full bg-red-700"></span><p class="text-sm font-semibold text-slate-900">{{ $evento->estado_anterior ?: 'Inicio' }} → {{ $evento->estado_nuevo }}</p><p class="text-sm text-slate-600">{{ $evento->comentario ?: 'Sin observación' }}</p><p class="text-xs text-slate-500">{{ $evento->created_at?->format('d/m/Y H:i') }} · {{ $evento->user?->name ?? 'Sistema' }}</p></li>@empty<li class="text-sm text-slate-500">No hay movimientos registrados todavía.</li>@endforelse</ol>
+        <ol class="space-y-3 border-l-2 border-red-100 pl-4">@forelse($lineaTiempo as $evento)<li class="relative"><span class="absolute -left-[22px] top-1 h-3 w-3 rounded-full bg-red-700"></span><p class="text-sm font-semibold text-slate-900">{{ $evento->estado_anterior ?: 'Inicio' }} → {{ $evento->estado_nuevo }}</p>@if($evento->comentario)<p class="text-sm text-slate-600">{{ $evento->comentario }}</p>@endif @if($evento->observacion_interna)<p class="rounded-md bg-amber-50 px-3 py-2 text-sm text-amber-900">Nota interna: {{ $evento->observacion_interna }}</p>@endif<p class="text-xs text-slate-500">{{ $evento->created_at?->format('d/m/Y H:i') }} · {{ $evento->user?->name ?? 'Sistema' }}</p></li>@empty<li class="text-sm text-slate-500">No hay movimientos registrados todavía.</li>@endforelse</ol>
     </section>
 
     @if(auth()->user()->trabajador && app(\App\Services\Academico\AutorizacionService::class)->tieneRol(auth()->user(),'asistente') && $solicitud->estadoSolicitud?->codigo === \App\Support\Estados::ENVIADA)

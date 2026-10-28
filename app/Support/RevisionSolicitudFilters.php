@@ -32,6 +32,7 @@ class RevisionSolicitudFilters
     public static function validateWithDateRange(Request $request): array
     {
         $validated = $request->validate([
+            'filtrar' => ['nullable', 'boolean'],
             'desde' => ['nullable', 'date_format:Y-m-d'], 'hasta' => ['nullable', 'date_format:Y-m-d', 'after_or_equal:desde'],
             'nombre' => ['nullable', 'string', 'max:255'], 'codigo' => ['nullable', 'string', 'max:255'],
             'carrera' => ['nullable', 'string', 'max:255'], 'tramite' => ['nullable', Rule::exists('tipos_tramite', 'nombre')],
@@ -40,6 +41,7 @@ class RevisionSolicitudFilters
         foreach (['desde', 'hasta', 'nombre', 'codigo', 'carrera', 'tramite', 'estado'] as $key) {
             $validated[$key] = trim((string) ($validated[$key] ?? ''));
         }
+        $validated['filtrar'] = $request->boolean('filtrar');
 
         return $validated;
     }

@@ -7,48 +7,17 @@ use App\Services\Solicitudes\ReglasCampoSolicitud;
 
 class ChatbotCatalogoService
 {
-    protected array $categoriasDefinidas = [
-        [
-            'id' => 'evaluaciones',
-            'nombre' => 'Evaluaciones',
-            'descripcion' => 'Recuperación, gracia, supletorio, suficiencia, recalificación',
-        ],
-        [
-            'id' => 'homologacion',
-            'nombre' => 'Homologación',
-            'descripcion' => 'Reconocer materias aprobadas y alcance',
-        ],
-        [
-            'id' => 'cambios_academicos',
-            'nombre' => 'Cambios académicos',
-            'descripcion' => 'Carrera, modalidad o malla',
-        ],
-        [
-            'id' => 'registro',
-            'nombre' => 'Registro',
-            'descripcion' => 'Fuera de plazo, tercer registro, incompleto',
-        ],
-        [
-            'id' => 'retiros_continuidad',
-            'nombre' => 'Retiros y continuidad',
-            'descripcion' => 'Retiros y reincorporación',
-        ],
-        [
-            'id' => 'apoyo_academico',
-            'nombre' => 'Apoyo académico',
-            'descripcion' => 'Ayudantía de cátedra, person to person',
-        ],
-    ];
-
     public function obtenerCatalogo(): array
     {
         $publicado = app(CatalogoTramites::class)->publicado();
         $tramites = array_map(fn ($t) => array_intersect_key($t, array_flip(['id', 'nombre', 'categoria_id'])), $publicado['tramites']);
+        $parametros = array_column($publicado['tramites'], 'parametros', 'id');
         $preguntas = [];
         foreach ($tramites as $t) {
             $intenciones = ['descripcion' => '¿Qué es este trámite?', 'requisitos' => '¿Qué requisitos tiene?', 'documentos' => '¿Qué documentos necesito?', 'costo' => '¿Cuánto cuesta?', 'plazo' => '¿Qué plazos debo considerar?'];
             if ($t['id'] === 'examen_recuperacion') {
-                $intenciones['referencias'] = 'Comparar mi GPA general y calcular los 365 días (opcional)';
+                $dias = $parametros[$t['id']]['intervalo_recuperacion_dias'];
+                $intenciones['referencias'] = "Comparar mi GPA general y calcular los {$dias} días (opcional)";
             }
             foreach ($intenciones as $sufijo => $texto) {
                 $preguntas[] = ['id' => $t['id'].'__'.$sufijo, 'tramite_id' => $t['id'], 'texto' => $texto,
@@ -58,7 +27,12 @@ class ChatbotCatalogoService
             }
         }
 
-        return ['version' => 3, 'kb_version' => $publicado['version'], 'categorias' => $this->categoriasDefinidas, 'tramites' => $tramites, 'preguntas' => $preguntas];
+        return ['version' => 3, 'kb_version' => $publicado['version'], 'categorias' => $publicado['categorias'], 'tramites' => $tramites, 'preguntas' => $preguntas];
+    }
+
+    public function referenciasRecuperacion(): array
+    {
+        return app(CatalogoTramites::class)->buscar('examen_recuperacion')['parametros'];
     }
 
     public function obtenerPregunta(string $id): ?array
