@@ -326,6 +326,8 @@ class CorreccionesSolicitudTest extends TestCase
             'modalidad' => 'Presencial', 'periodo' => '2026'];
         $datos['carrera'] = $facultades[$facultad][0];
         $datos = array_replace($datos, \App\Services\Solicitudes\DatosFormularioSolicitud::cuenta($this->usuario));
+        // Periodo e inscripción los impone el servidor; el documento se generó con esos valores.
+        $datos = array_replace($datos, app(\App\Services\Solicitudes\PerfilFormularioSolicitud::class)->fijos($datos));
         $datos = $this->preparar($propia, $datos);
         app(\App\Services\Solicitudes\CorreccionesGuardadas::class)->guardar($propia, 'gracia');
         $ruta = app(DocumentosTemporales::class)->buscar('gracia')['ruta'];

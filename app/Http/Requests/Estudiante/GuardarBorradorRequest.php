@@ -5,6 +5,7 @@ namespace App\Http\Requests\Estudiante;
 use App\Services\Solicitudes\TramitesSimulados;
 use App\Services\Solicitudes\ReglasCampoSolicitud;
 use App\Services\Solicitudes\DatosFormularioSolicitud;
+use App\Services\Solicitudes\PerfilFormularioSolicitud;
 use App\Services\Solicitudes\CatalogoFacultades;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
@@ -64,7 +65,7 @@ class GuardarBorradorRequest extends FormRequest
             ],
         ];
         $reglas = array_replace($reglas, DatosFormularioSolicitud::reglas(true));
-        foreach (CatalogoFacultades::restricciones($this->input('facultad')) as $campo => $regla) {
+        foreach (CatalogoFacultades::restricciones($this->input('facultad'), app(PerfilFormularioSolicitud::class)->facultades()) as $campo => $regla) {
             $reglas[$campo][] = $regla;
         }
 
@@ -101,6 +102,8 @@ class GuardarBorradorRequest extends FormRequest
         $this->merge(CatalogoFacultades::normalizar($this->all()));
         // La cuenta autenticada es la fuente de nombre y correo, también ante un POST manipulado.
         $this->merge(DatosFormularioSolicitud::cuenta($this->user()));
+        // Periodo vigente e inscripción de G1 (la modalidad sale de la carrera elegida): no los decide el estudiante.
+        $this->merge(app(PerfilFormularioSolicitud::class)->fijos($this->all()));
     }
 
     public function withValidator(Validator $validador): void

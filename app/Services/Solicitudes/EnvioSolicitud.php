@@ -8,6 +8,7 @@ use App\Models\User;
 use App\Services\Archivos\ArchivoService;
 use App\Services\Archivos\FirmadosTemporales;
 use App\Services\Archivos\RespaldosTemporales;
+use App\Services\Academico\EstudianteService;
 use Illuminate\Database\QueryException;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
@@ -28,6 +29,7 @@ class EnvioSolicitud
         private readonly TramitesSimulados $catalogo,
         private readonly SolicitudService $solicitudes,
         private readonly PrevalidacionSolicitud $prevalidacion,
+        private readonly EstudianteService $estudiantes,
     ) {}
 
     public static function revision(Solicitud $solicitud): string
@@ -103,8 +105,23 @@ class EnvioSolicitud
             }
             // El aviso al estudiante lo envía transicionar() de G3 al confirmar la transacción.
             $this->prevalidacion->registrar($solicitud);
+            $this->actualizarCelular($usuario, $datos['celular'] ?? null);
         }
         return $solicitud;
+    }
+
+    /** El celular declarado pasa al perfil de G1 (C14) para precargarlo en el próximo trámite. */
+    private function actualizarCelular(User $usuario, mixed $celular): void
+    {
+        try {
+            $estudiante = $usuario->estudiante;
+            if ($estudiante && is_string($celular) && $celular !== '' && $estudiante->celular !== $celular) {
+                $this->estudiantes->actualizarContacto($estudiante, $celular);
+            }
+        } catch (\Throwable $error) {
+            // La solicitud ya está confirmada; el perfil puede actualizarse en el siguiente envío.
+            report($error);
+        }
     }
 
     private function huellaEnvio(array $datos): string
