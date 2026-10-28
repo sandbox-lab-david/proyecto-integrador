@@ -101,14 +101,8 @@ class EnvioSolicitud
             } catch (\Throwable $error) {
                 report($error);
             }
+            // El aviso al estudiante lo envía transicionar() de G3 al confirmar la transacción.
             $this->prevalidacion->registrar($solicitud);
-            // El envío ya está confirmado: una caída del correo no debe borrar su expediente.
-            try {
-                app(\App\Services\Notificaciones\NotificacionService::class)
-                    ->notificarCambioEstado($solicitud, $solicitud->fresh()->estadoSolicitud);
-            } catch (\Throwable $error) {
-                report($error);
-            }
         }
         return $solicitud;
     }

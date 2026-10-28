@@ -5,6 +5,7 @@ namespace App\Policies;
 use App\Models\Solicitud;
 use App\Models\User;
 use App\Services\Academico\AutorizacionService;
+use App\Support\Estados;
 
 /**
  * El único lugar que decide quién puede ver o tocar una solicitud (contrato C60).
@@ -19,7 +20,7 @@ class SolicitudPolicy
     {
         return $u->activo && $u->tipo === 'estudiante'
             && (int) $s->carreraEstudiante?->estudiante?->user_id === (int) $u->getKey()
-            && in_array(strtolower((string) $s->estadoSolicitud?->codigo), ['observada', 'observado'], true);
+            && $s->estadoSolicitud?->codigo === Estados::OBSERVADA;
     }
 
     public function subirFirmado(User $u, Solicitud $s): bool

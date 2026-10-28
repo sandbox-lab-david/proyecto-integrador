@@ -137,10 +137,14 @@ en el formulario, aunque al subirlo se haya indicado otro.
 integración recibida en el pull. Exige un estudiante activo, inscripción propia,
 carrera y período vigentes, y catálogo publicado. La propiedad se lee por
 `carrera_estudiante.estudiante_id` → `estudiantes.user_id` (tabla de G1 según el
-Excel, PR #14). El envío registra el estado `enviada` y un historial
-visible. La clave de versión evita duplicar el expediente al repetir el envío.
-Tras confirmar, G2 invoca su servicio de notificaciones una sola vez por envío
-o reenvío; una caída del canal de avisos se registra sin invalidar el expediente.
+Excel, PR #14). El cambio a `enviada` (desde `borrador` o `observada`) pasa por
+`EstadoSolicitudService::transicionar()` de G3 (C62, PR #24), que valida la
+transición en `transiciones_estado`, escribe el historial visible y avisa al
+estudiante al confirmar la transacción. G2 ya no escribe el historial ni el
+estado por su cuenta, ni manda un aviso propio. La clave de versión evita
+duplicar el expediente al repetir el envío; un reintento idempotente no vuelve
+a transicionar, así que tampoco repite el aviso. Las bases locales necesitan el
+`EstadosSolicitudSeeder` de G3 (lo corre `DatabaseSeeder`) para poder enviar.
 
 `MateriasSolicitud` consulta cursos, materias, períodos y docentes de G1, sin
 modificarlos. Si el estudiante tiene inscripciones activas con malla (C11, C13),
