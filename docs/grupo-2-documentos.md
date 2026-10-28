@@ -208,7 +208,9 @@ real anterior. Una revisión concurrente impide sobrescribir un expediente cambi
 - `WordService::convertirAPdf` utiliza LibreOffice en el servidor. El formulario
   permite seleccionar Word o PDF. Detecta LibreOffice en Program Files,
   Program Files (x86), `%LOCALAPPDATA%/Programs/LibreOffice` o el PATH de Windows;
-  en Linux busca `libreoffice`/`soffice` en el PATH y `/usr/bin/libreoffice`.
+  en macOS, en `/Applications/LibreOffice.app` o `~/Applications/LibreOffice.app`
+  (el instalador no agrega `soffice` al PATH) y luego en el PATH; en Linux busca
+  `libreoffice`/`soffice` en el PATH y `/usr/bin/libreoffice`.
   Cada conversión tiene su propio directorio temporal del sistema y
   perfil; el controlador elimina las copias al terminar. La instalación del
   conversor no se distribuye con Git. Validar visualmente las 20 plantillas
