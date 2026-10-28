@@ -27,7 +27,13 @@
                 <div class="flex min-w-56 flex-1 items-start gap-2 text-slate-800">@if(app(\App\Services\Academico\AutorizacionService::class)->tieneRol(auth()->user(), ['admin', 'asistente']))<input id="agenda-solicitud-{{ $caso->id }}" form="crear-agenda" type="checkbox" name="solicitudes[]" value="{{ $caso->id }}" @checked(in_array($caso->id, old('solicitudes', []))) class="mt-1">@endif<label @if(app(\App\Services\Academico\AutorizacionService::class)->tieneRol(auth()->user(), ['admin', 'asistente'])) for="agenda-solicitud-{{ $caso->id }}" @endif><b>{{ $caso->codigo_solicitud }}</b> · {{ $caso->estudiante }}<small class="block text-slate-500">{{ $caso->tramite }} — {{ $caso->carrera }} — {{ $caso->estado }} · CAFI {{ $caso->codigo_sistema ?: 'pendiente' }}</small></label><a href="{{ route('revision.detalle',$caso->id) }}" class="text-xs text-red-800 underline">Expediente</a></div>
             </article>
         @empty
-            <p class="rounded-lg border border-slate-200 bg-white p-4 text-slate-500">@if($filtrosAplicados)No hay solicitudes aptas que coincidan con los filtros y estén pendientes de agenda.@elseUsa los filtros y presiona “Filtrar” para consultar las solicitudes aptas para Consejo.@endif</p>
+            <p class="rounded-lg border border-slate-200 bg-white p-4 text-slate-500">
+                @if($filtrosAplicados)
+                    No hay solicitudes aptas que coincidan con los filtros y estén pendientes de agenda.
+                @else
+                    Usa los filtros y presiona “Filtrar” para consultar las solicitudes aptas para Consejo.
+                @endif
+            </p>
         @endforelse
     </div>
     @if($filtrosAplicados && app(\App\Services\Academico\AutorizacionService::class)->tieneRol(auth()->user(), ['admin', 'asistente']))
@@ -36,6 +42,4 @@
             <button type="submit" form="crear-agenda" name="accion" value="crear_agenda" @disabled($aprobadas->isEmpty()) class="rounded-lg bg-red-700 px-4 py-2 font-semibold text-white transition hover:bg-red-800 disabled:opacity-40">Crear agenda</button>
         </div>
     @endif
-    @endif
-
 @endsection

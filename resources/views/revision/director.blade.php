@@ -29,7 +29,13 @@
                         </td>
                     </tr>
                 @empty
-                        <tr><td colspan="6" class="p-8 text-center text-slate-500">@if($filtrosAplicados)No hay solicitudes que coincidan con los filtros.@elseUsa los filtros y presiona “Filtrar” para consultar las solicitudes.@endif</td></tr>
+                        <tr><td colspan="6" class="p-8 text-center text-slate-500">
+                            @if($filtrosAplicados)
+                                No hay solicitudes que coincidan con los filtros.
+                            @else
+                                Usa los filtros y presiona “Filtrar” para consultar las solicitudes.
+                            @endif
+                        </td></tr>
                 @endforelse
             </tbody>
         </table></div>
