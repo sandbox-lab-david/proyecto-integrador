@@ -24,4 +24,6 @@ return [
     | Se usa para construir las acciones de tipo 'url' en las respuestas del chatbot.
     */
     'g2_url' => env('G2_PORTAL_URL', 'https://agenda.uisek.edu.ec'),
+
+    'roles_visibles' => array_values(array_filter(array_map('trim', explode(',', env('CHATBOT_ROLES', 'estudiante'))))),
 ];
