@@ -7,11 +7,14 @@ use App\Models\Estudiante;
 use App\Models\Solicitud;
 use App\Models\User;
 use App\Notifications\NotificacionPortal;
+use App\Services\Academico\AutorizacionService;
 use InvalidArgumentException;
 use LogicException;
 
 class NotificacionService
 {
+    public function __construct(private readonly AutorizacionService $autorizacion) {}
+
     /** $observacion debe contener únicamente el texto visible para el estudiante. */
     public function notificarCambioEstado(Solicitud $s, EstadoSolicitud $nuevo, ?string $observacion = null): void
     {
@@ -28,6 +31,8 @@ class NotificacionService
             $mensaje,
             route('solicitudes.show', $s->getKey(), false),
         );
+
+        $this->notificarPersonalDeRevision($s, $estado);
     }
 
     public function notificarResolucionGuardada(Solicitud $s, ?string $observacion = null): void
@@ -52,6 +57,39 @@ class NotificacionService
         }
 
         return User::findOrFail($usuarioId);
+    }
+
+    private function notificarPersonalDeRevision(Solicitud $solicitud, string $estado): void
+    {
+        $solicitud->loadMissing('carreraEstudiante.carreraModalidad.carrera');
+        $carrera = $solicitud->carreraEstudiante?->carreraModalidad?->carrera;
+        if (! $carrera) {
+            return;
+        }
+
+        $destinatarios = $this->autorizacion->asistentesDeFacultad((int) $carrera->facultad_id)
+            ->load('user')
+            ->pluck('user')
+            ->all();
+        $director = $this->autorizacion->directorDeCarrera((int) $carrera->id)?->user;
+        if ($director) {
+            $destinatarios[] = $director;
+        }
+        $destinatarios = collect($destinatarios)
+            ->filter(fn ($usuario) => $usuario instanceof User && $usuario->exists && $usuario->activo)
+            ->unique(fn (User $usuario) => $usuario->getKey())
+            ->values();
+
+        if ($destinatarios->isEmpty()) {
+            return;
+        }
+
+        $this->notificarUsuarios(
+            $destinatarios,
+            'Actualización de solicitud '.$solicitud->codigo,
+            'La solicitud '.$solicitud->codigo.' cambió al estado: '.$estado.'.',
+            route('revision.detalle', $solicitud->getKey(), false),
+        );
     }
 
     /** @param iterable<User> $users */

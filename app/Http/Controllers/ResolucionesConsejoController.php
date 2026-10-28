@@ -47,6 +47,7 @@ class ResolucionesConsejoController extends Controller
                     $agenda->{$attribute} = $items->filter(fn ($s) => $s->estadoSolicitud?->codigo === $code)->count();
                 }
                 $agenda->total_pendientes_resolucion = $items->filter(fn ($s) => ! $s->resolucion || $s->resolucion->decision === 'Guardar')->count();
+                $agenda->dias_diferencia_sesion = abs((int) now()->startOfDay()->diffInDays($agenda->fecha_sesion->copy()->startOfDay(), false));
             }
         }
 
@@ -59,6 +60,7 @@ class ResolucionesConsejoController extends Controller
         if ($authz->tieneRol(auth()->user(), 'asistente')) {
             abort_unless($authz->puedeVerFacultad(auth()->user(), (int) $corte->facultad_id), 403);
         }
+        $corte->referencia_sesion = $this->referenciaSesion($corte->fecha_sesion);
         $corte->numero = 'AG-'.$corte->id;
         $casos = $corte->solicitudes->map(function ($s) use ($resoluciones) {
             $student = $s->carreraEstudiante?->estudiante;
@@ -123,9 +125,9 @@ class ResolucionesConsejoController extends Controller
         return response()->streamDownload(function () use ($rows) {
             $out = fopen('php://output', 'w');
             fwrite($out, "\xEF\xBB\xBF");
-            fputcsv($out, ['Agenda', 'Fecha de sesión', 'Días transcurridos', 'Solicitudes', 'Pendientes de resolución', 'Facultad']);
+            fputcsv($out, ['Agenda', 'Fecha de sesión', 'Días de diferencia con la sesión', 'Solicitudes', 'Pendientes de resolución', 'Facultad']);
             foreach ($rows as $agenda) {
-                fputcsv($out, ['AG-'.$agenda->id, $agenda->fecha_sesion->format('d/m/Y'), (int) $agenda->fecha_sesion->diffInDays(now()), $agenda->solicitudes->count(), $agenda->solicitudes->filter(fn ($s) => ! $s->resolucion || $s->resolucion->decision === 'Guardar')->count(), $agenda->facultad_id]);
+                fputcsv($out, ['AG-'.$agenda->id, $agenda->fecha_sesion->format('d/m/Y'), abs((int) now()->startOfDay()->diffInDays($agenda->fecha_sesion->copy()->startOfDay(), false)), $agenda->solicitudes->count(), $agenda->solicitudes->filter(fn ($s) => ! $s->resolucion || $s->resolucion->decision === 'Guardar')->count(), $agenda->facultad_id]);
             }
             fclose($out);
         }, $filename, ['Content-Type' => 'text/csv; charset=UTF-8']);
@@ -175,5 +177,16 @@ class ResolucionesConsejoController extends Controller
     private function aplicarFiltrosSolicitud($query,array $filtros): void
     {
         RevisionSolicitudFilters::apply($query,$filtros);
+    }
+
+    private function referenciaSesion($fecha): string
+    {
+        $diferencia = (int) now()->startOfDay()->diffInDays(\Illuminate\Support\Carbon::parse($fecha)->startOfDay(), false);
+
+        return match (true) {
+            $diferencia > 0 => 'Faltan '.$diferencia.' días',
+            $diferencia < 0 => 'Hace '.abs($diferencia).' días',
+            default => 'Hoy',
+        };
     }
 }

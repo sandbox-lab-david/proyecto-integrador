@@ -22,7 +22,7 @@ class AgendaWordService
         if ($filtros) {
             foreach ($cortes as $corte) {
                 $solicitudes = $corte->solicitudes()->with(['carreraEstudiante.estudiante', 'carreraEstudiante.carreraModalidad.carrera', 'tipoTramite', 'estadoSolicitud', 'resolucion']);
-                RevisionSolicitudFilters::apply($solicitudes, $filtros);
+                RevisionSolicitudFilters::apply($solicitudes->getQuery(), $filtros);
                 $corte->setRelation('solicitudes', $solicitudes->get());
             }
         }
