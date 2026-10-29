@@ -32,7 +32,14 @@ class PrologService
             $obj = $solicitudOTramiteId;
             $codigo = $obj->tipoTramite?->codigo ?? data_get($obj->detalle, 'tramite') ?? ($obj->tramite ?? '');
             $tramiteId = app(CatalogoTramites::class)->buscar($codigo)['id'] ?? null;
-            $perfil = ['gpa_general' => $obj->gpa_declarado ?? data_get($obj->detalle, 'campos.gpa_general'), 'fecha_ultima_recuperacion' => ($obj->fecha_ultima_recuperacion ?? null)?->format('Y-m-d') ?? data_get($obj->detalle, 'campos.ultima_recuperacion')];
+            $perfil = array_filter([
+                'gpa_general' => $obj->gpa_declarado ?? data_get($obj->detalle, 'campos.gpa_general'),
+                'fecha_ultima_recuperacion' => ($obj->fecha_ultima_recuperacion ?? null)?->format('Y-m-d') ?? data_get($obj->detalle, 'campos.ultima_recuperacion'),
+            ], fn ($v) => $v !== null && $v !== '');
+            $asignaciones = data_get($obj->detalle, 'asignaciones');
+            if (! empty($asignaciones) && is_array($asignaciones)) {
+                $perfil['documentos_subidos'] = array_values(array_filter($asignaciones));
+            }
         } else {
             $tramiteId = $solicitudOTramiteId;
             $perfil = is_array($perfilOConVerificados) ? $perfilOConVerificados : [];
@@ -40,7 +47,13 @@ class PrologService
         if (! in_array($tramiteId, array_column($this->catalogoService->obtenerCatalogo()['tramites'], 'id'), true)) {
             throw new InvalidArgumentException('Trámite desconocido.');
         }
-        Validator::make(['perfil' => $perfil], ['perfil' => 'array:gpa_general,fecha_ultima_recuperacion', 'perfil.gpa_general' => 'nullable|numeric|between:0,100', 'perfil.fecha_ultima_recuperacion' => 'nullable|date_format:Y-m-d|before_or_equal:'.now(ReglasCampoSolicitud::zonaHoraria())->toDateString()])->validate();
+        Validator::make(['perfil' => $perfil], [
+            'perfil' => 'array:gpa_general,fecha_ultima_recuperacion,documentos_subidos',
+            'perfil.gpa_general' => 'nullable|numeric|between:0,100',
+            'perfil.fecha_ultima_recuperacion' => 'nullable|date_format:Y-m-d|before_or_equal:'.now(ReglasCampoSolicitud::zonaHoraria())->toDateString(),
+            'perfil.documentos_subidos' => 'nullable|array',
+            'perfil.documentos_subidos.*' => 'string',
+        ])->validate();
         if (isset($perfil['gpa_general'])) {
             $perfil['gpa_general'] = (float) $perfil['gpa_general'];
         }
@@ -50,6 +63,11 @@ class PrologService
         }
 
         return $r;
+    }
+
+    public function verificarDocumentos(string $tramiteId, array $documentosSubidos = []): array
+    {
+        return $this->evaluar($tramiteId, ['documentos_subidos' => array_values($documentosSubidos)]);
     }
 
     public function camposFormulario(string $tramiteId): array

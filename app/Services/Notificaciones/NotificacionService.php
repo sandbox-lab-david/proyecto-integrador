@@ -6,6 +6,7 @@ use App\Models\EstadoSolicitud;
 use App\Models\Estudiante;
 use App\Models\Solicitud;
 use App\Models\User;
+use App\Notifications\CorreoNotificacionPortal;
 use App\Notifications\NotificacionPortal;
 use App\Services\Academico\AutorizacionService;
 use InvalidArgumentException;
@@ -71,15 +72,15 @@ class NotificacionService
             ->load('user')
             ->pluck('user')
             ->all();
-        $director = $this->autorizacion->directorDeCarrera((int) $carrera->id)?->user;
-        if ($director) {
+        $trabajadorDirector = $this->autorizacion->directorDeCarrera((int) $carrera->id);
+        $director = $trabajadorDirector?->user;
+        if ($trabajadorDirector?->activo && $director?->activo) {
             $destinatarios[] = $director;
         }
         $destinatarios = collect($destinatarios)
             ->filter(fn ($usuario) => $usuario instanceof User && $usuario->exists && $usuario->activo)
             ->unique(fn (User $usuario) => $usuario->getKey())
             ->values();
-
         if ($destinatarios->isEmpty()) {
             return;
         }
@@ -109,6 +110,7 @@ class NotificacionService
                 continue;
             }
             $usuario->notify(new NotificacionPortal($titulo, $mensaje, $destino));
+            $usuario->notify(new CorreoNotificacionPortal($titulo, $mensaje, $destino));
             $enviados[$usuario->getKey()] = true;
         }
     }
