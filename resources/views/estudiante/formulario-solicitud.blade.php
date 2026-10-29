@@ -530,7 +530,7 @@
                         <div class="campos">
                             @foreach ($camposPersonales as $campoPersonal => [$etiquetaPersonal, $limitePersonal])
                                 <div @class(['campo', 'completo' => $campoPersonal === 'nombre'])>
-                                    <label for="{{ $campoPersonal }}">{{ $etiquetaPersonal }}</label>
+                                    <label for="{{ $campoPersonal }}">{{ $etiquetaPersonal }}{{ $campoPersonal === 'cedula' && $codigoTramite !== 'homologacion' ? ' (opcional)' : '' }}</label>
                                     @if ($campoPersonal === 'facultad')
                                         <select id="facultad" name="facultad" required>
                                             <option value="">Selecciona tu facultad</option>
@@ -549,7 +549,7 @@
                                     <input id="{{ $campoPersonal }}" name="{{ $campoPersonal }}"
                                         type="{{ $campoPersonal === 'correo' ? 'email' : ($campoPersonal === 'celular' ? 'tel' : 'text') }}"
                                         value="{{ $datosCuenta[$campoPersonal] ?? $datosIniciales[$campoPersonal] ?? '' }}"
-                                        required maxlength="{{ $limitePersonal }}"
+                                        @required($campoPersonal !== 'cedula' || $codigoTramite === 'homologacion') maxlength="{{ $limitePersonal }}"
                                         @readonly(in_array($campoPersonal, $camposBloqueados, true))
                                         @if ($campoPersonal === 'modalidad' && $modalidadesMatricula) aria-describedby="ayuda-modalidad" @endif
                                         @if ($campoPersonal === 'periodo' && isset($datosFijos['periodo'])) aria-describedby="ayuda-periodo" @endif

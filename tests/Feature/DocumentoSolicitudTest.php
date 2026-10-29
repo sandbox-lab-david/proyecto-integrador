@@ -175,4 +175,23 @@ class DocumentoSolicitudTest extends TestCase
         $this->assertNotEmpty(array_filter($candidatos('Windows'),
             fn ($ruta) => is_string($ruta) && str_ends_with($ruta, '/LibreOffice/program/soffice.com')));
     }
+
+    #[\PHPUnit\Framework\Attributes\DataProvider('tramites')]
+    public function test_cedula_solo_es_obligatoria_en_homologacion(string $codigo): void
+    {
+        Storage::fake('local');
+        $datos = $this->datos($codigo);
+        unset($datos['cedula']);
+        $this->putJson(route('borradores-temporales.update', $codigo), $datos + ['paso' => 1])->assertOk();
+        foreach ([null, ''] as $valor) {
+            $entrada = $datos;
+            if ($valor !== null) $entrada['cedula'] = $valor;
+            $respuesta = $this->postJson(route('solicitudes.documento'), $entrada);
+            if ($codigo === 'homologacion') {
+                $respuesta->assertUnprocessable()->assertJsonValidationErrors('cedula');
+            } else {
+                $respuesta->assertOk()->assertHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document');
+            }
+        }
+    }
 }
