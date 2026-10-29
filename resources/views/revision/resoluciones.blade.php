@@ -30,17 +30,12 @@
                     @else
                         <span class="rounded-full border border-amber-300 bg-amber-50 px-3 py-1 text-sm font-semibold text-amber-800">Pendiente de resolución</span>
                     @endif
-                    @if($puedeGestionarResoluciones)
+                    @if($puedeGestionarResoluciones && (! $caso->decision || $caso->decision === 'Guardar'))
                         <form method="POST" action="{{ route('revision.agendas.resoluciones.guardar', [$agenda->id, $caso->solicitud_id]) }}" class="flex flex-wrap items-center gap-2">
                             @csrf
-                            <label class="sr-only" for="decision-{{ $caso->solicitud_id }}">Decisión de {{ $caso->codigo_solicitud }}</label>
-                            <select id="decision-{{ $caso->solicitud_id }}" name="decision" required class="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-800">
-                                <option value="">Selecciona decisión</option>
-                                <option value="Aprobado" @selected($caso->decision === 'Aprobado')>Aprobado</option>
-                                <option value="Rechazado" @selected($caso->decision === 'Rechazado')>Rechazado</option>
-                                <option value="Guardar" @selected($caso->decision === 'Guardar')>Guardar</option>
-                            </select>
-                            <button class="rounded-lg bg-red-700 px-4 py-2 text-sm font-semibold text-white hover:bg-red-800">Guardar</button>
+                            <button name="decision" value="Aprobado" class="rounded-lg bg-emerald-700 px-3 py-2 text-sm font-semibold text-white hover:bg-emerald-800">Aprobar</button>
+                            <button name="decision" value="Rechazado" class="rounded-lg border border-red-300 bg-white px-3 py-2 text-sm font-semibold text-red-700 hover:bg-red-50">Rechazar</button>
+                            <button name="decision" value="Guardar" class="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50">Guardar pendiente</button>
                         </form>
                     @endif
                     @if($puedeGestionarResoluciones && $caso->estado_codigo === \App\Support\Estados::APROBADA_EJECUCION)
