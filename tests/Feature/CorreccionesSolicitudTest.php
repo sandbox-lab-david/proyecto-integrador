@@ -4,7 +4,6 @@ namespace Tests\Feature;
 
 use App\Models\CarreraEstudiante;
 use App\Models\Curso;
-use App\Models\EstadoSolicitud;
 use App\Models\Estudiante;
 use App\Models\Periodo;
 use App\Models\Solicitud;
@@ -16,6 +15,7 @@ use App\Services\Solicitudes\DocumentosTemporales;
 use App\Services\Solicitudes\EnvioSolicitud;
 use App\Services\Solicitudes\IntegracionEnvio;
 use App\Services\Solicitudes\TramitesSimulados;
+use App\Support\Estados;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Storage;
@@ -49,7 +49,7 @@ class CorreccionesSolicitudTest extends TestCase
             'estudiante_id' => Estudiante::factory()->create(['user_id' => $this->usuario->id]),
         ])->id;
         $this->ajena = CarreraEstudiante::factory()->create()->id;
-        $this->observada = EstadoSolicitud::create(['codigo' => 'observado', 'nombre' => 'Observado'])->id;
+        $this->observada = $this->estadoSolicitud(Estados::OBSERVADA);
         $this->enviada = $this->estadoSolicitud('enviada');
         $this->llaves = [
             'tipo_tramite_id' => $this->tipoTramite('examen_gracia'),
@@ -326,6 +326,8 @@ class CorreccionesSolicitudTest extends TestCase
             'modalidad' => 'Presencial', 'periodo' => '2026'];
         $datos['carrera'] = $facultades[$facultad][0];
         $datos = array_replace($datos, \App\Services\Solicitudes\DatosFormularioSolicitud::cuenta($this->usuario));
+        // Periodo e inscripción los impone el servidor; el documento se generó con esos valores.
+        $datos = array_replace($datos, app(\App\Services\Solicitudes\PerfilFormularioSolicitud::class)->fijos($datos));
         $datos = $this->preparar($propia, $datos);
         app(\App\Services\Solicitudes\CorreccionesGuardadas::class)->guardar($propia, 'gracia');
         $ruta = app(DocumentosTemporales::class)->buscar('gracia')['ruta'];
@@ -342,7 +344,7 @@ class CorreccionesSolicitudTest extends TestCase
         Storage::disk('local')->assertMissing($ruta);
         Storage::disk('local')->assertExists('original/'.$propia->id.'.docx');
         Storage::disk('local')->assertExists($propia->documentosGenerados()->latest('version')->firstOrFail()->ruta_docx);
-        \Illuminate\Support\Facades\Notification::assertSentTo($this->usuario, \App\Notifications\NotificacionPortal::class);
-        \Illuminate\Support\Facades\Notification::assertCount(1);
+        // El aviso lo envía transicionar() de G3; el adaptador simulado no lo llama.
+        \Illuminate\Support\Facades\Notification::assertNothingSent();
     }
 }

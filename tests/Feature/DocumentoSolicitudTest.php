@@ -164,4 +164,15 @@ class DocumentoSolicitudTest extends TestCase
             ->assertHeader('Content-Disposition', 'attachment; filename="solicitud-gracia.docx"');
         $this->assertNull(app(\App\Services\Solicitudes\DocumentosTemporales::class)->buscar('gracia')['ruta_pdf']);
     }
+
+    public function test_busca_libreoffice_en_las_rutas_de_instalacion_de_cada_sistema(): void
+    {
+        $candidatos = fn (string $sistema) => (new \ReflectionMethod(WordService::class, 'candidatosLibreOffice'))
+            ->invoke(new WordService, $sistema);
+
+        $this->assertContains('/Applications/LibreOffice.app/Contents/MacOS/soffice', $candidatos('Darwin'));
+        $this->assertContains('/usr/bin/libreoffice', $candidatos('Linux'));
+        $this->assertNotEmpty(array_filter($candidatos('Windows'),
+            fn ($ruta) => is_string($ruta) && str_ends_with($ruta, '/LibreOffice/program/soffice.com')));
+    }
 }

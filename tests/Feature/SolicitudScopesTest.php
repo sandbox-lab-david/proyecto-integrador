@@ -5,7 +5,6 @@ namespace Tests\Feature;
 use App\Models\Carrera;
 use App\Models\CarreraEstudiante;
 use App\Models\CarreraModalidad;
-use App\Models\EstadoSolicitud;
 use App\Models\Estudiante;
 use App\Models\Facultad;
 use App\Models\Modalidad;
@@ -153,7 +152,7 @@ class SolicitudScopesTest extends TestCase
         $enviada = $this->solicitud(['estado_solicitud_id' => $this->estadoSolicitud('enviada')]);
         $borrador = $this->solicitud(['estado_solicitud_id' => $this->estadoSolicitud('borrador')]);
         $observada = $this->solicitud([
-            'estado_solicitud_id' => EstadoSolicitud::create(['codigo' => 'observada', 'nombre' => 'Observada'])->id,
+            'estado_solicitud_id' => $this->estadoSolicitud('observada'),
         ]);
 
         $this->assertEquals([$enviada->id], Solicitud::enEstado('enviada')->pluck('id')->all());

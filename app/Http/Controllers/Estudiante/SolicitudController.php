@@ -217,8 +217,9 @@ class SolicitudController extends Controller
 
         $datosCuenta = DatosFormularioSolicitud::cuenta($request->user());
         if ($borrador) {
-            $borrador = array_replace($borrador, $datosCuenta);
+            $borrador = array_replace($borrador, $datosCuenta, $perfil->fijos($borrador));
         }
+        $datosFijos = $perfil->fijos([]);
 
         return view('estudiante.formulario-solicitud', [
             'solicitudCorreccion' => $expedienteCorreccion,
@@ -227,11 +228,13 @@ class SolicitudController extends Controller
             'codigoTramite' => $codigoTramite,
             'tramite' => $tramite,
             'datosCuenta' => $datosCuenta,
-            'datosIniciales' => $perfil->iniciales(),
+            'datosIniciales' => array_replace($perfil->iniciales(), $datosFijos),
+            'datosFijos' => $datosFijos,
+            'modalidadesMatricula' => $perfil->modalidades(),
             'camposPersonales' => DatosFormularioSolicitud::PERSONALES,
             'camposMateriaManual' => DatosFormularioSolicitud::MATERIA,
             'materias' => app(\App\Services\Solicitudes\MateriasSolicitud::class)->todas(),
-            'catalogoFacultades' => CatalogoFacultades::todas(),
+            'catalogoFacultades' => $perfil->facultades(),
             'respaldosSubidos' => $respaldos->delTramite($codigoTramite),
             'borrador' => $borrador,
             'firmado' => $firmados->delTramite($codigoTramite),
