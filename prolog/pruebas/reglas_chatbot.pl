@@ -19,4 +19,35 @@ test(intervalos,[forall(member(Dias-Restantes,[0-365,364-1,365-0,366-0]))]) :-
 test(anio_bisiesto) :- evaluar(examen_recuperacion,_{fecha_ultima_recuperacion:"2024-02-29"},"2025-02-28",manual,R),R.comprobaciones=[_,D],assertion(D.datos.dias_transcurridos==365),assertion(D.datos.fecha_cumplimiento=="2025-02-28").
 test(fecha_futura,[fail]) :- evaluar(examen_recuperacion,_{fecha_ultima_recuperacion:"2026-10-21"},"2026-10-20",manual,_).
 test(datos_locales_no_contaminan_otro_usuario) :- evaluar(examen_recuperacion,_{gpa_general:72},"2026-10-20",manual,_),evaluar(examen_recuperacion,_{gpa_general:90},"2026-10-20",manual,R),R.comprobaciones=[G,_],assertion(G.datos.declarado==90).
+test(verificacion_documentos_sin_archivos) :-
+    verificar_documentos(examen_recuperacion, [], R),
+    assertion(R.cumple == false),
+    assertion(R.puede_avanzar == false),
+    assertion(R.total_faltantes == 1),
+    assertion(sub_string(R.texto, _, _, _, "No puedes avanzar al siguiente paso")),
+    assertion(sub_string(R.texto, _, _, _, "Registro de calificaciones o evidencia")).
+test(verificacion_documentos_completos) :-
+    verificar_documentos(examen_recuperacion, ['examen_recuperacion_registro_calificaciones'], R),
+    assertion(R.cumple == true),
+    assertion(R.puede_avanzar == true),
+    assertion(R.total_faltantes == 0),
+    assertion(sub_string(R.texto, _, _, _, "¡Comprobación exitosa!")).
+test(verificacion_documentos_multiples_faltantes) :-
+    verificar_documentos(ayudante_catedra, [], R),
+    assertion(R.cumple == false),
+    assertion(R.puede_avanzar == false),
+    assertion(R.total_faltantes == 2),
+    assertion(sub_string(R.texto, _, _, _, "Recomendaciones de al menos dos docentes")),
+    assertion(sub_string(R.texto, _, _, _, "Solicitud del docente")).
+test(verificacion_documentos_tramite_sin_obligatorios) :-
+    verificar_documentos(cambio_carrera, [], R),
+    assertion(R.cumple == true),
+    assertion(R.puede_avanzar == true),
+    assertion(R.total_obligatorios == 0),
+    assertion(sub_string(R.texto, _, _, _, "no exige documentos obligatorios")).
+test(evaluar_con_documentos_subidos) :-
+    evaluar(examen_recuperacion, _{documentos_subidos: []}, "2026-10-20", manual, R),
+    R.comprobaciones = [_, _, DocComp],
+    assertion(DocComp.codigo == "verificacion_documentos"),
+    assertion(DocComp.datos.puede_avanzar == false).
 :- end_tests(referencias_informativas).
