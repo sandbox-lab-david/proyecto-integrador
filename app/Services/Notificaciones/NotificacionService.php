@@ -6,6 +6,7 @@ use App\Models\EstadoSolicitud;
 use App\Models\Estudiante;
 use App\Models\Solicitud;
 use App\Models\User;
+use App\Notifications\CorreoNotificacionPortal;
 use App\Notifications\NotificacionPortal;
 use App\Services\Academico\AutorizacionService;
 use InvalidArgumentException;
@@ -32,7 +33,7 @@ class NotificacionService
             route('solicitudes.show', $s->getKey(), false),
         );
 
-        $this->notificarDirectorDeCarrera($s, $estado);
+        $this->notificarPersonalDeRevision($s, $estado);
     }
 
     public function notificarResolucionGuardada(Solicitud $s, ?string $observacion = null): void
@@ -59,7 +60,7 @@ class NotificacionService
         return User::findOrFail($usuarioId);
     }
 
-    private function notificarDirectorDeCarrera(Solicitud $solicitud, string $estado): void
+    private function notificarPersonalDeRevision(Solicitud $solicitud, string $estado): void
     {
         $solicitud->loadMissing('carreraEstudiante.carreraModalidad.carrera');
         $carrera = $solicitud->carreraEstudiante?->carreraModalidad?->carrera;
@@ -67,14 +68,25 @@ class NotificacionService
             return;
         }
 
-        $trabajador = $this->autorizacion->directorDeCarrera((int) $carrera->id);
-        $director = $trabajador?->user;
-        if (! $trabajador?->activo || ! $director?->activo) {
+        $destinatarios = $this->autorizacion->asistentesDeFacultad((int) $carrera->facultad_id)
+            ->load('user')
+            ->pluck('user')
+            ->all();
+        $trabajadorDirector = $this->autorizacion->directorDeCarrera((int) $carrera->id);
+        $director = $trabajadorDirector?->user;
+        if ($trabajadorDirector?->activo && $director?->activo) {
+            $destinatarios[] = $director;
+        }
+        $destinatarios = collect($destinatarios)
+            ->filter(fn ($usuario) => $usuario instanceof User && $usuario->exists && $usuario->activo)
+            ->unique(fn (User $usuario) => $usuario->getKey())
+            ->values();
+        if ($destinatarios->isEmpty()) {
             return;
         }
 
         $this->notificarUsuarios(
-            [$director],
+            $destinatarios,
             'Actualización de solicitud '.$solicitud->codigo,
             'La solicitud '.$solicitud->codigo.' cambió al estado: '.$estado.'.',
             route('revision.detalle', $solicitud->getKey(), false),
@@ -98,6 +110,7 @@ class NotificacionService
                 continue;
             }
             $usuario->notify(new NotificacionPortal($titulo, $mensaje, $destino));
+            $usuario->notify(new CorreoNotificacionPortal($titulo, $mensaje, $destino));
             $enviados[$usuario->getKey()] = true;
         }
     }

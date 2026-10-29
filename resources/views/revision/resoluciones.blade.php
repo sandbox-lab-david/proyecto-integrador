@@ -10,6 +10,9 @@
     @if($errors->any())<p class="mb-4 rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-800">{{ $errors->first() }}</p>@endif
 
     @if(isset($agenda))
+        @unless($puedeGestionarResoluciones)
+            <p class="mb-4 rounded-lg border border-sky-200 bg-sky-50 p-3 text-sm text-sky-900">Vista de consulta. Solo el administrador puede registrar o actualizar resoluciones.</p>
+        @endunless
         <div class="mb-5 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
             <div><h2 class="font-semibold text-slate-900">{{ $agenda->numero }}</h2><p class="text-sm text-slate-600">Sesión: {{ \Illuminate\Support\Carbon::parse($agenda->fecha_sesion)->format('d/m/Y') }}</p></div>
             <div class="flex gap-2"><a href="{{ route('revision.agendas.documento',$agenda->id) }}" class="rounded-lg bg-red-700 px-4 py-2 text-sm font-semibold text-white hover:bg-red-800">Descargar agenda Word</a></div>
