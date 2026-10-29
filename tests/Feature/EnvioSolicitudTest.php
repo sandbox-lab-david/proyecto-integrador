@@ -281,18 +281,14 @@ class EnvioSolicitudTest extends TestCase
         $this->assertDatabaseCount('solicitudes', 0);
     }
 
-    public function test_notifica_al_propietario_una_sola_vez_al_confirmar_el_envio(): void
+    public function test_el_envio_no_avisa_por_su_cuenta_porque_lo_hace_la_transicion(): void
     {
         \Illuminate\Support\Facades\Notification::fake();
         $this->integrar();
         $usuario = \App\Models\CarreraEstudiante::findOrFail($this->contexto['carrera_estudiante_id'])->estudiante->user;
-        $datos = $this->preparar();
-        $solicitud = app(EnvioSolicitud::class)->enviar($usuario, $datos);
-        app(EnvioSolicitud::class)->enviar($usuario, $datos);
-        \Illuminate\Support\Facades\Notification::assertSentTo($usuario, \App\Notifications\NotificacionPortal::class,
-            fn ($aviso) => str_contains($aviso->titulo, $solicitud->codigo)
-                && $aviso->url === route('solicitudes.show', $solicitud->id, false));
-        \Illuminate\Support\Facades\Notification::assertCount(1);
+        app(EnvioSolicitud::class)->enviar($usuario, $this->preparar());
+        // El adaptador simulado no llama a transicionar() de G3, que es quien avisa al estudiante.
+        \Illuminate\Support\Facades\Notification::assertNothingSent();
     }
 
     public function test_un_envio_revertido_no_produce_avisos(): void
@@ -308,14 +304,17 @@ class EnvioSolicitudTest extends TestCase
         \Illuminate\Support\Facades\Notification::assertNothingSent();
     }
 
-    public function test_un_error_del_canal_de_avisos_no_desconoce_un_envio_confirmado(): void
+    public function test_permite_enviar_un_tramite_distinto_de_homologacion_sin_cedula(): void
     {
         $this->integrar();
-        $this->mock(\App\Services\Notificaciones\NotificacionService::class)
-            ->shouldReceive('notificarCambioEstado')->once()->andThrow(new \RuntimeException('Cola no disponible'));
-        $solicitud = app(EnvioSolicitud::class)->enviar(User::factory()->create(), $this->preparar());
-        $this->assertNotNull($solicitud->fresh()->enviada_at);
-        $this->assertSame($this->estadoSolicitud('enviada'), $solicitud->fresh()->estado_solicitud_id);
-        Storage::disk('local')->assertExists($solicitud->documentosGenerados()->firstOrFail()->ruta_docx);
+        $this->actingAs(User::factory()->create(['name' => 'Ana Pérez', 'email' => 'ana@uees.edu.ec']));
+        $datos = $this->preparar();
+        unset($datos['cedula']);
+        // La firma debe corresponder a la versión generada sin cédula.
+        app(DocumentosTemporales::class)->guardar('gracia', 'Word sin cédula', $datos);
+        $datos['clave_envio'] = app(DocumentosTemporales::class)->buscar('gracia')['version'];
+        app(FirmadosTemporales::class)->guardar($this->pdf(), 'gracia');
+        $this->postJson(route('solicitudes.enviar'), $datos)->assertCreated();
+        $this->assertNull(Solicitud::sole()->detalle['cedula'] ?? null);
     }
 }

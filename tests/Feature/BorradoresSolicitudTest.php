@@ -22,6 +22,7 @@ use App\Services\Solicitudes\DocumentosTemporales;
 use App\Services\Solicitudes\SolicitudService;
 use App\Services\Solicitudes\TramitesSimulados;
 use Database\Seeders\CatalogoInformativoSeeder;
+use Database\Seeders\EstadosSolicitudSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
@@ -45,7 +46,7 @@ class BorradoresSolicitudTest extends TestCase
     {
         parent::setUp();
         Storage::fake('local');
-        $this->seed(CatalogoInformativoSeeder::class);
+        $this->seed([CatalogoInformativoSeeder::class, EstadosSolicitudSeeder::class]);
         [$this->usuario, $this->inscripcion] = $this->estudianteInscrito();
         $this->actingAs($this->usuario);
     }
@@ -398,6 +399,8 @@ class BorradoresSolicitudTest extends TestCase
         $this->assertSame('enviada', $enviada->estadoSolicitud->codigo);
         $this->assertSame(0, Solicitud::borradores()->count());
         $this->assertArrayNotHasKey('_archivos', $enviada->detalle);
+        // El celular declarado queda en el perfil de G1 para el próximo trámite.
+        $this->assertSame('0991234567', $this->inscripcion->estudiante->fresh()->celular);
         // Las filas del borrador se reemplazaron por las del expediente, con el requisito elegido al final.
         $respaldos = Respaldo::with('documentoRequerido')->get();
         $this->assertCount(count($ids), $respaldos);

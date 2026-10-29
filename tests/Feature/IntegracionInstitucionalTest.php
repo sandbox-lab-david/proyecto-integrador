@@ -23,6 +23,7 @@ use App\Services\Solicitudes\DocumentosTemporales;
 use App\Services\Solicitudes\IntegracionEnvio;
 use App\Services\Solicitudes\TramitesSimulados;
 use Database\Seeders\CatalogoInformativoSeeder;
+use Database\Seeders\EstadosSolicitudSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Route;
@@ -36,7 +37,7 @@ class IntegracionInstitucionalTest extends TestCase
 
     private function preparar(): array
     {
-        $this->seed(CatalogoInformativoSeeder::class);
+        $this->seed([CatalogoInformativoSeeder::class, EstadosSolicitudSeeder::class]);
         $u = User::factory()->create(['tipo' => 'estudiante']);
         $f = DB::table('facultades')->insertGetId(['codigo' => 'ING', 'nombre' => 'Ingeniería', 'activo' => true]);
         $c = Carrera::create(['facultad_id' => $f, 'codigo' => 'COM', 'nombre' => 'Ingeniería en Computación', 'nivel' => 'grado', 'activo' => true]);

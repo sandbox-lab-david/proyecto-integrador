@@ -46,6 +46,9 @@ class DatosManualesSolicitudTest extends TestCase
             foreach (array_keys(DatosFormularioSolicitud::PERSONALES) as $campo) {
                 $input = $dom->getElementById($campo);
                 $this->assertNotNull($input, $tramite.': '.$campo);
+                if ($campo === 'cedula') {
+                    $this->assertSame($tramite === 'homologacion', $input->hasAttribute('required'), $tramite);
+                }
                 $cuenta = DatosFormularioSolicitud::cuenta(auth()->user());
                 $this->assertSame(isset($cuenta[$campo]), $input->hasAttribute('readonly'), $tramite.': '.$campo);
                 $this->assertSame($cuenta[$campo] ?? '', $input->getAttribute('value'));
@@ -139,7 +142,8 @@ class DatosManualesSolicitudTest extends TestCase
         $datos['materias'][0]['docente'] = '';
         $datos['celular'] = 'hola123';
         $this->postJson(route('solicitudes.documento'), $datos)->assertUnprocessable()
-            ->assertJsonValidationErrors(['cedula', 'materias.0.docente', 'celular']);
+            ->assertJsonValidationErrors(['materias.0.docente', 'celular'])
+            ->assertJsonMissingValidationErrors('cedula');
     }
 
     public function test_mantiene_limites_de_materias_y_los_ids_no_son_ids_de_base_de_datos(): void

@@ -391,7 +391,18 @@
             border-radius: 9px;
         }
 
-        .agregar-materia { display: flex; gap: 12px; }
+        .titulo-materias {
+            margin: 0 0 18px;
+            padding-bottom: 12px;
+            border-bottom: 1px solid #e3e7ee;
+            font-size: 16px;
+            font-weight: bold;
+            color: #202939;
+        }
+        .filtro-materias { margin-bottom: 20px; }
+        .agregar-materia { display: flex; flex-wrap: wrap; gap: 12px; }
+        .agregar-materia select { flex: 1 1 240px; }
+        .agregar-materia + .ayuda { margin-top: 12px; }
         .agregar-materia button { flex-shrink: 0; }
         .detalle-materia .encabezado-resumen { flex-wrap: wrap; row-gap: 4px; margin-bottom: 4px; }
         .detalle-materia .encabezado-resumen h3 { margin: 0; }
@@ -508,14 +519,18 @@
                         @if ($datosCuenta)
                             El nombre y el correo disponibles en tu cuenta se completan automáticamente.
                         @endif
+                        @if ($modalidadesMatricula)
+                            La facultad, la carrera y la modalidad corresponden a tus inscripciones activas.
+                        @endif
                         Revisa que la información sea correcta antes de continuar.
                     </p>
 
                     <form id="formulario-datos">
+                        @php($camposBloqueados = array_keys($datosCuenta + $datosFijos + ($modalidadesMatricula ? ['modalidad' => true] : [])))
                         <div class="campos">
                             @foreach ($camposPersonales as $campoPersonal => [$etiquetaPersonal, $limitePersonal])
                                 <div @class(['campo', 'completo' => $campoPersonal === 'nombre'])>
-                                    <label for="{{ $campoPersonal }}">{{ $etiquetaPersonal }}</label>
+                                    <label for="{{ $campoPersonal }}">{{ $etiquetaPersonal }}{{ $campoPersonal === 'cedula' && $codigoTramite !== 'homologacion' ? ' (opcional)' : '' }}</label>
                                     @if ($campoPersonal === 'facultad')
                                         <select id="facultad" name="facultad" required>
                                             <option value="">Selecciona tu facultad</option>
@@ -527,13 +542,17 @@
                                         <select id="carrera" name="carrera" required disabled aria-describedby="ayuda-carrera">
                                             <option value="">Primero selecciona tu facultad</option>
                                         </select>
-                                        <p id="ayuda-carrera" class="ayuda">Solo se muestran las carreras de la facultad elegida.</p>
+                                        <p id="ayuda-carrera" class="ayuda">
+                                            {{ $modalidadesMatricula ? 'Solo se muestran las carreras en las que tienes una inscripción activa.' : 'Solo se muestran las carreras de la facultad elegida.' }}
+                                        </p>
                                     @else
                                     <input id="{{ $campoPersonal }}" name="{{ $campoPersonal }}"
                                         type="{{ $campoPersonal === 'correo' ? 'email' : ($campoPersonal === 'celular' ? 'tel' : 'text') }}"
                                         value="{{ $datosCuenta[$campoPersonal] ?? $datosIniciales[$campoPersonal] ?? '' }}"
-                                        required maxlength="{{ $limitePersonal }}"
-                                        @readonly(array_key_exists($campoPersonal, $datosCuenta))
+                                        @required($campoPersonal !== 'cedula' || $codigoTramite === 'homologacion') maxlength="{{ $limitePersonal }}"
+                                        @readonly(in_array($campoPersonal, $camposBloqueados, true))
+                                        @if ($campoPersonal === 'modalidad' && $modalidadesMatricula) aria-describedby="ayuda-modalidad" @endif
+                                        @if ($campoPersonal === 'periodo' && isset($datosFijos['periodo'])) aria-describedby="ayuda-periodo" @endif
                                         @if (in_array($campoPersonal, \App\Services\Solicitudes\DatosFormularioSolicitud::SOLO_DIGITOS, true))
                                             @if ($campoPersonal === 'celular') autocomplete="tel" @endif
                                             inputmode="numeric" pattern="[0-9]+"
@@ -545,6 +564,11 @@
                                             autocomplete="name"
                                         @endif
                                     >
+                                    @if ($campoPersonal === 'modalidad' && $modalidadesMatricula)
+                                        <p id="ayuda-modalidad" class="ayuda">Corresponde a tu inscripción en la carrera elegida.</p>
+                                    @elseif ($campoPersonal === 'periodo' && isset($datosFijos['periodo']))
+                                        <p id="ayuda-periodo" class="ayuda">Periodo académico vigente.</p>
+                                    @endif
                                     @endif
                                 </div>
                             @endforeach
@@ -581,14 +605,18 @@
                     @if ($tramite['max_materias'] > 0)
                         <div class="campos">
                             <div class="campo completo">
-                                <p>
+                                <p class="titulo-materias">
                                     {{ $tramite['max_materias'] === 1 ? 'Materia de la solicitud' : 'Materias de la solicitud' }}
                                 </p>
 
-                                <label for="periodo-materias">Filtrar por período</label>
-                                <select id="periodo-materias" aria-describedby="ayuda-materia"><option value="">Todos los períodos disponibles</option></select>
+                                <div class="filtro-materias">
+                                    <label for="periodo-materias">Filtrar por período</label>
+                                    <select id="periodo-materias" aria-describedby="ayuda-materia"><option value="">Todos los períodos disponibles</option></select>
+                                </div>
+
+                                <label for="materia">Materia</label>
                                 <div class="agregar-materia">
-                                    <select id="materia" aria-label="Materia del catálogo académico">
+                                    <select id="materia">
                                         <option value="">Selecciona una materia</option>
                                     </select>
                                     <button id="agregar-materia" class="secundario"
@@ -965,6 +993,13 @@
             filtroPeriodo.addEventListener('change', () => { llenarSelectorMaterias(); pintarMaterias(); });
         }
         const catalogoFacultades = @json($catalogoFacultades);
+        // Carrera => modalidad de cada inscripción activa; vacío si la cuenta no tiene ninguna.
+        const modalidadesMatricula = @json((object) $modalidadesMatricula);
+
+        function actualizarModalidad() {
+            if (!Object.keys(modalidadesMatricula).length) return;
+            document.getElementById('modalidad').value = modalidadesMatricula[document.getElementById('carrera').value] ?? '';
+        }
 
         function actualizarCarreras(valorGuardado = '') {
             const facultad = document.getElementById('facultad');
@@ -980,6 +1015,7 @@
             }
             carrera.value = valorGuardado;
             validarFacultadYCarrera();
+            actualizarModalidad();
         }
 
         function validarFacultadYCarrera() {
@@ -992,7 +1028,7 @@
         }
 
         document.getElementById('facultad').addEventListener('change', () => actualizarCarreras());
-        document.getElementById('carrera').addEventListener('change', validarFacultadYCarrera);
+        document.getElementById('carrera').addEventListener('change', () => { validarFacultadYCarrera(); actualizarModalidad(); });
         actualizarCarreras(datosIniciales.carrera ?? '');
         const cambioSolicitado = @json(\App\Services\Solicitudes\DatosFormularioSolicitud::CAMBIOS[$codigoTramite] ?? null);
         const tramiteActual = @json($codigoTramite);

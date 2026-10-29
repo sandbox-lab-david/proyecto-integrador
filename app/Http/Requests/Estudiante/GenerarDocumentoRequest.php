@@ -6,6 +6,7 @@ use App\Services\Solicitudes\TramitesSimulados;
 use App\Services\Solicitudes\DocumentoSolicitud;
 use App\Services\Solicitudes\ReglasCampoSolicitud;
 use App\Services\Solicitudes\DatosFormularioSolicitud;
+use App\Services\Solicitudes\PerfilFormularioSolicitud;
 use App\Services\Solicitudes\CatalogoFacultades;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
@@ -52,11 +53,11 @@ class GenerarDocumentoRequest extends FormRequest
             'campos' => ['present', 'array'],
             'declaracion' => ['required', 'accepted'],
         ];
-        $reglas = array_replace($reglas, DatosFormularioSolicitud::reglas(false));
+        $reglas = array_replace($reglas, DatosFormularioSolicitud::reglas(false, (string) $this->input('tramite')));
         if ($this->input('origen_materias') === 'catalogo') {
             $reglas['materias.*.id'][] = Rule::in(array_column(app(\App\Services\Solicitudes\MateriasSolicitud::class)->todas(), 'id'));
         }
-        foreach (CatalogoFacultades::restricciones($this->input('facultad')) as $campo => $regla) {
+        foreach (CatalogoFacultades::restricciones($this->input('facultad'), app(PerfilFormularioSolicitud::class)->facultades()) as $campo => $regla) {
             $reglas[$campo][] = $regla;
         }
         foreach (['campos' => 'campos', 'campos_materia' => 'materias.*.datos'] as $grupo => $prefijo) {
@@ -80,8 +81,10 @@ class GenerarDocumentoRequest extends FormRequest
         $this->merge(app(\App\Services\Solicitudes\MateriasSolicitud::class)->entrada($this->all()));
         $this->merge(DatosFormularioSolicitud::limpiarEntrada($this->all()));
         $this->merge(CatalogoFacultades::normalizar($this->all()));
-        // Los demás datos siguen siendo editables; la identidad procede de la cuenta.
+        // La identidad procede de la cuenta.
         $this->merge(DatosFormularioSolicitud::cuenta($this->user()));
+        // Periodo vigente e inscripción de G1 (la modalidad sale de la carrera elegida): no los decide el estudiante.
+        $this->merge(app(PerfilFormularioSolicitud::class)->fijos($this->all()));
     }
 
     public function withValidator(Validator $validador): void

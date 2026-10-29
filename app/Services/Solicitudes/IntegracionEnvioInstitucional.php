@@ -3,7 +3,6 @@
 namespace App\Services\Solicitudes;
 
 use App\Models\EstadoSolicitud;
-use App\Models\HistorialSolicitud;
 use App\Models\Periodo;
 use App\Models\Solicitud;
 use App\Models\TipoTramite;
@@ -11,10 +10,14 @@ use App\Models\User;
 use App\Services\Academico\CatalogoAcademicoService;
 use App\Services\Academico\EstudianteService;
 use App\Services\Catalogo\CatalogoTramites;
+use App\Services\Flujo\EstadoSolicitudService;
+use App\Support\Estados;
 use Illuminate\Validation\ValidationException;
 
 class IntegracionEnvioInstitucional implements IntegracionEnvio
 {
+    public function __construct(private readonly EstadoSolicitudService $estados) {}
+
     public function resolver(User $usuario, array $datos): array
     {
         if (! $usuario->activo || $usuario->tipo !== 'estudiante') {
@@ -38,7 +41,7 @@ class IntegracionEnvioInstitucional implements IntegracionEnvio
         $codigo = app(CatalogoTramites::class)->buscar($datos['tramite'])['id'] ?? null;
         $tipo = TipoTramite::where('codigo', $codigo)->firstOrFail();
 
-        return ['carrera_estudiante_id' => $inscripcion->id, 'tipo_tramite_id' => $tipo->id, 'periodo_id' => $periodos->first()->id, 'estado_solicitud_id' => EstadoSolicitud::where('codigo', 'borrador')->firstOrFail()->id, 'requisitos' => $tipo->documentos()->pluck('id', 'codigo')->all()];
+        return ['carrera_estudiante_id' => $inscripcion->id, 'tipo_tramite_id' => $tipo->id, 'periodo_id' => $periodos->first()->id, 'estado_solicitud_id' => EstadoSolicitud::where('codigo', Estados::BORRADOR)->firstOrFail()->id, 'requisitos' => $tipo->documentos()->pluck('id', 'codigo')->all()];
     }
 
     public function contextoBorrador(User $usuario, string $tramite, array $datos): ?array
@@ -58,7 +61,7 @@ class IntegracionEnvioInstitucional implements IntegracionEnvio
             ?? app(CatalogoAcademicoService::class)->periodoActual();
         $codigo = app(CatalogoTramites::class)->buscar($tramite)['id'] ?? null;
         $tipo = $codigo === null ? null : TipoTramite::where('codigo', $codigo)->first();
-        $estado = EstadoSolicitud::where('codigo', 'borrador')->first();
+        $estado = EstadoSolicitud::where('codigo', Estados::BORRADOR)->first();
         if (! $inscripcion || ! $periodo || ! $tipo || ! $estado) {
             return null;
         }
@@ -73,12 +76,13 @@ class IntegracionEnvioInstitucional implements IntegracionEnvio
             abort(403);
         }
         $anterior = $solicitud->estadoSolicitud->codigo;
-        abort_unless(in_array($anterior, ['borrador', 'observada', 'observado'], true), 409,
+        abort_unless(in_array($anterior, [Estados::BORRADOR, Estados::OBSERVADA], true), 409,
             'La solicitud no está disponible para enviar a revisión.');
-        $estado = EstadoSolicitud::where('codigo', 'enviada')->firstOrFail();
-        HistorialSolicitud::create(['solicitud_id' => $solicitud->id, 'estado_anterior' => $anterior, 'estado_nuevo' => 'enviada', 'user_id' => $usuario->id, 'comentario' => $anterior === 'borrador'
+        // C62: G3 valida la transición, escribe el historial y notifica al estudiante tras el commit.
+        $this->estados->transicionar($solicitud, Estados::ENVIADA, $usuario, $anterior === Estados::BORRADOR
             ? 'Solicitud enviada para revisión de la facultad.'
-            : 'Solicitud corregida y reenviada para revisión de la facultad.', 'visible_estudiante' => true]);
-        $solicitud->forceFill(['estado_solicitud_id' => $estado->id])->save();
+            : 'Solicitud corregida y reenviada para revisión de la facultad.');
+        // transicionar() guarda otra instancia; esta debe reflejar el estado nuevo.
+        $solicitud->refresh();
     }
 }
