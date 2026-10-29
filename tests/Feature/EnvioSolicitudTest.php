@@ -303,4 +303,18 @@ class EnvioSolicitudTest extends TestCase
         }
         \Illuminate\Support\Facades\Notification::assertNothingSent();
     }
+
+    public function test_permite_enviar_un_tramite_distinto_de_homologacion_sin_cedula(): void
+    {
+        $this->integrar();
+        $this->actingAs(User::factory()->create(['name' => 'Ana Pérez', 'email' => 'ana@uees.edu.ec']));
+        $datos = $this->preparar();
+        unset($datos['cedula']);
+        // La firma debe corresponder a la versión generada sin cédula.
+        app(DocumentosTemporales::class)->guardar('gracia', 'Word sin cédula', $datos);
+        $datos['clave_envio'] = app(DocumentosTemporales::class)->buscar('gracia')['version'];
+        app(FirmadosTemporales::class)->guardar($this->pdf(), 'gracia');
+        $this->postJson(route('solicitudes.enviar'), $datos)->assertCreated();
+        $this->assertNull(Solicitud::sole()->detalle['cedula'] ?? null);
+    }
 }

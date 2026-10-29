@@ -53,7 +53,7 @@ class GenerarDocumentoRequest extends FormRequest
             'campos' => ['present', 'array'],
             'declaracion' => ['required', 'accepted'],
         ];
-        $reglas = array_replace($reglas, DatosFormularioSolicitud::reglas(false));
+        $reglas = array_replace($reglas, DatosFormularioSolicitud::reglas(false, (string) $this->input('tramite')));
         if ($this->input('origen_materias') === 'catalogo') {
             $reglas['materias.*.id'][] = Rule::in(array_column(app(\App\Services\Solicitudes\MateriasSolicitud::class)->todas(), 'id'));
         }
