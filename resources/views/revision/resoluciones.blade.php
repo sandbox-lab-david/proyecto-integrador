@@ -6,7 +6,6 @@
 @section('active-page', 'resoluciones')
 
 @section('content')
-    @php($puedeGestionarResoluciones = app(\App\Services\Academico\AutorizacionService::class)->tieneRol(auth()->user(), 'admin'))
     @if(session('success'))<p class="mb-4 rounded-lg border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-800">{{ session('success') }}</p>@endif
     @if($errors->any())<p class="mb-4 rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-800">{{ $errors->first() }}</p>@endif
 
@@ -30,17 +29,6 @@
                     @else
                         <span class="rounded-full border border-amber-300 bg-amber-50 px-3 py-1 text-sm font-semibold text-amber-800">Pendiente de resolución</span>
                     @endif
-                    @if($puedeGestionarResoluciones && (! $caso->decision || $caso->decision === 'Guardar'))
-                        <form method="POST" action="{{ route('revision.agendas.resoluciones.guardar', [$agenda->id, $caso->solicitud_id]) }}" class="flex flex-wrap items-center gap-2">
-                            @csrf
-                            <button name="decision" value="Aprobado" class="rounded-lg bg-emerald-700 px-3 py-2 text-sm font-semibold text-white hover:bg-emerald-800">Aprobar</button>
-                            <button name="decision" value="Rechazado" class="rounded-lg border border-red-300 bg-white px-3 py-2 text-sm font-semibold text-red-700 hover:bg-red-50">Rechazar</button>
-                            <button name="decision" value="Guardar" class="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50">Guardar pendiente</button>
-                        </form>
-                    @endif
-                    @if($puedeGestionarResoluciones && $caso->estado_codigo === \App\Support\Estados::APROBADA_EJECUCION)
-                        <form method="POST" action="{{ route('revision.resoluciones.estado',$caso->solicitud_id) }}">@csrf<button name="accion" value="ejecutar" class="rounded-lg border border-emerald-300 bg-emerald-50 px-3 py-2 text-sm font-semibold text-emerald-800">Marcar ejecutado</button></form>
-                    @endif
                 </div>
             @empty
                 <p class="p-6 text-slate-500">Esta agenda todavía no tiene expedientes.</p>
@@ -61,7 +49,7 @@
             @if($errors->any())<p class="mt-3 text-sm text-red-700">{{ $errors->first() }}</p>@endif
         </form>
 
-        <div class="mb-3 flex flex-wrap items-center justify-between gap-3"><h2 class="text-xl font-semibold text-slate-900">Agendas con solicitudes coincidentes</h2>@if($filtrosAplicados)<div class="flex flex-wrap gap-2"><a href="{{ route('revision.resoluciones.exportar', array_filter($filtros, fn ($valor) => $valor !== '' && $valor !== false)) }}" class="rounded-lg border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700">Exportar CSV</a><a href="{{ route('revision.resoluciones.documento', array_filter($filtros, fn ($valor) => $valor !== '' && $valor !== false)) }}" class="rounded-lg bg-red-700 px-4 py-2 text-sm font-semibold text-white hover:bg-red-800">Documento de agendas filtradas</a></div>@endif</div>
+        <div class="mb-3 flex flex-wrap items-center justify-between gap-3"><h2 class="text-xl font-semibold text-slate-900">Agendas con solicitudes coincidentes</h2>@if($filtrosAplicados)<a href="{{ route('revision.resoluciones.documento', array_filter($filtros, fn ($valor) => $valor !== '' && $valor !== false)) }}" class="rounded-lg bg-red-700 px-4 py-2 text-sm font-semibold text-white hover:bg-red-800">Documento de agendas filtradas</a>@endif</div>
 
         <div class="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
             <div class="overflow-x-auto"><table class="w-full border-collapse text-left">
