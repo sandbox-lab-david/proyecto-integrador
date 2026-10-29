@@ -9,6 +9,7 @@ use App\Models\User;
 use App\Notifications\CorreoNotificacionPortal;
 use App\Notifications\NotificacionPortal;
 use App\Services\Academico\AutorizacionService;
+use Illuminate\Support\Facades\DB;
 use InvalidArgumentException;
 use LogicException;
 
@@ -109,7 +110,9 @@ class NotificacionService
             if (isset($enviados[$usuario->getKey()])) {
                 continue;
             }
-            $usuario->notify(new NotificacionPortal($titulo, $mensaje, $destino));
+            // La campanita no va en cola: se espera al commit para que un cambio de
+            // estado revertido no deje avisos. El correo hace lo mismo con afterCommit().
+            DB::afterCommit(fn () => $usuario->notify(new NotificacionPortal($titulo, $mensaje, $destino)));
             $usuario->notify(new CorreoNotificacionPortal($titulo, $mensaje, $destino));
             $enviados[$usuario->getKey()] = true;
         }
