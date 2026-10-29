@@ -18,8 +18,10 @@ class PrevalidacionController extends Controller
         $datos = $request->validated();
 
         return response()->view('estudiante.partials.prevalidacion', [
-            // Un objeto de campos vacío no aparece entre los datos validados.
-            'prevalidacion' => $prevalidacion->consultar($datos['tramite'], $datos['campos'] ?? []),
+            // Un objeto vacío no aparece entre los datos validados; sin respaldos se
+            // comprueban igual los documentos, salvo que el formulario no los mande.
+            'prevalidacion' => $prevalidacion->consultar($datos['tramite'], $datos['campos'] ?? [],
+                $request->exists('requisitos') ? ($datos['requisitos'] ?? []) : null),
         ])->header('Cache-Control', 'private, no-store');
     }
 }

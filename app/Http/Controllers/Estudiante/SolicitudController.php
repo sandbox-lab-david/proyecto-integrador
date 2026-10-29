@@ -37,7 +37,7 @@ class SolicitudController extends Controller
             $solicitud = $envio->enviar($request->user(), $datos);
         } catch (\App\Services\Chatbot\Prolog\PrologException $error) {
             report($error);
-            return response()->json(['message' => 'No se pudieron verificar los requisitos en Prolog. No se envió la solicitud; tus archivos se conservan.'], 503);
+            return response()->json(['message' => 'No se pudieron verificar los requisitos del trámite. No se envió la solicitud; tus archivos se conservan.'], 503);
         }
         return response()->json(['codigo' => $solicitud->codigo, 'url' => route('solicitudes.index')], 201);
     }
@@ -76,7 +76,7 @@ class SolicitudController extends Controller
             $guardada = $envio->enviar($request->user(), $datos, $expediente, $request->session()->get('correcciones_base.'.$solicitud));
         } catch (\App\Services\Chatbot\Prolog\PrologException $error) {
             report($error);
-            return response()->json(['message' => 'No se pudieron verificar los requisitos en Prolog. La corrección no se envió.'], 503);
+            return response()->json(['message' => 'No se pudieron verificar los requisitos del trámite. La corrección no se envió.'], 503);
         }
         $request->session()->forget('correcciones_base.'.$solicitud);
         return response()->json(['codigo' => $guardada->codigo, 'url' => route('solicitudes.index')]);

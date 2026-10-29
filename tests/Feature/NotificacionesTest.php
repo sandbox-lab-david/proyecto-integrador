@@ -6,6 +6,7 @@ use App\Models\CarreraEstudiante;
 use App\Models\EstadoSolicitud;
 use App\Models\Estudiante;
 use App\Models\Solicitud;
+use App\Models\Trabajador;
 use App\Models\User;
 use App\Notifications\NotificacionPortal;
 use App\Services\Notificaciones\EnlaceNotificacion;
@@ -155,6 +156,23 @@ class NotificacionesTest extends TestCase
         $this->actingAs(User::factory()->create(['tipo' => 'trabajador']))->get(route('notificaciones.index'))
             ->assertOk()->assertDontSee('Catálogo de trámites')->assertDontSee('Mis solicitudes')
             ->assertSee('Los avisos del sistema aparecerán aquí.');
+    }
+
+    public function test_el_personal_ve_el_menu_de_su_rol_para_volver_a_su_modulo(): void
+    {
+        $admin = Trabajador::factory()->conAcceso()->conRol('admin')->create()->user;
+        $this->actingAs($admin)->get(route('notificaciones.index'))->assertOk()
+            ->assertSee('Administración académica')->assertSee(route('administracion.inicio'), false)
+            ->assertSee(route('revision.asistente'), false)->assertDontSee('Catálogo de trámites');
+
+        $asistente = Trabajador::factory()->conAcceso()->conRol('asistente')->create()->user;
+        $this->actingAs($asistente)->get(route('notificaciones.index'))->assertOk()
+            ->assertSee('Revisión y Consejo')->assertSee(route('revision.asistente'), false)
+            ->assertDontSee(route('revision.director'), false)->assertDontSee(route('administracion.inicio'), false);
+
+        $director = Trabajador::factory()->conAcceso()->conRol('director')->create()->user;
+        $this->actingAs($director)->get(route('notificaciones.index'))->assertOk()
+            ->assertSee(route('revision.director'), false)->assertDontSee(route('revision.asistente'), false);
     }
 
     public function test_marcar_todas_no_afecta_a_otros_usuarios(): void

@@ -1,9 +1,23 @@
 {{-- Lista completa de avisos (RF-2.15). La campana de G1 también trae aquí al
-     personal, así que el menú del portal solo se muestra a los estudiantes. --}}
-@php($esEstudiante = auth()->user()?->tipo === 'estudiante')
-<x-layouts.app titulo="Notificaciones"
-    :modulo="$esEstudiante ? 'Portal del estudiante' : 'Sistema de Solicitudes Estudiantiles'"
-    :menu="$esEstudiante ? config('menu_estudiante', []) : []">
+     personal: el estudiante ve el menú del portal; el admin, el de administración
+     (G1) más el de revisión (G3); asistente, director y consulta, el de revisión,
+     que el menú lateral ya filtra por los roles de cada enlace. --}}
+@php
+    $usuarioAvisos = auth()->user();
+    $esEstudiante = $usuarioAvisos?->tipo === 'estudiante';
+    $roles = app(\App\Services\Academico\AutorizacionService::class);
+    if ($esEstudiante) {
+        [$moduloAvisos, $menuAvisos] = ['Portal del estudiante', config('menu_estudiante', [])];
+    } elseif ($usuarioAvisos && $roles->tieneRol($usuarioAvisos, 'admin')) {
+        [$moduloAvisos, $menuAvisos] = ['Administración académica',
+            config('menu_administracion', []) + config('menu_revision', [])];
+    } elseif ($usuarioAvisos && $roles->tieneRol($usuarioAvisos, ['asistente', 'director', 'consulta'])) {
+        [$moduloAvisos, $menuAvisos] = ['Revisión y Consejo', config('menu_revision', [])];
+    } else {
+        [$moduloAvisos, $menuAvisos] = ['Sistema de Solicitudes Estudiantiles', []];
+    }
+@endphp
+<x-layouts.app titulo="Notificaciones" :modulo="$moduloAvisos" :menu="$menuAvisos">
     <style>
         .avisos-encabezado { display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: 16px; }
         .avisos-acciones { display: flex; flex-wrap: wrap; gap: 8px; }

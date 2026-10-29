@@ -14,7 +14,7 @@ use Tests\TestCase;
 /** Pre-validación informativa del paso 4 (RF-2.8) con el motor de G4 simulado por su interfaz. */
 class PrevalidacionSolicitudTest extends TestCase
 {
-    use LlavesAjenasPrueba, RefreshDatabase, SesionEstudiantePrueba;
+    use ArchivosDePrueba, LlavesAjenasPrueba, RefreshDatabase, SesionEstudiantePrueba;
 
     /** @var array<int, array> Entradas que recibió el motor. */
     private array $entradas = [];
@@ -38,9 +38,10 @@ class PrevalidacionSolicitudTest extends TestCase
         $this->app->instance(PrologClient::class, $motor);
     }
 
-    private function consultar(string $tramite, array $campos)
+    private function consultar(string $tramite, array $campos, ?array $requisitos = null)
     {
-        return $this->postJson(route('solicitudes.prevalidacion'), ['tramite' => $tramite, 'campos' => $campos]);
+        return $this->postJson(route('solicitudes.prevalidacion'), ['tramite' => $tramite, 'campos' => $campos]
+            + ($requisitos === null ? [] : ['requisitos' => $requisitos]));
     }
 
     public function test_muestra_las_comprobaciones_con_los_datos_declarados(): void
@@ -95,13 +96,38 @@ class PrevalidacionSolicitudTest extends TestCase
         $this->assertSame([], $this->entradas[0]['perfil']);
     }
 
+    public function test_envia_los_documentos_de_los_respaldos_subidos(): void
+    {
+        $this->motor();
+        $this->discoTemporal();
+        $cedula = $this->postJson(route('respaldos-temporales.store'), ['tramite' => 'ayudante', 'archivo' => $this->pdf()])->json('id');
+        $record = $this->postJson(route('respaldos-temporales.store'), ['tramite' => 'ayudante', 'archivo' => $this->png()])->json('id');
+        $otroTramite = $this->postJson(route('respaldos-temporales.store'), ['tramite' => 'gracia', 'archivo' => $this->pdf()])->json('id');
+
+        $this->consultar('ayudante', [], [
+            $cedula => 'copia_cedula', $record => 'record_academico', $otroTramite => 'certificado_medico',
+            'archivo-inexistente' => 'solicitud_firmada',
+        ])->assertOk();
+
+        $this->assertSame(['documentos_subidos' => ['copia_cedula', 'record_academico']], $this->entradas[0]['perfil']);
+    }
+
+    public function test_sin_respaldos_comprueba_los_documentos_con_la_lista_vacia(): void
+    {
+        $this->motor();
+
+        $this->consultar('recuperacion', ['gpa_general' => '80'], [])->assertOk();
+
+        $this->assertSame(['gpa_general' => 80.0, 'documentos_subidos' => []], $this->entradas[0]['perfil']);
+    }
+
     public function test_si_prolog_falla_lo_informa_y_permite_reintentar(): void
     {
         $this->motor(PrologException::noDisponible());
 
         $this->consultar('recuperacion', ['gpa_general' => '80'])
             ->assertOk()
-            ->assertSee('No se pudo consultar a Prolog en este momento.')
+            ->assertSee('No se pudo hacer la comprobación en este momento.')
             ->assertSee('Volver a consultar');
     }
 
