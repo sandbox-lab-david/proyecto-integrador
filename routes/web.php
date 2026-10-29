@@ -131,7 +131,7 @@ Route::middleware(['auth', 'rol:consulta,asistente,admin'])->group(function () {
     Route::get('/revision/agendas/{agenda}/documento', [ResolucionesConsejoController::class, 'documentoAgenda'])->name('revision.agendas.documento');
 });
 
-Route::middleware(['auth', 'rol:admin'])->group(function () {
+Route::middleware(['auth', 'rol:asistente,admin'])->group(function () {
     Route::post('/revision/agendas/{agenda}/resoluciones/{solicitud}', [ResolucionesConsejoController::class, 'guardar'])->name('revision.agendas.resoluciones.guardar');
     Route::post('/revision/resoluciones/{id}', [ResolucionesConsejoController::class, 'actualizarEstado'])->name('revision.resoluciones.estado');
 });

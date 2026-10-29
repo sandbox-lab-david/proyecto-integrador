@@ -9,6 +9,7 @@ use App\Models\User;
 use App\Notifications\CorreoNotificacionPortal;
 use App\Notifications\NotificacionPortal;
 use App\Services\Academico\AutorizacionService;
+use App\Support\Estados;
 use Illuminate\Support\Facades\DB;
 use InvalidArgumentException;
 use LogicException;
@@ -34,7 +35,7 @@ class NotificacionService
             route('solicitudes.show', $s->getKey(), false),
         );
 
-        $this->notificarPersonalDeRevision($s, $estado);
+        $this->notificarPersonalDeRevision($s, $nuevo->codigo, $estado);
     }
 
     public function notificarResolucionGuardada(Solicitud $s, ?string $observacion = null): void
@@ -61,7 +62,7 @@ class NotificacionService
         return User::findOrFail($usuarioId);
     }
 
-    private function notificarPersonalDeRevision(Solicitud $solicitud, string $estado): void
+    private function notificarPersonalDeRevision(Solicitud $solicitud, ?string $codigo, string $estado): void
     {
         $solicitud->loadMissing('carreraEstudiante.carreraModalidad.carrera');
         $carrera = $solicitud->carreraEstudiante?->carreraModalidad?->carrera;
@@ -69,15 +70,11 @@ class NotificacionService
             return;
         }
 
-        $destinatarios = $this->autorizacion->asistentesDeFacultad((int) $carrera->facultad_id)
-            ->load('user')
-            ->pluck('user')
-            ->all();
-        $trabajadorDirector = $this->autorizacion->directorDeCarrera((int) $carrera->id);
-        $director = $trabajadorDirector?->user;
-        if ($trabajadorDirector?->activo && $director?->activo) {
-            $destinatarios[] = $director;
-        }
+        $destinatarios = match ($codigo) {
+            Estados::ENVIADA => $this->autorizacion->asistentesDeFacultad((int) $carrera->facultad_id)->load('user')->pluck('user')->all(),
+            Estados::REVISADA => $this->directorActivo((int) $carrera->id),
+            default => [],
+        };
         $destinatarios = collect($destinatarios)
             ->filter(fn ($usuario) => $usuario instanceof User && $usuario->exists && $usuario->activo)
             ->unique(fn (User $usuario) => $usuario->getKey())
@@ -92,6 +89,14 @@ class NotificacionService
             'La solicitud '.$solicitud->codigo.' cambió al estado: '.$estado.'.',
             route('revision.detalle', $solicitud->getKey(), false),
         );
+    }
+
+    /** @return list<User> */
+    private function directorActivo(int $carreraId): array
+    {
+        $trabajador = $this->autorizacion->directorDeCarrera($carreraId);
+
+        return $trabajador?->activo && $trabajador->user ? [$trabajador->user] : [];
     }
 
     /** @param iterable<User> $users */
@@ -110,8 +115,6 @@ class NotificacionService
             if (isset($enviados[$usuario->getKey()])) {
                 continue;
             }
-            // La campanita no va en cola: se espera al commit para que un cambio de
-            // estado revertido no deje avisos. El correo hace lo mismo con afterCommit().
             DB::afterCommit(fn () => $usuario->notify(new NotificacionPortal($titulo, $mensaje, $destino)));
             $usuario->notify(new CorreoNotificacionPortal($titulo, $mensaje, $destino));
             $enviados[$usuario->getKey()] = true;
