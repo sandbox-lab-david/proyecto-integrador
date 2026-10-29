@@ -40,10 +40,10 @@ class RespaldoTemporalController extends Controller
                 $consulta = app(\App\Services\Solicitudes\RequisitosSolicitud::class)->consultar($request->input('tramite'));
             } catch (\App\Services\Chatbot\Prolog\PrologException $error) {
                 report($error);
-                return response()->json(['message' => 'No se pudieron verificar los documentos en Prolog. Inténtalo cuando el motor esté disponible.'], 503);
+                return response()->json(['message' => 'No se pudieron verificar los documentos del trámite. Vuelve a intentarlo en unos minutos.'], 503);
             }
             if (! in_array($request->input('requisito'), array_column($consulta['documentos'], 'id'), true)) {
-                throw ValidationException::withMessages(['requisito' => 'El tipo de documento ya no está disponible en Prolog. Recarga la página.']);
+                throw ValidationException::withMessages(['requisito' => 'El tipo de documento ya no está disponible para este trámite. Recarga la página.']);
             }
         }
 

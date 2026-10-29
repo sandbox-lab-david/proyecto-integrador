@@ -41,7 +41,7 @@ class RequisitosSolicitud
         } catch (PrologException $error) {
             report($error);
             return ['disponible' => false, 'items' => [], 'documentos' => [], 'aviso' => null,
-                'error' => 'No se pudieron consultar los requisitos en Prolog. Recarga la página para volver a intentarlo. No puedes enviar la solicitud hasta consultarlos.'];
+                'error' => 'No se pudieron consultar los requisitos del trámite. Recarga la página para volver a intentarlo. No puedes enviar la solicitud hasta consultarlos.'];
         }
     }
 
@@ -55,7 +55,7 @@ class RequisitosSolicitud
         }
         foreach ($archivos as $archivo) {
             if (! in_array($asignaciones[$archivo['id']] ?? null, array_column($documentos, 'id'), true)) {
-                throw ValidationException::withMessages(['requisitos' => 'Asocia cada archivo con un documento vigente de Prolog.']);
+                throw ValidationException::withMessages(['requisitos' => 'Asocia cada archivo con un documento vigente del trámite.']);
             }
         }
         foreach ($documentos as $documento) {

@@ -64,7 +64,7 @@ class RequisitosSolicitudTest extends TestCase
     {
         Http::fake(fn () => throw new ConnectionException('Motor apagado'));
         $this->get(route('solicitudes.create', ['tramite' => 'recuperacion']))->assertOk()
-            ->assertSee('No se pudieron consultar los requisitos en Prolog')
+            ->assertSee('No se pudieron consultar los requisitos del trámite')
             ->assertDontSee('registro-calificaciones');
         $this->postJson(route('respaldos-temporales.store'), [
             'tramite' => 'recuperacion', 'requisito' => 'certificado_prolog', 'archivo' => $this->pdf(),
