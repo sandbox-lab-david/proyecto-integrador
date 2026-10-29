@@ -133,10 +133,13 @@ class ResolucionesConsejoController extends Controller
         }, $filename, ['Content-Type' => 'text/csv; charset=UTF-8']);
     }
 
-    public function guardar(Request $request, int $agenda, int $solicitud, EstadoSolicitudService $estados, NotificacionService $notificaciones)
+    public function guardar(Request $request, int $agenda, int $solicitud, EstadoSolicitudService $estados, NotificacionService $notificaciones, AutorizacionService $authz)
     {
         $data = $request->validate(['decision' => ['required', 'in:Aprobado,Rechazado,Guardar'], 'observacion' => ['nullable', 'string', 'max:2000']]);
         $corte = CorteAgenda::findOrFail($agenda);
+        if ($authz->tieneRol(auth()->user(), 'asistente')) {
+            abort_unless($authz->puedeVerFacultad(auth()->user(), (int) $corte->facultad_id), 403);
+        }
         $s = $corte->solicitudes()->with('estadoSolicitud')->whereKey($solicitud)->firstOrFail();
         abort_unless($s->estadoSolicitud?->codigo === Estados::AGENDADA, 409, 'La resolución solo se puede registrar mientras el expediente está agendado.');
         $user = auth()->user();
@@ -164,10 +167,13 @@ class ResolucionesConsejoController extends Controller
         return redirect()->route('revision.agendas.resoluciones', $agenda)->with('success', 'Resolución guardada para el expediente '.$s->codigo.'.');
     }
 
-    public function actualizarEstado(Request $request, int $id, EstadoSolicitudService $estados)
+    public function actualizarEstado(Request $request, int $id, EstadoSolicitudService $estados, AutorizacionService $authz)
     {
         $data = $request->validate(['accion' => ['required', 'in:ejecutar']]);
-        $s = Solicitud::with('estadoSolicitud')->findOrFail($id);
+        $s = Solicitud::with(['estadoSolicitud', 'carreraEstudiante.carreraModalidad.carrera'])->findOrFail($id);
+        if ($authz->tieneRol(auth()->user(), 'asistente')) {
+            abort_unless($authz->puedeVerFacultad(auth()->user(), (int) $s->carreraEstudiante?->carreraModalidad?->carrera?->facultad_id), 403);
+        }
         abort_unless($s->estadoSolicitud?->codigo === Estados::APROBADA_EJECUCION, 409);
         $estados->transicionar($s, Estados::EJECUTADA, auth()->user(), 'Ejecución registrada.');
 
