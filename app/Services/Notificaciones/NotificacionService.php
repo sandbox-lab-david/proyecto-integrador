@@ -32,7 +32,7 @@ class NotificacionService
             route('solicitudes.show', $s->getKey(), false),
         );
 
-        $this->notificarPersonalDeRevision($s, $estado);
+        $this->notificarDirectorDeCarrera($s, $estado);
     }
 
     public function notificarResolucionGuardada(Solicitud $s, ?string $observacion = null): void
@@ -59,7 +59,7 @@ class NotificacionService
         return User::findOrFail($usuarioId);
     }
 
-    private function notificarPersonalDeRevision(Solicitud $solicitud, string $estado): void
+    private function notificarDirectorDeCarrera(Solicitud $solicitud, string $estado): void
     {
         $solicitud->loadMissing('carreraEstudiante.carreraModalidad.carrera');
         $carrera = $solicitud->carreraEstudiante?->carreraModalidad?->carrera;
@@ -67,25 +67,14 @@ class NotificacionService
             return;
         }
 
-        $destinatarios = $this->autorizacion->asistentesDeFacultad((int) $carrera->facultad_id)
-            ->load('user')
-            ->pluck('user')
-            ->all();
-        $director = $this->autorizacion->directorDeCarrera((int) $carrera->id)?->user;
-        if ($director) {
-            $destinatarios[] = $director;
-        }
-        $destinatarios = collect($destinatarios)
-            ->filter(fn ($usuario) => $usuario instanceof User && $usuario->exists && $usuario->activo)
-            ->unique(fn (User $usuario) => $usuario->getKey())
-            ->values();
-
-        if ($destinatarios->isEmpty()) {
+        $trabajador = $this->autorizacion->directorDeCarrera((int) $carrera->id);
+        $director = $trabajador?->user;
+        if (! $trabajador?->activo || ! $director?->activo) {
             return;
         }
 
         $this->notificarUsuarios(
-            $destinatarios,
+            [$director],
             'Actualización de solicitud '.$solicitud->codigo,
             'La solicitud '.$solicitud->codigo.' cambió al estado: '.$estado.'.',
             route('revision.detalle', $solicitud->getKey(), false),
