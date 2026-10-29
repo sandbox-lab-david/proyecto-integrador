@@ -127,7 +127,7 @@ class PrevalidacionSolicitudTest extends TestCase
 
         $this->consultar('recuperacion', ['gpa_general' => '80'])
             ->assertOk()
-            ->assertSee('No se pudo consultar a Prolog en este momento.')
+            ->assertSee('No se pudo hacer la comprobación en este momento.')
             ->assertSee('Volver a consultar');
     }
 

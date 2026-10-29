@@ -1,8 +1,8 @@
 @if (!$requisitosMotor['disponible'])
-    <p>No se pudieron consultar los documentos en Prolog.</p>
+    <p>No se pudieron consultar los documentos de este trámite. Vuelve a intentarlo más tarde.</p>
 @else
     @if (empty($requisitosMotor['documentos']))
-        <p>Prolog no indica documentos de respaldo para este trámite.</p>
+        <p>Este trámite no pide documentos de respaldo.</p>
     @else
         <ul class="ft-documentos">
         @foreach ($requisitosMotor['documentos'] as $documentoMotor)

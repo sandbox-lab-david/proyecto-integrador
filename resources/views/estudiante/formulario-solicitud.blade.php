@@ -740,7 +740,7 @@
                         <div class="aviso">{{ $requisitosMotor['aviso'] }}</div>
                     @endif
                     @if ($requisitosMotor['disponible'] && empty($tramite['documentos']))
-                        <p class="ayuda">Prolog no indica documentos de respaldo para este trámite. El PDF firmado se adjunta en el paso de revisión.</p>
+                        <p class="ayuda">Este trámite no pide documentos de respaldo. El PDF firmado se adjunta en el paso de revisión.</p>
                     @endif
                     <ul id="requisitos-respaldo" class="requisitos-respaldo"></ul>
                     @if ($tramite['documentos_orientativos'] ?? false)
@@ -831,10 +831,10 @@
                             <h3 id="resumen-prevalidacion">Comprobación previa</h3>
                         </div>
                         <p class="ayuda">
-                            Prolog compara los datos que declaraste con las
-                            referencias del trámite. Es orientativa: no aprueba
-                            ni rechaza tu solicitud y no impide enviarla.
-                            La facultad revisa cada caso.
+                            Revisamos los datos que declaraste y los documentos
+                            que adjuntaste con las referencias del trámite. Es
+                            orientativa: no aprueba ni rechaza tu solicitud y no
+                            impide enviarla. La facultad revisa cada caso.
                         </p>
                         <div id="resultado-prevalidacion"
                             class="resultado-prevalidacion" aria-live="polite"></div>
@@ -1721,7 +1721,7 @@
                 const sinRequisito = listaArchivos.querySelector('select:invalid');
 
                 if (!requisitosDisponibles) {
-                    errorArchivos.textContent = 'No puedes continuar sin consultar los requisitos en Prolog. Recarga la página.';
+                    errorArchivos.textContent = 'No puedes continuar sin consultar los requisitos del trámite. Recarga la página.';
                     return;
                 }
 
@@ -1847,10 +1847,10 @@
             // Solo se pinta la última consulta si el estudiante entra varias veces al paso 4.
             const numero = ++consultaPrevalidacion;
             resultadoPrevalidacion.setAttribute('aria-busy', 'true');
-            mensajePrevalidacion('Consultando a Prolog…', 'ayuda');
+            mensajePrevalidacion('Haciendo la comprobación…', 'ayuda');
 
             let html = null;
-            let error = 'No se pudo consultar a Prolog. Revisa tu conexión y vuelve a intentarlo.';
+            let error = 'No se pudo hacer la comprobación. Revisa tu conexión y vuelve a intentarlo.';
             // Los requisitos de cada respaldo dejan a Prolog comprobar los documentos obligatorios.
             const { campos, requisitos } = datosBorrador();
             try {

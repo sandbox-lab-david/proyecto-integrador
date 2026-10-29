@@ -40,7 +40,7 @@ class PrevalidacionSolicitud
             report($error);
 
             return ['disponible' => false,
-                'error' => 'No se pudo consultar a Prolog en este momento. Vuelve a intentarlo en unos segundos.'];
+                'error' => 'No se pudo hacer la comprobación en este momento. Vuelve a intentarlo en unos segundos.'];
         }
 
         return [
