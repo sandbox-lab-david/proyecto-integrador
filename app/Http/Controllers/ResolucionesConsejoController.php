@@ -140,6 +140,11 @@ class ResolucionesConsejoController extends Controller
         $user = auth()->user();
         DB::transaction(function () use ($data, $corte, $s, $user, $estados) {
             $resolution = Resolucion::where('solicitud_id', $s->id)->lockForUpdate()->first();
+            abort_if(
+                $resolution && in_array($resolution->decision, ['Aprobado', 'Rechazado'], true),
+                409,
+                'La decisión final de esta resolución ya está registrada y no se puede cambiar.'
+            );
             if (! $resolution) {
                 do {
                     $numero = 'RES-'.now()->format('Y').'-'.strtoupper(Str::random(10));
