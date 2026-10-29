@@ -60,4 +60,28 @@ class PrologServiceTest extends TestCase
         $this->assertSame(['gpa_general', 'fecha_ultima_recuperacion'], array_column(app(PrologService::class)->camposFormulario('examen_recuperacion'), 'nombre'));
         $this->assertSame([], app(PrologService::class)->camposFormulario('homologacion'));
     }
+
+    public function test_verificar_documentos_envia_perfil_con_documentos_subidos(): void
+    {
+        $motor = $this->createMock(PrologClient::class);
+        $motor->expects($this->once())->method('evaluar')->with($this->callback(function ($p) {
+            return $p['tramite_id'] === 'examen_recuperacion'
+                && $p['perfil'] === ['documentos_subidos' => ['examen_recuperacion_registro_calificaciones']];
+        }))->willReturn([
+            'version' => 3,
+            'kb_version' => 'catalogo-informativo-001',
+            'resultado' => null,
+            'comprobaciones' => [[
+                'codigo' => 'verificacion_documentos',
+                'texto' => '¡Comprobación exitosa! Has presentado todos los documentos obligatorios requeridos para «Examen de recuperación». Puedes continuar al siguiente paso.',
+                'datos' => ['cumple' => true, 'puede_avanzar' => true, 'total_faltantes' => 0],
+            ]],
+        ]);
+        $this->app->instance(PrologClient::class, $motor);
+
+        $res = app(PrologService::class)->verificarDocumentos('examen_recuperacion', ['examen_recuperacion_registro_calificaciones']);
+        $this->assertNotEmpty($res['comprobaciones']);
+        $this->assertSame('verificacion_documentos', $res['comprobaciones'][0]['codigo']);
+        $this->assertTrue($res['comprobaciones'][0]['datos']['puede_avanzar']);
+    }
 }

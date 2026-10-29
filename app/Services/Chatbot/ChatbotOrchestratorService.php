@@ -24,6 +24,9 @@ class ChatbotOrchestratorService
             if ($id === 'examen_recuperacion' && preg_match('/gpa|365|comparar|calcular/u', mb_strtolower($datos['texto']))) {
                 $intencion = 'comprobar_referencias';
             }
+            if (preg_match('/qu[eé] (me falta|debo subir|archivos faltan)|verificar (archivos|documentos)|faltan.*(archivo|documento)/u', mb_strtolower($datos['texto']))) {
+                $intencion = 'comprobar_referencias';
+            }
             $sufijo = $intencion === 'comprobar_referencias' ? 'referencias' : str_replace('consultar_', '', $intencion);
             $datos = ['version' => 3, 'tramite_id' => $id, 'intencion' => $intencion, 'pregunta_id' => $id.'__'.$sufijo, 'datos_usuario' => []];
         }
@@ -37,6 +40,9 @@ class ChatbotOrchestratorService
         if (isset($perfil['gpa_general'])) {
             $perfil['gpa_general'] = (float) $perfil['gpa_general'];
         }
+        if (isset($perfil['documentos_subidos']) && is_array($perfil['documentos_subidos'])) {
+            $perfil['documentos_subidos'] = array_values($perfil['documentos_subidos']);
+        }
         $entrada = ['version' => 3, 'tramite_id' => $id, 'intencion' => $intencion];
         $r = $esComprobacion
             ? $this->prologClient->evaluar($entrada + ['fecha' => now(ReglasCampoSolicitud::zonaHoraria())->toDateString(), 'origen_datos' => 'manual', 'perfil' => $perfil])
@@ -44,9 +50,10 @@ class ChatbotOrchestratorService
         $respuesta = array_replace($this->base($id), $r);
         $respuesta['tipo'] = $esComprobacion ? 'referencias' : str_replace('consultar_', '', $intencion);
         $respuesta['titulo'] = match ($intencion) {
-            'consultar_descripcion' => 'Sobre este trámite','consultar_requisitos' => 'Requisitos del trámite','consultar_documentos' => 'Documentos para tu solicitud','consultar_costo' => 'Costo del trámite','consultar_plazo' => 'Plazos del trámite',default => 'Referencias para recuperación'
+            'consultar_descripcion' => 'Sobre este trámite','consultar_requisitos' => 'Requisitos del trámite','consultar_documentos' => 'Documentos para tu solicitud','consultar_costo' => 'Costo del trámite','consultar_plazo' => 'Plazos del trámite',default => 'Referencias para tu trámite'
         };
-        $respuesta['mensaje'] = $esComprobacion ? 'Puedes usar estas referencias para orientarte. La facultad revisa tu solicitud.' : 'Aquí tienes la información del trámite.';
+        $verifDoc = collect($r['comprobaciones'] ?? [])->firstWhere('codigo', 'verificacion_documentos');
+        $respuesta['mensaje'] = $verifDoc['texto'] ?? ($esComprobacion ? 'Puedes usar estas referencias para orientarte. La facultad revisa tu solicitud.' : 'Aquí tienes la información del trámite.');
         $respuesta['meta'] = ['kb_version' => $r['kb_version'], 'origen_datos' => $esComprobacion ? 'manual' : 'ninguno', 'verificacion' => 'declarada'];
         $slug = $this->catalogoService->obtenerIdentificadorAgenda($id);
         $codigo = ['examen_recuperacion' => 'recuperacion', 'examen_gracia' => 'gracia', 'examen_supletorio' => 'supletorio', 'examen_suficiencia' => 'suficiencia', 'ayudante_catedra' => 'ayudante'][$id] ?? $slug;
