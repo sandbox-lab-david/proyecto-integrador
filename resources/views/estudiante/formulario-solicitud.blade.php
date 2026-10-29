@@ -1851,11 +1851,13 @@
 
             let html = null;
             let error = 'No se pudo consultar a Prolog. Revisa tu conexión y vuelve a intentarlo.';
+            // Los requisitos de cada respaldo dejan a Prolog comprobar los documentos obligatorios.
+            const { campos, requisitos } = datosBorrador();
             try {
                 const respuesta = await fetchSolicitud(urlPrevalidacion, {
                     method: 'POST',
                     headers: { ...cabecerasRespaldos, 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ tramite: @json($codigoTramite), campos: datosBorrador().campos })
+                    body: JSON.stringify({ tramite: @json($codigoTramite), campos, requisitos })
                 });
                 if (respuesta.ok) {
                     html = await respuesta.text();

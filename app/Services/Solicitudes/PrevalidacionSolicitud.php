@@ -3,6 +3,7 @@
 namespace App\Services\Solicitudes;
 
 use App\Models\Solicitud;
+use App\Services\Archivos\RespaldosTemporales;
 use App\Services\Catalogo\CatalogoTramites;
 use App\Services\Chatbot\Prolog\PrologException;
 use App\Services\Chatbot\PrologService;
@@ -20,14 +21,21 @@ class PrevalidacionSolicitud
         'ultima_recuperacion' => 'fecha_ultima_recuperacion',
     ];
 
-    public function consultar(string $codigo, array $campos): array
+    /**
+     * @param  array<string, string>|null  $requisitos  uuid del respaldo => documento de Prolog que cubre;
+     *                                                  null si el formulario no los envía.
+     */
+    public function consultar(string $codigo, array $campos, ?array $requisitos = null): array
     {
         $tramite = app(CatalogoTramites::class)->buscar($codigo);
         abort_unless(isset($tramite['formulario']), 404);
         try {
             $prolog = app(PrologService::class);
-            $respuesta = $prolog->evaluar($tramite['id'], $this->perfil(
-                $tramite['formulario'], $campos, array_column($prolog->camposFormulario($tramite['id']), 'nombre')));
+            $perfil = $this->perfil($tramite['formulario'], $campos, array_column($prolog->camposFormulario($tramite['id']), 'nombre'));
+            if ($requisitos !== null) {
+                $perfil['documentos_subidos'] = $this->documentosSubidos($codigo, $requisitos);
+            }
+            $respuesta = $prolog->evaluar($tramite['id'], $perfil);
         } catch (PrologException $error) {
             report($error);
 
@@ -62,6 +70,26 @@ class PrevalidacionSolicitud
         }
 
         return $perfil;
+    }
+
+    /**
+     * Documentos que cubren los respaldos que de verdad están subidos para el
+     * trámite (borrador de la cuenta, sesión o corrección); una asignación a
+     * un archivo ajeno o ya borrado no cuenta.
+     *
+     * @return list<string>
+     */
+    public function documentosSubidos(string $codigo, array $requisitos): array
+    {
+        $subidos = array_column(app(RespaldosTemporales::class)->delTramite($codigo), 'id');
+        $documentos = [];
+        foreach ($requisitos as $archivo => $documento) {
+            if (in_array((string) $archivo, $subidos, true) && is_string($documento) && $documento !== '') {
+                $documentos[] = $documento;
+            }
+        }
+
+        return array_values(array_unique($documentos));
     }
 
     /**
