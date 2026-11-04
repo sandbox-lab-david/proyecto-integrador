@@ -347,6 +347,11 @@
             border-radius: 10px;
         }
 
+        .bloque-resumen.resultado-prevalidacion {
+            background: #fff3d6;
+            border-color: #ecd49a;
+        }
+
         .encabezado-resumen {
             display: flex;
             justify-content: space-between;
@@ -836,9 +841,11 @@
                             orientativa: no aprueba ni rechaza tu solicitud y no
                             impide enviarla. La facultad revisa cada caso.
                         </p>
-                        <div id="resultado-prevalidacion"
-                            class="resultado-prevalidacion" aria-live="polite"></div>
                     </section>
+
+                    <div id="resultado-prevalidacion"
+                        class="bloque-resumen resultado-prevalidacion"
+                        aria-label="Resultado de Prolog" aria-live="polite"></div>
 
                     @if ($requisitosMotor['aviso'])
                         <div class="aviso">{{ $requisitosMotor['aviso'] }}</div>
