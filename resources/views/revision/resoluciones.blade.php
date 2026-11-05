@@ -48,7 +48,7 @@
                     @if($puedeGestionarResoluciones && $caso->estado_codigo === \App\Support\Estados::AGENDADA && (! $caso->decision || $caso->decision === 'Guardar'))
                         <form method="POST" action="{{ route('revision.agendas.resoluciones.guardar', [$agenda->id, $caso->solicitud_id]) }}" class="flex flex-wrap items-center gap-2">
                             @csrf
-                            <button name="decision" value="Aprobado" class="rounded-lg bg-emerald-700 px-3 py-2 text-sm font-semibold text-white hover:bg-emerald-800">Aprobar</button>
+                            <button name="decision" value="Aprobado" class="rounded-lg bg-red-700 px-3 py-2 text-sm font-semibold text-white hover:bg-red-800 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-red-700">Aprobar</button>
                             <button name="decision" value="Rechazado" class="rounded-lg border border-red-300 bg-white px-3 py-2 text-sm font-semibold text-red-700 hover:bg-red-50">Rechazar</button>
                             <button name="decision" value="Guardar" class="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50">Guardar pendiente</button>
                         </form>
