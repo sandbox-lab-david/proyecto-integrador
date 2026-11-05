@@ -17,6 +17,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
+use Illuminate\Validation\Rule;
 
 class ResolucionesConsejoController extends Controller
 {
@@ -161,6 +162,48 @@ class ResolucionesConsejoController extends Controller
         }
 
         return redirect()->route('revision.agendas.resoluciones', $agenda)->with('success', 'Resolución guardada para el expediente '.$s->codigo.'.');
+    }
+
+    public function actualizarCodigo(Request $request, int $agenda, int $solicitud, AutorizacionService $authz)
+    {
+        $corte = CorteAgenda::findOrFail($agenda);
+        $usuario = auth()->user();
+        if ($authz->tieneRol($usuario, 'asistente')) {
+            abort_unless($authz->puedeVerFacultad($usuario, (int) $corte->facultad_id), 403);
+        }
+        $caso = $corte->solicitudes()->whereKey($solicitud)->firstOrFail();
+        $resolucion = Resolucion::where('solicitud_id', $caso->id)->first();
+        $codigoUnico = Rule::unique('resoluciones', 'numero_resolucion');
+        if ($resolucion) {
+            $codigoUnico->ignore($resolucion->id);
+        }
+        $data = $request->validate([
+            'numero_resolucion' => ['required', 'string', 'max:50', 'regex:/^[A-Za-z0-9]+(?:-[A-Za-z0-9]+)*$/', $codigoUnico],
+        ], [
+            'numero_resolucion.regex' => 'El código de resolución no es válido. Usa letras y números; puedes separarlos con guiones.',
+            'numero_resolucion.unique' => 'Ese código de resolución ya está asignado a otro expediente.',
+        ]);
+        $codigo = Str::upper(trim($data['numero_resolucion']));
+
+        DB::transaction(function () use ($caso, $corte, $codigo, $usuario) {
+            Solicitud::whereKey($caso->id)->lockForUpdate()->firstOrFail();
+            $actual = Resolucion::where('solicitud_id', $caso->id)->lockForUpdate()->first();
+            if ($actual) {
+                $actual->update(['numero_resolucion' => $codigo, 'registrada_por' => $usuario->id]);
+                return;
+            }
+
+            Resolucion::create([
+                'solicitud_id' => $caso->id,
+                'corte_agenda_id' => $corte->id,
+                'numero_resolucion' => $codigo,
+                'fecha_resolucion' => now()->toDateString(),
+                'decision' => 'Guardar',
+                'registrada_por' => $usuario->id,
+            ]);
+        });
+
+        return redirect()->route('revision.agendas.resoluciones', $agenda)->with('success', 'Código de resolución guardado para el expediente '.$caso->codigo.'.');
     }
 
     public function actualizarEstado(Request $request, int $id, EstadoSolicitudService $estados, AutorizacionService $authz)

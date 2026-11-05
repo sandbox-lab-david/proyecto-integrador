@@ -133,6 +133,7 @@ Route::middleware(['auth', 'rol:consulta,asistente,director,admin'])->group(func
 
 Route::middleware(['auth', 'rol:asistente,admin'])->group(function () {
     Route::post('/revision/agendas/{agenda}/resoluciones/{solicitud}', [ResolucionesConsejoController::class, 'guardar'])->name('revision.agendas.resoluciones.guardar');
+    Route::patch('/revision/agendas/{agenda}/resoluciones/{solicitud}/codigo', [ResolucionesConsejoController::class, 'actualizarCodigo'])->name('revision.agendas.resoluciones.codigo');
     Route::post('/revision/resoluciones/{id}', [ResolucionesConsejoController::class, 'actualizarEstado'])->name('revision.resoluciones.estado');
 });
 

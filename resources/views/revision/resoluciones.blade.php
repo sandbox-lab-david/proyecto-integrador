@@ -7,6 +7,7 @@
 
 @section('content')
     @php($puedeGestionarResoluciones = app(\App\Services\Academico\AutorizacionService::class)->tieneRol(auth()->user(), ['admin', 'asistente']))
+    @if(session('success'))<p class="mb-4 rounded-lg border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-800">{{ session('success') }}</p>@endif
     @if($errors->any())<p class="mb-4 rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-800">{{ $errors->first() }}</p>@endif
 
     @if(isset($agenda))
@@ -26,6 +27,18 @@
                         <p class="text-sm text-slate-600">{{ $caso->tramite }} · {{ $caso->estado_solicitud }} · {{ $caso->carrera }}</p>
                         <p class="text-xs text-slate-500">Código CAFI: {{ $caso->codigo_sistema ?: '—' }} · {{ $agenda->referencia_sesion }}</p>
                         @if($caso->numero_resolucion)<p class="mt-1 text-xs text-slate-500">Resolución {{ $caso->numero_resolucion }}</p>@endif
+                        @if($puedeGestionarResoluciones)
+                            <form method="POST" action="{{ route('revision.agendas.resoluciones.codigo', [$agenda->id, $caso->solicitud_id]) }}" class="mt-3 flex flex-wrap items-end gap-2">
+                                @csrf
+                                @method('PATCH')
+                                <input type="hidden" name="solicitud_id" value="{{ $caso->solicitud_id }}">
+                                <label class="text-xs font-medium text-slate-600">Código de resolución
+                                    <input name="numero_resolucion" type="text" required maxlength="50" value="{{ old('solicitud_id') == $caso->solicitud_id ? old('numero_resolucion', $caso->numero_resolucion) : $caso->numero_resolucion }}" placeholder="RES-2026-ABC123" pattern="[A-Za-z0-9]+(-[A-Za-z0-9]+)*" title="El código no es válido. Usa letras y números; puedes separarlos con guiones." class="mt-1 block w-56 rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-800">
+                                </label>
+                                <button class="rounded-lg border border-red-700 px-3 py-2 text-sm font-semibold text-red-800 hover:bg-red-50">Guardar código</button>
+                                @if(old('solicitud_id') == $caso->solicitud_id)@error('numero_resolucion')<span class="text-xs text-red-700">{{ $message }}</span>@enderror @endif
+                            </form>
+                        @endif
                     </div>
                     @if($caso->decision)
                         <span @class(['rounded-full border px-3 py-1 text-sm font-semibold', 'border-emerald-200 bg-emerald-50 text-emerald-800' => $caso->decision === 'Aprobado', 'border-red-200 bg-red-50 text-red-800' => $caso->decision === 'Rechazado', 'border-amber-200 bg-amber-50 text-amber-800' => $caso->decision === 'Guardar'])>{{ $caso->decision }}</span>

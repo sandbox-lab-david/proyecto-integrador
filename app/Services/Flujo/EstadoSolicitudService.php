@@ -14,7 +14,9 @@ class EstadoSolicitudService
 {
     public function estados(bool $soloActivos = true)
     {
-        return EstadoSolicitud::orderBy('nombre')->get();
+        return EstadoSolicitud::where('codigo', '!=', Estados::BORRADOR)
+            ->orderBy('nombre')
+            ->get();
     }
 
     public function etiquetaParaEstudiante(string $codigoEstado)
