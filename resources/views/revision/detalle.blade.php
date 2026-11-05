@@ -37,7 +37,14 @@
             <div class="mb-3 grid gap-3 rounded-lg border border-slate-200 p-3 md:grid-cols-[1fr_auto]">
                 <div><p class="font-medium text-slate-900">{{ $documento->nombre_original }}</p><p class="text-xs text-slate-500">{{ $documento->documentoRequerido?->nombre ?? 'Documento adjunto' }} · {{ number_format(($documento->tamano_bytes ?? 0)/1024,1) }} KB</p></div>
                 <div class="flex flex-wrap items-center gap-3">
-                    @if($puedeSeleccionarDocumentos)<label class="flex items-center gap-2 text-sm text-slate-700"><input form="form-revision" type="checkbox" name="documentos_seleccionados[]" value="{{ $documento->id }}" @checked(in_array((int) $documento->id, $documentosMarcados, true))>Enviar al director</label>@endif
+                    @if($puedeSeleccionarDocumentos)
+                        <label class="flex cursor-pointer items-center gap-2 text-sm text-slate-700">
+                            <input form="form-revision" type="checkbox" role="switch" aria-label="Validación de {{ $documento->nombre_original }}" name="documentos_seleccionados[]" value="{{ $documento->id }}" @checked(in_array((int) $documento->id, $documentosMarcados, true)) class="peer sr-only">
+                            <span aria-hidden="true" class="relative inline-flex h-6 w-11 shrink-0 rounded-full bg-slate-300 transition-colors before:absolute before:left-0.5 before:top-0.5 before:h-5 before:w-5 before:rounded-full before:bg-white before:shadow before:transition-transform peer-checked:bg-red-700 peer-checked:before:translate-x-5 peer-focus-visible:outline peer-focus-visible:outline-2 peer-focus-visible:outline-offset-2 peer-focus-visible:outline-red-700"></span>
+                            <span class="hidden min-w-24 font-medium peer-checked:inline">Validado</span>
+                            <span class="min-w-24 font-medium peer-checked:hidden">No validado</span>
+                        </label>
+                    @endif
                     <a href="{{ route('revision.documento',[$solicitud->id,$documento->id]) }}" target="_blank" class="rounded-lg border border-slate-300 px-3 py-2 text-center text-sm font-semibold text-slate-700 hover:border-red-700 hover:text-red-800">Ver documento</a>
                 </div>
             </div>
@@ -113,7 +120,7 @@
                 <label class="flex items-center gap-2"><input type="checkbox" name="check_datos" value="1"> Datos coinciden</label>
                 <label class="flex items-center gap-2"><input type="checkbox" name="check_requisitos" value="1"> Requisitos completos</label>
             </div>
-            <label class="mb-4 block text-sm font-medium text-slate-700">Observación <textarea name="observaciones" rows="3" class="mt-1 w-full rounded-lg border border-slate-300 p-3" placeholder="Indica el motivo de observación o rechazo"></textarea></label>
+            <label class="mb-4 block text-sm font-medium text-slate-700">Observaciones <textarea name="observaciones" rows="4" class="mt-1 w-full rounded-lg border border-slate-300 p-3" placeholder="El resultado de Prolog aparecerá aquí cuando esté disponible; puedes añadir observaciones adicionales.">{{ old('observaciones', $observacionProlog) }}</textarea></label>
             <div class="flex flex-wrap justify-end gap-2"><button name="accion" value="observar" class="rounded-lg border border-amber-300 bg-amber-50 px-4 py-2 text-sm font-semibold text-amber-900">Marcar como observado</button><button name="accion" value="rechazar" class="rounded-lg border border-red-300 bg-white px-4 py-2 text-sm font-semibold text-red-800">Rechazar</button><button name="accion" value="aprobar" class="rounded-lg bg-red-700 px-4 py-2 text-sm font-semibold text-white">Enviar al director</button></div>
         </form>
     @endif

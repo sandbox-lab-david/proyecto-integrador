@@ -6,6 +6,7 @@ use App\Models\Revision;
 use App\Models\Solicitud;
 use App\Services\Academico\AutorizacionService;
 use App\Services\Chatbot\PrologService;
+use App\Services\Catalogo\CatalogoTramites;
 use App\Services\Flujo\EstadoSolicitudService;
 use App\Services\Solicitudes\RequisitosSolicitud;
 use App\Services\Solicitudes\SolicitudService;
@@ -59,7 +60,29 @@ class RevisionController extends Controller
             report($e);
         }
 
-        return view('revision.detalle', compact('solicitud', 'lineaTiempo', 'requisitosProlog', 'validacionProlog', 'documentosSeleccionados', 'esAsistente', 'puedeSeleccionarDocumentos'));
+        $observacionProlog = null;
+        try {
+            $codigoTramite = $solicitud->tipoTramite?->codigo;
+            $tramite = $codigoTramite ? app(CatalogoTramites::class)->buscar($codigoTramite) : null;
+            $tramiteId = $tramite['id'] ?? null;
+            if ($tramiteId) {
+                $documentosSubidos = $solicitud->respaldos
+                    ->loadMissing('documentoRequerido')
+                    ->map(fn ($documento) => $documento->documentoRequerido?->codigo)
+                    ->filter()
+                    ->unique()
+                    ->values()
+                    ->all();
+                $resultadoDocumentos = $prolog->verificarDocumentos($tramiteId, $documentosSubidos);
+                $comprobacionDocumentos = collect($resultadoDocumentos['comprobaciones'] ?? [])
+                    ->firstWhere('codigo', 'verificacion_documentos');
+                $observacionProlog = $comprobacionDocumentos['texto'] ?? $resultadoDocumentos['mensaje'] ?? null;
+            }
+        } catch (\Throwable $e) {
+            report($e);
+        }
+
+        return view('revision.detalle', compact('solicitud', 'lineaTiempo', 'requisitosProlog', 'validacionProlog', 'documentosSeleccionados', 'esAsistente', 'puedeSeleccionarDocumentos', 'observacionProlog'));
     }
 
     public function guardarRevision(Request $request, int $id, AutorizacionService $authz, EstadoSolicitudService $estados)
