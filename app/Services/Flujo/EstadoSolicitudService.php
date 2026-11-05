@@ -7,6 +7,7 @@ use App\Models\HistorialSolicitud;
 use App\Models\Solicitud;
 use App\Models\User;
 use App\Services\Notificaciones\NotificacionService;
+use App\Support\Estados;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 

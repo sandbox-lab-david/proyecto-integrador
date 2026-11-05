@@ -166,6 +166,6 @@ class RevisionController extends Controller
         $careerId = (int) $s->carreraEstudiante->carreraModalidad->carrera_id;
 
         return ($authz->tieneRol($usuario, 'asistente') && $authz->puedeVerFacultad($usuario,(int) $s->carreraEstudiante->carreraModalidad->carrera->facultad_id))
-            || ($authz->tieneRol($usuario,'director') && $authz->puedeVerCarrera($usuario,$careeId));
+            || ($authz->tieneRol($usuario,'director') && $authz->puedeVerCarrera($usuario,$careerId));
     }
 }
