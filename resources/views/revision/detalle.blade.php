@@ -27,7 +27,6 @@
 
     <section class="mb-6 rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
         <h2 class="mb-4 text-lg font-semibold text-slate-900">Documentos del expediente</h2>
-        @php($puedeSeleccionarDocumentos = $esAsistente && $solicitud->estadoSolicitud?->codigo === \App\Support\Estados::ENVIADA)
         @php($documentosMarcados = old('documentos_seleccionados', $documentosSeleccionados))
         @php($documentosMarcados = is_array($documentosMarcados) ? array_map('intval', $documentosMarcados) : [])
         @if($puedeSeleccionarDocumentos)
@@ -43,7 +42,13 @@
                 </div>
             </div>
         @empty
-            <p class="text-sm text-slate-500">@if($esAsistente)No hay respaldos cargados en el expediente.@elseLa asistente no seleccionó archivos para compartir con el director.@endif</p>
+            <p class="text-sm text-slate-500">
+                @if($esAsistente)
+                    No hay respaldos cargados en el expediente.
+                @else
+                    La asistente no seleccionó archivos para compartir con el director.
+                @endif
+            </p>
         @endforelse
         @foreach($solicitud->documentosGenerados as $documento)
             <div class="mb-2 rounded-lg border border-slate-200 p-3 text-sm text-slate-700">Documento generado · versión {{ $documento->version }} · {{ $documento->ruta_pdf ?: $documento->ruta_docx }}</div>
@@ -100,7 +105,7 @@
         <ol class="space-y-3 border-l-2 border-red-100 pl-4">@forelse($lineaTiempo as $evento)<li class="relative"><span class="absolute -left-[22px] top-1 h-3 w-3 rounded-full bg-red-700"></span><p class="text-sm font-semibold text-slate-900">{{ $evento->estado_anterior ?: 'Inicio' }} → {{ $evento->estado_nuevo }}</p>@if($evento->comentario)<p class="text-sm text-slate-600">{{ $evento->comentario }}</p>@endif @if($evento->observacion_interna)<p class="rounded-md bg-amber-50 px-3 py-2 text-sm text-amber-900">Nota interna: {{ $evento->observacion_interna }}</p>@endif<p class="text-xs text-slate-500">{{ $evento->created_at?->format('d/m/Y H:i') }} · {{ $evento->user?->name ?? 'Sistema' }}</p></li>@empty<li class="text-sm text-slate-500">No hay movimientos registrados todavía.</li>@endforelse</ol>
     </section>
 
-    @if(auth()->user()->trabajador && app(\App\Services\Academico\AutorizacionService::class)->tieneRol(auth()->user(),'asistente') && $solicitud->estadoSolicitud?->codigo === \App\Support\Estados::ENVIADA)
+    @if($puedeSeleccionarDocumentos)
         <form id="form-revision" action="{{ route('revision.guardar',$solicitud->id) }}" method="POST" class="rounded-xl border border-slate-200 bg-white p-6 shadow-sm" onsubmit="return confirm('¿Registrar esta decisión y notificar al estudiante?')">@csrf
             <h2 class="mb-4 text-lg font-semibold text-slate-900">Registrar revisión documental</h2>
             <div class="mb-4 grid gap-3 md:grid-cols-3 text-sm text-slate-700">

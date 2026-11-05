@@ -40,10 +40,12 @@ class RevisionController extends Controller
         $solicitud = $solicitudes->detalle($id);
         $usuario = auth()->user();
         abort_unless($this->puedeVer($usuario, $solicitud, $authz), 403);
+        $solicitud->loadMissing('estadoSolicitud');
         $solicitud = $this->presentar($solicitud);
         $ultimaSeleccion = Revision::query()->where('solicitud_id', $solicitud->id)->whereNotNull('documentos_seleccionados')->latest('id')->first();
         $documentosSeleccionados = $ultimaSeleccion?->documentos_seleccionados ?? $solicitud->respaldos->modelKeys();
         $esAsistente = $authz->tieneRol($usuario, 'asistente');
+        $puedeSeleccionarDocumentos = $esAsistente && $solicitud->estadoSolicitud?->codigo === Estados::ENVIADA;
         if ($authz->tieneRol($usuario, 'director') && $ultimaSeleccion) {
             $solicitud->setRelation('respaldos', $solicitud->respaldos->whereIn('id', $documentosSeleccionados)->values());
         }
@@ -57,7 +59,7 @@ class RevisionController extends Controller
             report($e);
         }
 
-        return view('revision.detalle', compact('solicitud', 'lineaTiempo', 'requisitosProlog', 'validacionProlog', 'documentosSeleccionados', 'esAsistente'));
+        return view('revision.detalle', compact('solicitud', 'lineaTiempo', 'requisitosProlog', 'validacionProlog', 'documentosSeleccionados', 'esAsistente', 'puedeSeleccionarDocumentos'));
     }
 
     public function guardarRevision(Request $request, int $id, AutorizacionService $authz, EstadoSolicitudService $estados)
@@ -164,6 +166,6 @@ class RevisionController extends Controller
         $careerId = (int) $s->carreraEstudiante->carreraModalidad->carrera_id;
 
         return ($authz->tieneRol($usuario, 'asistente') && $authz->puedeVerFacultad($usuario,(int) $s->carreraEstudiante->carreraModalidad->carrera->facultad_id))
-            || ($authz->tieneRol($usuario,'director') && $authz->puedeVerCarrera($usuario,$careerId));
+            || ($authz->tieneRol($usuario,'director') && $authz->puedeVerCarrera($usuario,$careeId));
     }
 }
