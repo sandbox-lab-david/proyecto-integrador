@@ -41,6 +41,12 @@ class RevisionController extends Controller
         $usuario = auth()->user();
         abort_unless($this->puedeVer($usuario, $solicitud, $authz), 403);
         $solicitud = $this->presentar($solicitud);
+        $ultimaSeleccion = Revision::query()->where('solicitud_id', $solicitud->id)->whereNotNull('documentos_seleccionados')->latest('id')->first();
+        $documentosSeleccionados = $ultimaSeleccion?->documentos_seleccionados ?? $solicitud->respaldos->modelKeys();
+        $esAsistente = $authz->tieneRol($usuario, 'asistente');
+        if ($authz->tieneRol($usuario, 'director') && $ultimaSeleccion) {
+            $solicitud->setRelation('respaldos', $solicitud->respaldos->whereIn('id', $documentosSeleccionados)->values());
+        }
         $lineaTiempo = $estados->lineaDeTiempo($solicitud, true);
         $validacionProlog = null;
         $requisitosProlog = null;
@@ -51,13 +57,13 @@ class RevisionController extends Controller
             report($e);
         }
 
-        return view('revision.detalle', compact('solicitud', 'lineaTiempo', 'requisitosProlog', 'validacionProlog'));
+        return view('revision.detalle', compact('solicitud', 'lineaTiempo', 'requisitosProlog', 'validacionProlog', 'documentosSeleccionados', 'esAsistente'));
     }
 
     public function guardarRevision(Request $request, int $id, AutorizacionService $authz, EstadoSolicitudService $estados)
     {
-        $data = $request->validate(['accion' => ['required', 'in:aprobar,observar,rechazar'], 'observaciones' => ['nullable', 'string', 'max:2000'], 'check_documento' => ['nullable', 'boolean'], 'check_datos' => ['nullable', 'boolean'], 'check_requisitos' => ['nullable', 'boolean']]);
-        $solicitud = Solicitud::with(['carreraEstudiante.carreraModalidad.carrera', 'estadoSolicitud'])->findOrFail($id);
+        $data = $request->validate(['accion' => ['required', 'in:aprobar,observar,rechazar'], 'observaciones' => ['nullable', 'string', 'max:2000'], 'check_documento' => ['nullable', 'boolean'], 'check_datos' => ['nullable', 'boolean'], 'check_requisitos' => ['nullable', 'boolean'], 'documentos_seleccionados_present' => ['nullable', 'in:1'], 'documentos_seleccionados' => ['sometimes', 'array'], 'documentos_seleccionados.*' => ['integer', 'distinct', 'exists:respaldos,id']]);
+        $solicitud = Solicitud::with(['carreraEstudiante.carreraModalidad.carrera', 'estadoSolicitud', 'respaldos'])->findOrFail($id);
         $usuario = auth()->user();
         abort_unless($authz->tieneRol($usuario, 'admin') || ($usuario->trabajador && $authz->puedeVerFacultad($usuario, (int) $solicitud->carreraEstudiante->carreraModalidad->carrera->facultad_id)), 403);
         $destino = match ($data['accion']) {
@@ -65,8 +71,13 @@ class RevisionController extends Controller
         };
         $trabajadorId = $usuario->trabajador?->id;
         abort_unless($trabajadorId, 403);
-        DB::transaction(function () use ($solicitud, $data, $destino, $usuario, $trabajadorId, $estados) {
-            Revision::create(['solicitud_id' => $solicitud->id, 'trabajador_id' => $trabajadorId, 'documento_legible' => (bool) ($data['check_documento'] ?? false), 'datos_coinciden' => (bool) ($data['check_datos'] ?? false), 'requisitos_completos' => (bool) ($data['check_requisitos'] ?? false), 'observaciones_internas' => $data['observaciones'] ?? null, 'decision' => $destino]);
+        $idsDisponibles = $solicitud->respaldos->modelKeys();
+        $idsSeleccionados = $request->exists('documentos_seleccionados_present')
+            ? array_map('intval', $data['documentos_seleccionados'] ?? [])
+            : array_map('intval', $idsDisponibles);
+        abort_if(array_diff($idsSeleccionados, $idsDisponibles) !== [], 422, 'Selecciona únicamente archivos de esta solicitud.');
+        DB::transaction(function () use ($solicitud, $data, $destino, $usuario, $trabajadorId, $estados, $idsSeleccionados) {
+            Revision::create(['solicitud_id' => $solicitud->id, 'trabajador_id' => $trabajadorId, 'documento_legible' => (bool) ($data['check_documento'] ?? false), 'datos_coinciden' => (bool) ($data['check_datos'] ?? false), 'requisitos_completos' => (bool) ($data['check_requisitos'] ?? false), 'documentos_seleccionados' => $idsSeleccionados, 'observaciones_internas' => $data['observaciones'] ?? null, 'decision' => $destino]);
             $estados->transicionar($solicitud, $destino, $usuario, $data['observaciones'] ?? null);
         });
 
@@ -80,6 +91,10 @@ class RevisionController extends Controller
         abort_unless($this->puedeVer($usuario, $solicitud, $authz), 403);
         $respaldo = $solicitud->respaldos->firstWhere('id', $documento);
         abort_unless($respaldo && Storage::disk('local')->exists($respaldo->ruta), 404);
+        if ($authz->tieneRol($usuario, 'director')) {
+            $seleccion = Revision::query()->where('solicitud_id', $solicitud->id)->whereNotNull('documentos_seleccionados')->latest('id')->first();
+            abort_unless(! $seleccion || in_array($documento, array_map('intval', $seleccion->documentos_seleccionados ?? []), true), 404);
+        }
 
         return Storage::disk('local')->response($respaldo->ruta, $respaldo->nombre_original, ['Content-Type' => $respaldo->mime ?: 'application/octet-stream', 'Content-Disposition' => 'inline; filename="'.str_replace('"', '', $respaldo->nombre_original).'"']);
     }
@@ -115,7 +130,7 @@ class RevisionController extends Controller
             $estados->transicionar($solicitud, $destino, $usuario, $data['observacion'] ?? null);
         });
 
-        return redirect()->route('revision.director', $request->only(['filtrar', 'nombre', 'codigo', 'carrera', 'fecha', 'tramite', 'estado']))->with('success', 'Decisión registrada: '.$this->label($destino).'.');
+        return redirect()->route('revision.director', $request->only(['filtrar', 'nombre', 'codigo', 'carrera', 'desde', 'hasta', 'tramite', 'estado']))->with('success', 'Decisión registrada: '.$this->label($destino).'.');
     }
 
     private function presentar(Solicitud $s): Solicitud

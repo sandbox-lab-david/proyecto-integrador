@@ -12,7 +12,9 @@ use App\Services\Notificaciones\NotificacionService;
 use App\Services\Academico\AutorizacionService;
 use App\Support\Estados;
 use App\Support\RevisionSolicitudFilters;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 
@@ -20,25 +22,18 @@ class ResolucionesConsejoController extends Controller
 {
     public function index(Request $request, AutorizacionService $authz)
     {
-        $filtros = RevisionSolicitudFilters::validateWithDateRange($request);
+        $filtros = RevisionSolicitudFilters::validate($request);
         $agendas = collect();
         if ($filtros['filtrar']) {
             $query = CorteAgenda::with(['solicitudes.estadoSolicitud', 'resoluciones'])->whereHas('solicitudes', fn ($q) => $this->aplicarFiltrosSolicitud($q, $filtros));
-            if ($filtros['desde'] !== '') {
-                $query->whereDate('fecha_sesion', '>=', $filtros['desde']);
-            }
-            if ($filtros['hasta'] !== '') {
-                $query->whereDate('fecha_sesion', '<=', $filtros['hasta']);
-            }
-            if ($authz->tieneRol(auth()->user(), 'asistente')) {
-                $facultades = $authz->facultadesDe(auth()->user()->trabajador)->modelKeys();
-                $query->whereIn('facultad_id', $facultades);
-            }
+            $this->aplicarRangoFechaSesion($query, $filtros);
+            $this->aplicarVisibilidadAgendas($query, $authz);
             $agendas = $query->orderByDesc('fecha_sesion')->get();
             foreach ($agendas as $agenda) {
                 $agenda->numero = 'AG-'.$agenda->id;
                 $itemsQuery = $agenda->solicitudes()->with('estadoSolicitud');
-                RevisionSolicitudFilters::apply($itemsQuery->getQuery(), $filtros);
+                $this->aplicarVisibilidadSolicitudes($itemsQuery->getQuery(), $authz);
+                RevisionSolicitudFilters::applyMetadata($itemsQuery->getQuery(), $filtros);
                 $items = $itemsQuery->get();
                 $agenda->setRelation('solicitudes', $items);
                 $agenda->total_solicitudes = $items->count();
@@ -60,6 +55,11 @@ class ResolucionesConsejoController extends Controller
         if ($authz->tieneRol(auth()->user(), 'asistente')) {
             abort_unless($authz->puedeVerFacultad(auth()->user(), (int) $corte->facultad_id), 403);
         }
+        if ($authz->tieneRol(auth()->user(), 'director')) {
+            $carreras = $this->carrerasVisiblesDirector($authz) ?? [];
+            $corte->setRelation('solicitudes', $corte->solicitudes->filter(fn ($solicitud) => in_array((int) $solicitud->carreraEstudiante?->carreraModalidad?->carrera_id, $carreras, true))->values());
+            abort_unless($corte->solicitudes->isNotEmpty(), 403);
+        }
         $corte->referencia_sesion = $this->referenciaSesion($corte->fecha_sesion);
         $corte->numero = 'AG-'.$corte->id;
         $casos = $corte->solicitudes->map(function ($s) use ($resoluciones) {
@@ -76,19 +76,12 @@ class ResolucionesConsejoController extends Controller
 
     public function documento(Request $request, AgendaWordService $word, AutorizacionService $authz)
     {
-        $filtros = RevisionSolicitudFilters::validateWithDateRange($request);
+        $filtros = RevisionSolicitudFilters::validate($request);
         $query = CorteAgenda::query()->whereHas('solicitudes', fn ($q) => $this->aplicarFiltrosSolicitud($q, $filtros));
-        if ($filtros['desde'] !== '') {
-            $query->whereDate('fecha_sesion', '>=', $filtros['desde']);
-        }
-        if ($filtros['hasta'] !== '') {
-            $query->whereDate('fecha_sesion', '<=', $filtros['hasta']);
-        }
-        if ($authz->tieneRol(auth()->user(), 'asistente')) {
-            $query->whereIn('facultad_id', $authz->facultadesDe(auth()->user()->trabajador)->modelKeys());
-        }
+        $this->aplicarRangoFechaSesion($query, $filtros);
+        $this->aplicarVisibilidadAgendas($query, $authz);
 
-        return $word->generarDocumento($query->pluck('id')->all(), $filtros);
+        return $word->generarDocumento($query->pluck('id')->all(), $filtros, $this->carrerasVisiblesDirector($authz));
     }
 
     public function documentoAgenda(int $agenda, AgendaWordService $word, AutorizacionService $authz)
@@ -97,27 +90,25 @@ class ResolucionesConsejoController extends Controller
         if ($authz->tieneRol(auth()->user(), 'asistente')) {
             abort_unless($authz->puedeVerFacultad(auth()->user(), (int) $corte->facultad_id), 403);
         }
+        $carrerasVisibles = $this->carrerasVisiblesDirector($authz);
+        if ($carrerasVisibles !== null) {
+            abort_unless($corte->solicitudes()->whereHas('carreraEstudiante.carreraModalidad', fn ($q) => $q->whereIn('carrera_id', $carrerasVisibles))->exists(), 403);
+        }
 
-        return $word->generarAgendaWord($corte->id);
+        return $word->generarAgendaWord($corte->id, $carrerasVisibles);
     }
 
     public function exportar(Request $request, AutorizacionService $authz)
     {
-        $filtros = RevisionSolicitudFilters::validateWithDateRange($request);
+        $filtros = RevisionSolicitudFilters::validate($request);
         $query = CorteAgenda::with(['solicitudes.estadoSolicitud', 'resoluciones'])->whereHas('solicitudes', fn ($q) => $this->aplicarFiltrosSolicitud($q, $filtros));
-        if ($filtros['desde'] !== '') {
-            $query->whereDate('fecha_sesion', '>=', $filtros['desde']);
-        }
-        if ($filtros['hasta'] !== '') {
-            $query->whereDate('fecha_sesion', '<=', $filtros['hasta']);
-        }
-        if ($authz->tieneRol(auth()->user(), 'asistente')) {
-            $query->whereIn('facultad_id', $authz->facultadesDe(auth()->user()->trabajador)->modelKeys());
-        }
+        $this->aplicarRangoFechaSesion($query, $filtros);
+        $this->aplicarVisibilidadAgendas($query, $authz);
         $rows = $query->orderBy('fecha_sesion')->get();
         foreach ($rows as $agenda) {
             $filtered = $agenda->solicitudes()->with('resolucion', 'estadoSolicitud');
-            RevisionSolicitudFilters::apply($filtered->getQuery(), $filtros);
+            $this->aplicarVisibilidadSolicitudes($filtered->getQuery(), $authz);
+            RevisionSolicitudFilters::applyMetadata($filtered->getQuery(), $filtros);
             $agenda->setRelation('solicitudes', $filtered->get());
         }
         $filename = 'agendas-consejo-'.now()->format('Ymd-His').'.csv';
@@ -185,9 +176,53 @@ class ResolucionesConsejoController extends Controller
         return redirect()->route('revision.resoluciones')->with('success','La solicitud quedó marcada como ejecutada.');
     }
 
-    private function aplicarFiltrosSolicitud($query,array $filtros): void
+    private function aplicarFiltrosSolicitud(Builder $query, array $filtros): void
     {
-        RevisionSolicitudFilters::apply($query,$filtros);
+        RevisionSolicitudFilters::applyMetadata($query, $filtros);
+    }
+
+    private function aplicarRangoFechaSesion(Builder $query, array $filtros): void
+    {
+        if ($filtros['desde'] !== '') {
+            $query->whereDate('fecha_sesion', '>=', Carbon::createFromFormat('!d/m/Y', $filtros['desde'])->toDateString());
+        }
+        if ($filtros['hasta'] !== '') {
+            $query->whereDate('fecha_sesion', '<=', Carbon::createFromFormat('!d/m/Y', $filtros['hasta'])->toDateString());
+        }
+    }
+
+    private function aplicarVisibilidadAgendas(Builder $query, AutorizacionService $authz): void
+    {
+        $usuario = auth()->user();
+        if ($authz->tieneRol($usuario, 'asistente')) {
+            $facultades = $usuario->trabajador ? $authz->facultadesDe($usuario->trabajador)->modelKeys() : [];
+            $query->whereIn('facultad_id', $facultades);
+        } elseif ($authz->tieneRol($usuario, 'director')) {
+            $carreras = $this->carrerasVisiblesDirector($authz) ?? [];
+            $query->whereHas('solicitudes.carreraEstudiante.carreraModalidad', fn ($q) => $q->whereIn('carrera_id', $carreras));
+        }
+    }
+
+    private function aplicarVisibilidadSolicitudes(Builder $query, AutorizacionService $authz): void
+    {
+        $usuario = auth()->user();
+        if ($authz->tieneRol($usuario, 'asistente')) {
+            $facultades = $usuario->trabajador ? $authz->facultadesDe($usuario->trabajador)->modelKeys() : [];
+            $query->whereHas('carreraEstudiante.carrera', fn ($q) => $q->whereIn('facultad_id', $facultades));
+        } elseif ($authz->tieneRol($usuario, 'director')) {
+            $carreras = $this->carrerasVisiblesDirector($authz) ?? [];
+            $query->whereHas('carreraEstudiante.carreraModalidad', fn ($q) => $q->whereIn('carrera_id', $carreras));
+        }
+    }
+
+    private function carrerasVisiblesDirector(AutorizacionService $authz): ?array
+    {
+        $usuario = auth()->user();
+        if (! $authz->tieneRol($usuario, 'director')) {
+            return null;
+        }
+
+        return $usuario->trabajador ? $authz->carrerasQueDirige($usuario->trabajador)->modelKeys() : [];
     }
 
     private function referenciaSesion($fecha): string

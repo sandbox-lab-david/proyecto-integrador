@@ -27,13 +27,23 @@
 
     <section class="mb-6 rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
         <h2 class="mb-4 text-lg font-semibold text-slate-900">Documentos del expediente</h2>
+        @php($puedeSeleccionarDocumentos = $esAsistente && $solicitud->estadoSolicitud?->codigo === \App\Support\Estados::ENVIADA)
+        @php($documentosMarcados = old('documentos_seleccionados', $documentosSeleccionados))
+        @php($documentosMarcados = is_array($documentosMarcados) ? array_map('intval', $documentosMarcados) : [])
+        @if($puedeSeleccionarDocumentos)
+            <p class="mb-3 text-sm text-slate-600">Selecciona los archivos que se enviarán al director. Todos aparecen seleccionados inicialmente.</p>
+            <input type="hidden" form="form-revision" name="documentos_seleccionados_present" value="1">
+        @endif
         @forelse($solicitud->respaldos as $documento)
             <div class="mb-3 grid gap-3 rounded-lg border border-slate-200 p-3 md:grid-cols-[1fr_auto]">
                 <div><p class="font-medium text-slate-900">{{ $documento->nombre_original }}</p><p class="text-xs text-slate-500">{{ $documento->documentoRequerido?->nombre ?? 'Documento adjunto' }} · {{ number_format(($documento->tamano_bytes ?? 0)/1024,1) }} KB</p></div>
-                <a href="{{ route('revision.documento',[$solicitud->id,$documento->id]) }}" target="_blank" class="rounded-lg border border-slate-300 px-3 py-2 text-center text-sm font-semibold text-slate-700 hover:border-red-700 hover:text-red-800">Ver documento</a>
+                <div class="flex flex-wrap items-center gap-3">
+                    @if($puedeSeleccionarDocumentos)<label class="flex items-center gap-2 text-sm text-slate-700"><input form="form-revision" type="checkbox" name="documentos_seleccionados[]" value="{{ $documento->id }}" @checked(in_array((int) $documento->id, $documentosMarcados, true))>Enviar al director</label>@endif
+                    <a href="{{ route('revision.documento',[$solicitud->id,$documento->id]) }}" target="_blank" class="rounded-lg border border-slate-300 px-3 py-2 text-center text-sm font-semibold text-slate-700 hover:border-red-700 hover:text-red-800">Ver documento</a>
+                </div>
             </div>
         @empty
-            <p class="text-sm text-slate-500">No hay respaldos cargados en el expediente.</p>
+            <p class="text-sm text-slate-500">@if($esAsistente)No hay respaldos cargados en el expediente.@elseLa asistente no seleccionó archivos para compartir con el director.@endif</p>
         @endforelse
         @foreach($solicitud->documentosGenerados as $documento)
             <div class="mb-2 rounded-lg border border-slate-200 p-3 text-sm text-slate-700">Documento generado · versión {{ $documento->version }} · {{ $documento->ruta_pdf ?: $documento->ruta_docx }}</div>
@@ -91,7 +101,7 @@
     </section>
 
     @if(auth()->user()->trabajador && app(\App\Services\Academico\AutorizacionService::class)->tieneRol(auth()->user(),'asistente') && $solicitud->estadoSolicitud?->codigo === \App\Support\Estados::ENVIADA)
-        <form action="{{ route('revision.guardar',$solicitud->id) }}" method="POST" class="rounded-xl border border-slate-200 bg-white p-6 shadow-sm" onsubmit="return confirm('¿Registrar esta decisión y notificar al estudiante?')">@csrf
+        <form id="form-revision" action="{{ route('revision.guardar',$solicitud->id) }}" method="POST" class="rounded-xl border border-slate-200 bg-white p-6 shadow-sm" onsubmit="return confirm('¿Registrar esta decisión y notificar al estudiante?')">@csrf
             <h2 class="mb-4 text-lg font-semibold text-slate-900">Registrar revisión documental</h2>
             <div class="mb-4 grid gap-3 md:grid-cols-3 text-sm text-slate-700">
                 <label class="flex items-center gap-2"><input type="checkbox" name="check_documento" value="1"> Documento legible</label>

@@ -123,7 +123,7 @@ Route::middleware(['auth', 'rol:asistente,admin'])->group(function () {
     Route::post('/revision/agendas/solicitudes/rechazar-varias', [AgendaConsejoController::class, 'rechazarVariasSolicitudes'])->name('revision.agendas.solicitudes.rechazar-varias');
 });
 
-Route::middleware(['auth', 'rol:consulta,asistente,admin'])->group(function () {
+Route::middleware(['auth', 'rol:consulta,asistente,director,admin'])->group(function () {
     Route::get('/revision/resoluciones', [ResolucionesConsejoController::class, 'index'])->name('revision.resoluciones');
     Route::get('/revision/agendas/{agenda}/resoluciones', [ResolucionesConsejoController::class, 'porAgenda'])->name('revision.agendas.resoluciones');
     Route::get('/revision/resoluciones/documento', [ResolucionesConsejoController::class, 'documento'])->name('revision.resoluciones.documento');

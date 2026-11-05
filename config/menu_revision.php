@@ -7,6 +7,6 @@ return [
     ],
     'Consejo' => [
         ['texto' => 'Agendas del Consejo', 'ruta' => 'revision.agendas', 'activo' => 'revision.agendas*', 'roles' => ['asistente', 'admin']],
-        ['texto' => 'Resoluciones', 'ruta' => 'revision.resoluciones', 'activo' => 'revision.resoluciones*', 'roles' => ['consulta', 'asistente', 'admin']],
+        ['texto' => 'Resoluciones', 'ruta' => 'revision.resoluciones', 'activo' => 'revision.resoluciones*', 'roles' => ['consulta', 'asistente', 'director', 'admin']],
     ],
 ];
