@@ -1,7 +1,7 @@
 @extends('layouts.revision')
 
 @section('page-title', 'Bandeja de solicitudes')
-@section('page-heading', 'Bandeja de Solicitudes - Asistente de Facultad')
+@section('page-heading', 'Bandeja de Solicitudes - Asistente de Facultad'.($nombreFacultades !== '' ? ' ('.$nombreFacultades.')' : ''))
 @section('page-description', 'Primer filtro de revisión documental de casos')
 @section('active-page', 'assistant')
 

@@ -21,19 +21,21 @@ class RevisionController extends Controller
     public function bandejaAsistente(Request $request, AutorizacionService $authz)
     {
         $filtros = RevisionSolicitudFilters::validate($request);
-        $facultades = auth()->user()->trabajador ? $authz->facultadesDe(auth()->user()->trabajador) : collect();
+        $usuario = auth()->user();
+        $facultades = $usuario->trabajador ? $authz->facultadesDe($usuario->trabajador) : collect();
+        $nombreFacultades = $authz->tieneRol($usuario, 'asistente') ? $facultades->pluck('nombre')->implode(', ') : '';
         $solicitudes = collect();
         if ($filtros['filtrar']) {
             $query = Solicitud::with(['carreraEstudiante.estudiante', 'carreraEstudiante.carreraModalidad.carrera', 'tipoTramite', 'estadoSolicitud'])
                 ->enEstado(Estados::ENVIADA);
-            if (! $authz->tieneRol(auth()->user(), 'admin')) {
-                $query->whereHas('carreraEstudiante.carrera', fn ($c) => $c->whereIn('facultad_id', $facultades->modelKeys()));
+            if (! $authz->tieneRol($usuario, 'admin')) {
+                $query->whereHas('carreraEstudiante.carreraModalidad.carrera', fn ($c) => $c->whereIn('facultad_id', $facultades->modelKeys()));
             }
             RevisionSolicitudFilters::apply($query, $filtros);
             $solicitudes = $query->latest('created_at')->get()->map(fn ($s) => $this->presentar($s));
         }
 
-        return view('revision.asistente', ['solicitudes' => $solicitudes, 'filtros' => $filtros, 'tramitesDisponibles' => RevisionSolicitudFilters::tramitesDisponibles(), 'estadosDisponibles' => RevisionSolicitudFilters::ESTADOS, 'filtrosAplicados' => $filtros['filtrar']]);
+        return view('revision.asistente', ['solicitudes' => $solicitudes, 'filtros' => $filtros, 'tramitesDisponibles' => RevisionSolicitudFilters::tramitesDisponibles(), 'estadosDisponibles' => RevisionSolicitudFilters::ESTADOS, 'filtrosAplicados' => $filtros['filtrar'], 'nombreFacultades' => $nombreFacultades]);
     }
 
     public function detalleCaso(int $id, AutorizacionService $authz, SolicitudService $solicitudes, RequisitosSolicitud $requisitos, PrologService $prolog, EstadoSolicitudService $estados)
