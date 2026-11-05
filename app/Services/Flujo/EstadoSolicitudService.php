@@ -7,6 +7,7 @@ use App\Models\HistorialSolicitud;
 use App\Models\Solicitud;
 use App\Models\User;
 use App\Services\Notificaciones\NotificacionService;
+use App\Support\Estados;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 
@@ -14,7 +15,9 @@ class EstadoSolicitudService
 {
     public function estados(bool $soloActivos = true)
     {
-        return EstadoSolicitud::orderBy('nombre')->get();
+        return EstadoSolicitud::where('codigo', '!=', Estados::BORRADOR)
+            ->orderBy('nombre')
+            ->get();
     }
 
     public function etiquetaParaEstudiante(string $codigoEstado)
