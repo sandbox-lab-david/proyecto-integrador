@@ -37,7 +37,7 @@ class CorreccionesInstitucionalesTest extends TestCase
         $datos['clave_envio'] = app(DocumentosTemporales::class)->buscar('gracia')['version'];
         $datos['requisitos'] = [];
         foreach (app(TramitesSimulados::class)->buscar('gracia')['documentos'] as $documento) {
-            if ($documento['obligatorio']) {
+            if ($documento['obligatorio'] || $datos['requisitos'] === []) {
                 $archivo = app(RespaldosTemporales::class)->agregar($this->pdf(), 'gracia');
                 $datos['requisitos'][$archivo['id']] = $documento['id'];
             }
@@ -85,6 +85,12 @@ class CorreccionesInstitucionalesTest extends TestCase
         $corregida = $envio->enviar($usuario, $this->prepararDocumentos($datos), $inicial, $base);
 
         $this->assertSame($inicial->id, $corregida->id);
+        $this->assertGreaterThanOrEqual(2, $corregida->respaldos()->count());
+        foreach ($corregida->respaldos as $respaldo) {
+            $this->assertNotNull($respaldo->documento_requerido_id);
+            $this->assertSame($corregida->tipo_tramite_id, $respaldo->documentoRequerido->tipo_tramite_id);
+            $this->assertSame('examen_gracia', $respaldo->documentoRequerido->tipoTramite->codigo);
+        }
         Notification::assertSentToTimes($usuario, NotificacionPortal::class, 2);
         $this->assertSame($inicial->codigo, $corregida->codigo);
         $this->assertDatabaseCount('solicitudes', 1);
