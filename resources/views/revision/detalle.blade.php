@@ -139,7 +139,14 @@
                 <label class="flex items-center gap-2"><input type="checkbox" name="check_datos" value="1"> Datos coinciden</label>
                 <label class="flex items-center gap-2"><input type="checkbox" name="check_requisitos" value="1"> Requisitos completos</label>
             </div>
-            <label class="mb-4 block text-sm font-medium text-slate-700">Observaciones <textarea name="observaciones" rows="4" class="mt-1 w-full rounded-lg border border-slate-300 p-3" placeholder="El resultado de Prolog aparecerá aquí cuando esté disponible; puedes añadir observaciones adicionales.">{{ old('observaciones', $observacionProlog) }}</textarea></label>
+            @if(filled($observacionProlog))
+                <div class="mb-4 rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm text-amber-950" role="status">
+                    <h3 class="font-semibold">Comprobación automática de documentos (Prolog)</h3>
+                    <p class="mt-1">{{ $observacionProlog }}</p>
+                    <p class="mt-2 text-xs text-amber-800">Este resultado es informativo y no se enviará al estudiante como observación.</p>
+                </div>
+            @endif
+            <label class="mb-4 block text-sm font-medium text-slate-700">Observaciones para el estudiante <textarea name="observaciones" rows="4" class="mt-1 w-full rounded-lg border border-slate-300 p-3" placeholder="Escribe aquí una observación para el estudiante.">{{ old('observaciones') }}</textarea></label>
             <div class="flex flex-wrap justify-end gap-2"><button name="accion" value="observar" class="rounded-lg border border-amber-300 bg-amber-50 px-4 py-2 text-sm font-semibold text-amber-900">Marcar como observado</button><button name="accion" value="rechazar" class="rounded-lg border border-red-300 bg-white px-4 py-2 text-sm font-semibold text-red-800">Rechazar</button><button name="accion" value="aprobar" class="rounded-lg bg-red-700 px-4 py-2 text-sm font-semibold text-white">Enviar al director</button></div>
         </form>
     @endif
