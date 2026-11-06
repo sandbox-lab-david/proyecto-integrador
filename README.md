@@ -8,6 +8,7 @@
 - [Acceso, registro y roles](#acceso-registro-y-roles--grupo-1) — Grupo 1
 - [Cómo agregar una pantalla o un módulo](#cómo-agregar-una-pantalla-o-un-módulo--grupo-1) — Grupo 1
 - [Módulo 1: Administración académica](#módulo-1-administración-académica--grupo-1) — Grupo 1
+- [Créditos de desarrollo](#créditos-de-desarrollo) — cada grupo agrega los suyos
 
 ## Instalación
 
@@ -464,3 +465,19 @@ Catálogos que usan los demás módulos, personal e importación del SIAC. Todo 
 | Archivos de ejemplo para importar | `database/data/ejemplos/` |
 | Menú | `config/menu_administracion.php` (Inicio arma sus tarjetas con este mismo archivo) |
 | Pruebas | `tests/Feature/` (`ContratosAcademicosTest`, `ContratosPendientesTest`, `DatosDePruebaTest`, `EstructuraAcademicaTest`, `PersonasTest`, `ImportacionTest`, `PendientesG1Test`, `AccesoYRolesTest`, `LayoutComunTest`) |
+
+## Créditos de desarrollo
+
+Cada grupo agrega aquí a sus integrantes y lo que hizo cada uno.
+
+### Grupo 4 · Módulo 4: Chatbot con Prolog
+
+Rama: [`grupo-4/modulo-chatbot`](https://github.com/sandbox-lab-david/proyecto-integrador/tree/grupo-4/modulo-chatbot)
+
+| Integrante | GitHub | Aporte |
+|---|---|---|
+| Jeremy Llerena | [@AlexGamerylo](https://github.com/AlexGamerylo) | Interfaz gráfica del chatbot: vista del chat, componentes, estilos generales, burbuja flotante con Ueesito y visibilidad por roles |
+| Mateo Chávez | [@mchavez23MC](https://github.com/mchavez23MC) | Integración con Laravel: catálogo de trámites, contrato v3, categorías y umbrales configurables, seeders y unión con los demás módulos |
+| Allan Becerra | [@becerrallan](https://github.com/becerrallan) | API del chatbot: persistencia en base de datos, contrato v2, seguridad de la API, rutas de trámites y verificación de documentos de respaldo en Prolog |
+| Saskia Brito | [@saskiabrito](https://github.com/saskiabrito) | Puente HTTP entre Laravel y Prolog: servidor, clave de acceso, límites y pruebas |
+| Bryan Grogan | [@BryanGrogan24](https://github.com/BryanGrogan24) | Base de conocimiento en Prolog: catálogo de hechos de los trámites y su documentación |
