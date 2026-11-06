@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\DocumentoFirmado;
 use App\Models\Revision;
 use App\Models\Solicitud;
 use App\Services\Academico\AutorizacionService;
@@ -46,11 +47,25 @@ class RevisionController extends Controller
         $solicitud->loadMissing('estadoSolicitud');
         $solicitud = $this->presentar($solicitud);
         $ultimaSeleccion = Revision::query()->where('solicitud_id', $solicitud->id)->whereNotNull('documentos_seleccionados')->latest('id')->first();
-        $documentosSeleccionados = $ultimaSeleccion?->documentos_seleccionados ?? $solicitud->respaldos->modelKeys();
+        $documentoFirmado = $solicitud->documentosGenerados
+            ->sortByDesc('version')
+            ->first()?->documentoFirmado;
+        $documentosDisponibles = $solicitud->respaldos->map(fn ($documento) => 'respaldo:'.$documento->id)->all();
+        if ($documentoFirmado) {
+            $documentosDisponibles[] = 'firmado:'.$documentoFirmado->id;
+        }
+        $documentosSeleccionados = $ultimaSeleccion
+            ? $this->normalizarDocumentosSeleccionados($ultimaSeleccion->documentos_seleccionados ?? [])
+            : $documentosDisponibles;
         $esAsistente = $authz->tieneRol($usuario, 'asistente');
         $puedeSeleccionarDocumentos = $esAsistente && $solicitud->estadoSolicitud?->codigo === Estados::ENVIADA;
         if ($authz->tieneRol($usuario, 'director') && $ultimaSeleccion) {
-            $solicitud->setRelation('respaldos', $solicitud->respaldos->whereIn('id', $documentosSeleccionados)->values());
+            $solicitud->setRelation('respaldos', $solicitud->respaldos->filter(
+                fn ($documento) => in_array('respaldo:'.$documento->id, $documentosSeleccionados, true)
+            )->values());
+            if ($documentoFirmado && ! in_array('firmado:'.$documentoFirmado->id, $documentosSeleccionados, true)) {
+                $documentoFirmado = null;
+            }
         }
         $lineaTiempo = $estados->lineaDeTiempo($solicitud, true);
         $validacionProlog = null;
@@ -84,13 +99,13 @@ class RevisionController extends Controller
             report($e);
         }
 
-        return view('revision.detalle', compact('solicitud', 'lineaTiempo', 'requisitosProlog', 'validacionProlog', 'documentosSeleccionados', 'esAsistente', 'puedeSeleccionarDocumentos', 'observacionProlog'));
+        return view('revision.detalle', compact('solicitud', 'lineaTiempo', 'requisitosProlog', 'validacionProlog', 'documentosSeleccionados', 'documentoFirmado', 'esAsistente', 'puedeSeleccionarDocumentos', 'observacionProlog'));
     }
 
     public function guardarRevision(Request $request, int $id, AutorizacionService $authz, EstadoSolicitudService $estados)
     {
-        $data = $request->validate(['accion' => ['required', 'in:aprobar,observar,rechazar'], 'observaciones' => ['nullable', 'string', 'max:2000'], 'check_documento' => ['nullable', 'boolean'], 'check_datos' => ['nullable', 'boolean'], 'check_requisitos' => ['nullable', 'boolean'], 'documentos_seleccionados_present' => ['nullable', 'in:1'], 'documentos_seleccionados' => ['sometimes', 'array'], 'documentos_seleccionados.*' => ['integer', 'distinct', 'exists:respaldos,id']]);
-        $solicitud = Solicitud::with(['carreraEstudiante.carreraModalidad.carrera', 'estadoSolicitud', 'respaldos'])->findOrFail($id);
+        $data = $request->validate(['accion' => ['required', 'in:aprobar,observar,rechazar'], 'observaciones' => ['nullable', 'string', 'max:2000'], 'check_documento' => ['nullable', 'boolean'], 'check_datos' => ['nullable', 'boolean'], 'check_requisitos' => ['nullable', 'boolean'], 'documentos_seleccionados_present' => ['nullable', 'in:1'], 'documentos_seleccionados' => ['sometimes', 'array'], 'documentos_seleccionados.*' => ['string', 'distinct', 'regex:/^(?:[0-9]+|respaldo:[0-9]+|firmado:[0-9]+)$/']]);
+        $solicitud = Solicitud::with(['carreraEstudiante.carreraModalidad.carrera', 'estadoSolicitud', 'respaldos', 'documentosGenerados.documentoFirmado'])->findOrFail($id);
         $usuario = auth()->user();
         abort_unless($authz->tieneRol($usuario, 'admin') || ($usuario->trabajador && $authz->puedeVerFacultad($usuario, (int) $solicitud->carreraEstudiante->carreraModalidad->carrera->facultad_id)), 403);
         $destino = match ($data['accion']) {
@@ -98,13 +113,17 @@ class RevisionController extends Controller
         };
         $trabajadorId = $usuario->trabajador?->id;
         abort_unless($trabajadorId, 403);
-        $idsDisponibles = $solicitud->respaldos->modelKeys();
-        $idsSeleccionados = $request->exists('documentos_seleccionados_present')
-            ? array_map('intval', $data['documentos_seleccionados'] ?? [])
-            : array_map('intval', $idsDisponibles);
-        abort_if(array_diff($idsSeleccionados, $idsDisponibles) !== [], 422, 'Selecciona únicamente archivos de esta solicitud.');
-        DB::transaction(function () use ($solicitud, $data, $destino, $usuario, $trabajadorId, $estados, $idsSeleccionados) {
-            Revision::create(['solicitud_id' => $solicitud->id, 'trabajador_id' => $trabajadorId, 'documento_legible' => (bool) ($data['check_documento'] ?? false), 'datos_coinciden' => (bool) ($data['check_datos'] ?? false), 'requisitos_completos' => (bool) ($data['check_requisitos'] ?? false), 'documentos_seleccionados' => $idsSeleccionados, 'observaciones_internas' => $data['observaciones'] ?? null, 'decision' => $destino]);
+        $documentosDisponibles = $solicitud->respaldos->map(fn ($documento) => 'respaldo:'.$documento->id)->all();
+        $documentoFirmado = $solicitud->documentosGenerados->sortByDesc('version')->first()?->documentoFirmado;
+        if ($documentoFirmado) {
+            $documentosDisponibles[] = 'firmado:'.$documentoFirmado->id;
+        }
+        $documentosMarcados = $request->exists('documentos_seleccionados_present')
+            ? $this->normalizarDocumentosSeleccionados($data['documentos_seleccionados'] ?? [])
+            : $documentosDisponibles;
+        abort_if(array_diff($documentosMarcados, $documentosDisponibles) !== [], 422, 'Selecciona únicamente archivos de esta solicitud.');
+        DB::transaction(function () use ($solicitud, $data, $destino, $usuario, $trabajadorId, $estados, $documentosMarcados) {
+            Revision::create(['solicitud_id' => $solicitud->id, 'trabajador_id' => $trabajadorId, 'documento_legible' => (bool) ($data['check_documento'] ?? false), 'datos_coinciden' => (bool) ($data['check_datos'] ?? false), 'requisitos_completos' => (bool) ($data['check_requisitos'] ?? false), 'documentos_seleccionados' => $documentosMarcados, 'observaciones_internas' => $data['observaciones'] ?? null, 'decision' => $destino]);
             $estados->transicionar($solicitud, $destino, $usuario, $data['observaciones'] ?? null);
         });
 
@@ -120,10 +139,43 @@ class RevisionController extends Controller
         abort_unless($respaldo && Storage::disk('local')->exists($respaldo->ruta), 404);
         if ($authz->tieneRol($usuario, 'director')) {
             $seleccion = Revision::query()->where('solicitud_id', $solicitud->id)->whereNotNull('documentos_seleccionados')->latest('id')->first();
-            abort_unless(! $seleccion || in_array($documento, array_map('intval', $seleccion->documentos_seleccionados ?? []), true), 404);
+            abort_unless(! $seleccion || in_array('respaldo:'.$documento, $this->normalizarDocumentosSeleccionados($seleccion->documentos_seleccionados ?? []), true), 404);
         }
 
         return Storage::disk('local')->response($respaldo->ruta, $respaldo->nombre_original, ['Content-Type' => $respaldo->mime ?: 'application/octet-stream', 'Content-Disposition' => 'inline; filename="'.str_replace('"', '', $respaldo->nombre_original).'"']);
+    }
+
+    public function verDocumentoFirmado(int $id, int $documentoFirmadoId, AutorizacionService $authz, SolicitudService $solicitudes)
+    {
+        $solicitud = $solicitudes->detalle($id);
+        $usuario = auth()->user();
+        abort_unless($this->puedeVer($usuario, $solicitud, $authz), 403);
+
+        $documento = DocumentoFirmado::query()
+            ->whereKey($documentoFirmadoId)
+            ->whereHas('documentoGenerado', fn ($query) => $query->where('solicitud_id', $solicitud->id))
+            ->with('documentoGenerado')
+            ->firstOrFail();
+        abort_unless(Storage::disk('local')->exists($documento->ruta), 404);
+
+        if ($authz->tieneRol($usuario, 'director')) {
+            $seleccion = Revision::query()->where('solicitud_id', $solicitud->id)->whereNotNull('documentos_seleccionados')->latest('id')->first();
+            abort_unless(! $seleccion || in_array('firmado:'.$documento->id, $this->normalizarDocumentosSeleccionados($seleccion->documentos_seleccionados ?? []), true), 404);
+        }
+
+        $nombre = 'documento-firmado-v'.($documento->documentoGenerado->version ?? 1).'.pdf';
+
+        return Storage::disk('local')->response($documento->ruta, $nombre, ['Content-Type' => 'application/pdf', 'Content-Disposition' => 'inline; filename="'.$nombre.'"']);
+    }
+
+    /** @param array<int, int|string> $documentos */
+    private function normalizarDocumentosSeleccionados(array $documentos): array
+    {
+        return collect($documentos)->map(function ($documento) {
+            $documento = (string) $documento;
+
+            return ctype_digit($documento) ? 'respaldo:'.$documento : $documento;
+        })->unique()->values()->all();
     }
 
     public function bandejaDirector(Request $request, AutorizacionService $authz)

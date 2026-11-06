@@ -145,4 +145,5 @@ Route::middleware(['auth', 'rol:director,admin'])->group(function () {
 Route::middleware(['auth', 'rol:asistente,director,admin'])->group(function () {
     Route::get('/revision/caso/{id}', [RevisionController::class, 'detalleCaso'])->name('revision.detalle');
     Route::get('/revision/caso/{id}/documento/{documento}', [RevisionController::class, 'verDocumento'])->name('revision.documento');
+    Route::get('/revision/caso/{id}/documento-firmado/{documentoFirmado}', [RevisionController::class, 'verDocumentoFirmado'])->name('revision.documento-firmado');
 });

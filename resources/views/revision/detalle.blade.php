@@ -28,7 +28,7 @@
     <section class="mb-6 rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
         <h2 class="mb-4 text-lg font-semibold text-slate-900">Documentos del expediente</h2>
         @php($documentosMarcados = old('documentos_seleccionados', $documentosSeleccionados))
-        @php($documentosMarcados = is_array($documentosMarcados) ? array_map('intval', $documentosMarcados) : [])
+        @php($documentosMarcados = is_array($documentosMarcados) ? array_map(fn ($documento) => ctype_digit((string) $documento) ? 'respaldo:'.$documento : (string) $documento, $documentosMarcados) : [])
         @if($puedeSeleccionarDocumentos)
             <p class="mb-3 text-sm text-slate-600">Selecciona los archivos que se enviarán al director. Todos aparecen seleccionados inicialmente.</p>
             <input type="hidden" form="form-revision" name="documentos_seleccionados_present" value="1">
@@ -39,7 +39,7 @@
                 <div class="flex flex-wrap items-center gap-3">
                     @if($puedeSeleccionarDocumentos)
                         <label class="flex cursor-pointer items-center gap-2 text-sm text-slate-700">
-                            <input form="form-revision" type="checkbox" role="switch" aria-label="Validación de {{ $documento->nombre_original }}" name="documentos_seleccionados[]" value="{{ $documento->id }}" @checked(in_array((int) $documento->id, $documentosMarcados, true)) class="peer sr-only">
+                            <input form="form-revision" type="checkbox" role="switch" aria-label="Validación de {{ $documento->nombre_original }}" name="documentos_seleccionados[]" value="respaldo:{{ $documento->id }}" @checked(in_array('respaldo:'.$documento->id, $documentosMarcados, true)) class="peer sr-only">
                             <span aria-hidden="true" class="relative inline-flex h-6 w-11 shrink-0 rounded-full bg-slate-300 transition-colors before:absolute before:left-0.5 before:top-0.5 before:h-5 before:w-5 before:rounded-full before:bg-white before:shadow before:transition-transform peer-checked:bg-red-700 peer-checked:before:translate-x-5 peer-focus-visible:outline peer-focus-visible:outline-2 peer-focus-visible:outline-offset-2 peer-focus-visible:outline-red-700"></span>
                             <span class="hidden min-w-24 font-medium peer-checked:inline">Validado</span>
                             <span class="min-w-24 font-medium peer-checked:hidden">No validado</span>
@@ -49,6 +49,7 @@
                 </div>
             </div>
         @empty
+            @unless($documentoFirmado)
             <p class="text-sm text-slate-500">
                 @if($esAsistente)
                     No hay respaldos cargados en el expediente.
@@ -56,7 +57,25 @@
                     La asistente no seleccionó archivos para compartir con el director.
                 @endif
             </p>
+            @endunless
         @endforelse
+        @if($documentoFirmado)
+            @php($nombreFirmado = 'Documento firmado · versión '.$documentoFirmado->documentoGenerado->version)
+            <div class="mb-3 grid gap-3 rounded-lg border border-slate-200 p-3 md:grid-cols-[1fr_auto]">
+                <div><p class="font-medium text-slate-900">{{ $nombreFirmado }}</p><p class="text-xs text-slate-500">PDF firmado por el estudiante · {{ number_format(($documentoFirmado->tamano_bytes ?? 0)/1024,1) }} KB</p></div>
+                <div class="flex flex-wrap items-center gap-3">
+                    @if($puedeSeleccionarDocumentos)
+                        <label class="flex cursor-pointer items-center gap-2 text-sm text-slate-700">
+                            <input form="form-revision" type="checkbox" role="switch" aria-label="Validación de {{ $nombreFirmado }}" name="documentos_seleccionados[]" value="firmado:{{ $documentoFirmado->id }}" @checked(in_array('firmado:'.$documentoFirmado->id, $documentosMarcados, true)) class="peer sr-only">
+                            <span aria-hidden="true" class="relative inline-flex h-6 w-11 shrink-0 rounded-full bg-slate-300 transition-colors before:absolute before:left-0.5 before:top-0.5 before:h-5 before:w-5 before:rounded-full before:bg-white before:shadow before:transition-transform peer-checked:bg-red-700 peer-checked:before:translate-x-5 peer-focus-visible:outline peer-focus-visible:outline-2 peer-focus-visible:outline-offset-2 peer-focus-visible:outline-red-700"></span>
+                            <span class="hidden min-w-24 font-medium peer-checked:inline">Validado</span>
+                            <span class="min-w-24 font-medium peer-checked:hidden">No validado</span>
+                        </label>
+                    @endif
+                    <a href="{{ route('revision.documento-firmado',[$solicitud->id,$documentoFirmado->id]) }}" target="_blank" class="rounded-lg border border-slate-300 px-3 py-2 text-center text-sm font-semibold text-slate-700 hover:border-red-700 hover:text-red-800">Ver documento firmado</a>
+                </div>
+            </div>
+        @endif
         @foreach($solicitud->documentosGenerados as $documento)
             <div class="mb-2 rounded-lg border border-slate-200 p-3 text-sm text-slate-700">Documento generado · versión {{ $documento->version }} · {{ $documento->ruta_pdf ?: $documento->ruta_docx }}</div>
         @endforeach
