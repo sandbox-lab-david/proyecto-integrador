@@ -181,19 +181,27 @@ class RevisionController extends Controller
     public function bandejaDirector(Request $request, AutorizacionService $authz)
     {
         $filtros = RevisionSolicitudFilters::validate($request);
+        // La asignación vigente determina el alcance del director; no necesita
+        // volver a restringir su bandeja con un filtro manual de carrera.
+        $filtros['carrera'] = '';
+        $usuario = auth()->user();
+        $trabajador = $usuario->trabajador;
+        $carrerasDirigidas = $trabajador ? $authz->carrerasQueDirige($trabajador) : collect();
+        $nombreCarreras = $authz->tieneRol($usuario, 'director')
+            ? $carrerasDirigidas->pluck('nombre')->implode(', ')
+            : '';
         $solicitudes = collect();
         if ($filtros['filtrar']) {
             $query = Solicitud::with(['carreraEstudiante.estudiante', 'carreraEstudiante.carreraModalidad.carrera', 'tipoTramite', 'estadoSolicitud'])->enEstado(Estados::REVISADA);
-            if (! $authz->tieneRol(auth()->user(), 'admin')) {
-                $trabajador = auth()->user()->trabajador;
-                $ids = $trabajador ? $authz->carrerasQueDirige($trabajador)->modelKeys() : [];
+            if (! $authz->tieneRol($usuario, 'admin')) {
+                $ids = $carrerasDirigidas->modelKeys();
                 $query->whereHas('carreraEstudiante.carreraModalidad', fn ($q) => $q->whereIn('carrera_id', $ids));
             }
             RevisionSolicitudFilters::apply($query, $filtros);
             $solicitudes = $query->latest('created_at')->get()->map(fn ($s) => $this->presentar($s));
         }
 
-        return view('revision.director', ['solicitudes' => $solicitudes, 'filtros' => $filtros, 'filtrosAplicados' => $filtros['filtrar'], 'tramitesDisponibles' => RevisionSolicitudFilters::tramitesDisponibles(), 'estadosDisponibles' => RevisionSolicitudFilters::ESTADOS]);
+        return view('revision.director', ['solicitudes' => $solicitudes, 'filtros' => $filtros, 'filtrosAplicados' => $filtros['filtrar'], 'tramitesDisponibles' => RevisionSolicitudFilters::tramitesDisponibles(), 'estadosDisponibles' => RevisionSolicitudFilters::ESTADOS, 'nombreCarreras' => $nombreCarreras]);
     }
 
     public function guardarDecisionDirector(Request $request, int $id, AutorizacionService $authz, EstadoSolicitudService $estados)
