@@ -251,7 +251,7 @@ class ResolucionesConsejoController extends Controller
         $usuario = auth()->user();
         if ($authz->tieneRol($usuario, 'asistente')) {
             $facultades = $usuario->trabajador ? $authz->facultadesDe($usuario->trabajador)->modelKeys() : [];
-            $query->whereHas('carreraEstudiante.carrera', fn ($q) => $q->whereIn('facultad_id', $facultades));
+            $query->whereHas('carreraEstudiante.carreraModalidad.carrera', fn ($q) => $q->whereIn('facultad_id', $facultades));
         } elseif ($authz->tieneRol($usuario, 'director')) {
             $carreras = $this->carrerasVisiblesDirector($authz) ?? [];
             $query->whereHas('carreraEstudiante.carreraModalidad', fn ($q) => $q->whereIn('carrera_id', $carreras));
