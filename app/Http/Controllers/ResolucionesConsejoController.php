@@ -23,7 +23,7 @@ class ResolucionesConsejoController extends Controller
 {
     public function index(Request $request, AutorizacionService $authz)
     {
-        $filtros = RevisionSolicitudFilters::validate($request);
+        $filtros = RevisionSolicitudFilters::validate($request, RevisionSolicitudFilters::ESTADOS_RESOLUCIONES);
         $agendas = collect();
         if ($filtros['filtrar']) {
             $query = CorteAgenda::with(['solicitudes.estadoSolicitud', 'resoluciones'])->whereHas('solicitudes', fn ($q) => $this->aplicarFiltrosSolicitud($q, $filtros));
@@ -47,7 +47,7 @@ class ResolucionesConsejoController extends Controller
             }
         }
 
-        return view('revision.resoluciones', ['agendas' => $agendas, 'filtros' => $filtros, 'filtrosAplicados' => $filtros['filtrar'], 'tramitesDisponibles' => RevisionSolicitudFilters::tramitesDisponibles(), 'estadosDisponibles' => RevisionSolicitudFilters::ESTADOS]);
+        return view('revision.resoluciones', ['agendas' => $agendas, 'filtros' => $filtros, 'filtrosAplicados' => $filtros['filtrar'], 'tramitesDisponibles' => RevisionSolicitudFilters::tramitesDisponibles(), 'estadosDisponibles' => RevisionSolicitudFilters::ESTADOS_RESOLUCIONES]);
     }
 
     public function porAgenda(int $agenda, ResolucionService $resoluciones, AutorizacionService $authz)
@@ -77,7 +77,7 @@ class ResolucionesConsejoController extends Controller
 
     public function documento(Request $request, AgendaWordService $word, AutorizacionService $authz)
     {
-        $filtros = RevisionSolicitudFilters::validate($request);
+        $filtros = RevisionSolicitudFilters::validate($request, RevisionSolicitudFilters::ESTADOS_RESOLUCIONES);
         $query = CorteAgenda::query()->whereHas('solicitudes', fn ($q) => $this->aplicarFiltrosSolicitud($q, $filtros));
         $this->aplicarRangoFechaSesion($query, $filtros);
         $this->aplicarVisibilidadAgendas($query, $authz);
@@ -101,7 +101,7 @@ class ResolucionesConsejoController extends Controller
 
     public function exportar(Request $request, AutorizacionService $authz)
     {
-        $filtros = RevisionSolicitudFilters::validate($request);
+        $filtros = RevisionSolicitudFilters::validate($request, RevisionSolicitudFilters::ESTADOS_RESOLUCIONES);
         $query = CorteAgenda::with(['solicitudes.estadoSolicitud', 'resoluciones'])->whereHas('solicitudes', fn ($q) => $this->aplicarFiltrosSolicitud($q, $filtros));
         $this->aplicarRangoFechaSesion($query, $filtros);
         $this->aplicarVisibilidadAgendas($query, $authz);

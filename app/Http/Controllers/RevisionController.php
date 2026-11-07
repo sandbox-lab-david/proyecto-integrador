@@ -21,7 +21,7 @@ class RevisionController extends Controller
 {
     public function bandejaAsistente(Request $request, AutorizacionService $authz)
     {
-        $filtros = RevisionSolicitudFilters::validate($request);
+        $filtros = RevisionSolicitudFilters::validate($request, RevisionSolicitudFilters::ESTADOS_ASISTENTE);
         $usuario = auth()->user();
         $facultades = $usuario->trabajador ? $authz->facultadesDe($usuario->trabajador) : collect();
         $nombreFacultades = $authz->tieneRol($usuario, 'asistente') ? $facultades->pluck('nombre')->implode(', ') : '';
@@ -36,7 +36,7 @@ class RevisionController extends Controller
             $solicitudes = $query->latest('created_at')->get()->map(fn ($s) => $this->presentar($s));
         }
 
-        return view('revision.asistente', ['solicitudes' => $solicitudes, 'filtros' => $filtros, 'tramitesDisponibles' => RevisionSolicitudFilters::tramitesDisponibles(), 'estadosDisponibles' => RevisionSolicitudFilters::ESTADOS, 'filtrosAplicados' => $filtros['filtrar'], 'nombreFacultades' => $nombreFacultades]);
+        return view('revision.asistente', ['solicitudes' => $solicitudes, 'filtros' => $filtros, 'tramitesDisponibles' => RevisionSolicitudFilters::tramitesDisponibles(), 'estadosDisponibles' => RevisionSolicitudFilters::ESTADOS_ASISTENTE, 'filtrosAplicados' => $filtros['filtrar'], 'nombreFacultades' => $nombreFacultades]);
     }
 
     public function detalleCaso(int $id, AutorizacionService $authz, SolicitudService $solicitudes, RequisitosSolicitud $requisitos, PrologService $prolog, EstadoSolicitudService $estados)
@@ -181,7 +181,7 @@ class RevisionController extends Controller
 
     public function bandejaDirector(Request $request, AutorizacionService $authz)
     {
-        $filtros = RevisionSolicitudFilters::validate($request);
+        $filtros = RevisionSolicitudFilters::validate($request, RevisionSolicitudFilters::ESTADOS_DIRECTOR);
         // La asignación vigente determina el alcance del director; no necesita
         // volver a restringir su bandeja con un filtro manual de carrera.
         $filtros['carrera'] = '';
@@ -202,7 +202,7 @@ class RevisionController extends Controller
             $solicitudes = $query->latest('created_at')->get()->map(fn ($s) => $this->presentar($s));
         }
 
-        return view('revision.director', ['solicitudes' => $solicitudes, 'filtros' => $filtros, 'filtrosAplicados' => $filtros['filtrar'], 'tramitesDisponibles' => RevisionSolicitudFilters::tramitesDisponibles(), 'estadosDisponibles' => RevisionSolicitudFilters::ESTADOS, 'nombreCarreras' => $nombreCarreras]);
+        return view('revision.director', ['solicitudes' => $solicitudes, 'filtros' => $filtros, 'filtrosAplicados' => $filtros['filtrar'], 'tramitesDisponibles' => RevisionSolicitudFilters::tramitesDisponibles(), 'estadosDisponibles' => RevisionSolicitudFilters::ESTADOS_DIRECTOR, 'nombreCarreras' => $nombreCarreras]);
     }
 
     public function guardarDecisionDirector(Request $request, int $id, AutorizacionService $authz, EstadoSolicitudService $estados)
