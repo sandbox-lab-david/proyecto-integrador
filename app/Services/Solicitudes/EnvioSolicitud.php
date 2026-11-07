@@ -174,6 +174,14 @@ class EnvioSolicitud
                 throw new RuntimeException('La integración no devolvió un contexto académico válido.');
             }
         }
+        foreach ($asignaciones as $requisito) {
+            $documentoId = $contexto['requisitos'][$requisito] ?? null;
+            if (! is_int($documentoId) || $documentoId < 1) {
+                throw ValidationException::withMessages([
+                    'requisitos' => 'No se pudo identificar el documento requerido de un respaldo. Tus archivos se conservan; solicita la revisión del catálogo antes de enviar.',
+                ]);
+            }
+        }
         $datos['documento_version'] = $documento['version'];
 
         $disco = Storage::disk(ArchivoService::DISCO);
@@ -274,7 +282,7 @@ class EnvioSolicitud
                         }
                         foreach ($respaldos as $archivo) {
                             $solicitud->respaldos()->create([
-                                'documento_requerido_id' => $contexto['requisitos'][$archivo['requisito']] ?? null,
+                                'documento_requerido_id' => $contexto['requisitos'][$archivo['requisito']],
                                 'nombre_original' => $archivo['nombre_original'], 'ruta' => $archivo['ruta_definitiva'],
                                 'mime' => $archivo['mime'], 'tamano_bytes' => $archivo['tamano_bytes'],
                             ]);
