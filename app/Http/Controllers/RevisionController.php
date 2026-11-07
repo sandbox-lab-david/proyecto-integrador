@@ -54,11 +54,16 @@ class RevisionController extends Controller
         if ($documentoFirmado) {
             $documentosDisponibles[] = 'firmado:'.$documentoFirmado->id;
         }
-        $documentosSeleccionados = $ultimaSeleccion
-            ? $this->normalizarDocumentosSeleccionados($ultimaSeleccion->documentos_seleccionados ?? [])
-            : $documentosDisponibles;
         $esAsistente = $authz->tieneRol($usuario, 'asistente');
         $puedeSeleccionarDocumentos = $esAsistente && $solicitud->estadoSolicitud?->codigo === Estados::ENVIADA;
+        // Cada revisión de la asistente comienza con todos los archivos vigentes
+        // seleccionados, incluidos los subidos al corregir y el nuevo PDF firmado.
+        // El último conjunto validado se reserva para filtrar lo que verá el director.
+        $documentosSeleccionados = $puedeSeleccionarDocumentos
+            ? $documentosDisponibles
+            : ($ultimaSeleccion
+                ? $this->normalizarDocumentosSeleccionados($ultimaSeleccion->documentos_seleccionados ?? [])
+                : $documentosDisponibles);
         if ($authz->tieneRol($usuario, 'director') && $ultimaSeleccion) {
             $solicitud->setRelation('respaldos', $solicitud->respaldos->filter(
                 fn ($documento) => in_array('respaldo:'.$documento->id, $documentosSeleccionados, true)
@@ -123,6 +128,11 @@ class RevisionController extends Controller
             ? $this->normalizarDocumentosSeleccionados($data['documentos_seleccionados'] ?? [])
             : $documentosDisponibles;
         abort_if(array_diff($documentosMarcados, $documentosDisponibles) !== [], 422, 'Selecciona únicamente archivos de esta solicitud.');
+        if ($data['accion'] === 'aprobar' && array_diff($documentosDisponibles, $documentosMarcados) !== []) {
+            throw \Illuminate\Validation\ValidationException::withMessages([
+                'documentos_seleccionados' => 'Valida todos los documentos, incluido el PDF firmado, antes de enviar la solicitud al director.',
+            ]);
+        }
         DB::transaction(function () use ($solicitud, $data, $destino, $usuario, $trabajadorId, $estados, $documentosMarcados) {
             Revision::create(['solicitud_id' => $solicitud->id, 'trabajador_id' => $trabajadorId, 'documento_legible' => (bool) ($data['check_documento'] ?? false), 'datos_coinciden' => (bool) ($data['check_datos'] ?? false), 'requisitos_completos' => (bool) ($data['check_requisitos'] ?? false), 'documentos_seleccionados' => $documentosMarcados, 'observaciones_internas' => $data['observaciones'] ?? null, 'decision' => $destino]);
             $estados->transicionar($solicitud, $destino, $usuario, $data['observaciones'] ?? null);
