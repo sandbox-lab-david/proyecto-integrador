@@ -25,7 +25,7 @@ class AgendaConsejoController extends Controller
             if (! $authz->tieneRol(auth()->user(), 'admin')) {
                 $trabajador = auth()->user()->trabajador;
                 $ids = $trabajador ? $authz->facultadesDe($trabajador)->modelKeys() : [];
-                $query->whereHas('carreraEstudiante.carrera', fn ($c) => $c->whereIn('facultad_id', $ids));
+                $query->whereHas('carreraEstudiante.carreraModalidad.carrera', fn ($c) => $c->whereIn('facultad_id', $ids));
             }
             RevisionSolicitudFilters::apply($query, $filtros);
             $aprobadas = $query->latest('created_at')->get();

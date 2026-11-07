@@ -1,13 +1,13 @@
 @extends('layouts.revision')
 
 @section('page-title', 'Bandeja Director')
-@section('page-heading', 'Bandeja del Director')
+@section('page-heading', 'Bandeja del Director'.($nombreCarreras !== '' ? ' ('.$nombreCarreras.')' : ''))
 @section('page-description', 'Casos enviados para decisión del Director')
 @section('active-page', 'director')
 
 @section('content')
     @if(session('success'))<p class="mb-4 rounded-lg border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-800">{{ session('success') }}</p>@endif
-    @include('revision.partials.filtros-solicitudes', ['formAction' => route('revision.director')])
+    @include('revision.partials.filtros-solicitudes', ['formAction' => route('revision.director'), 'ocultarFiltroCarrera' => true])
 
     <div class="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
         <div class="overflow-x-auto"><table class="w-full text-left">

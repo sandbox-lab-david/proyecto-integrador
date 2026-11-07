@@ -7,6 +7,7 @@
 
 @section('content')
     @php($puedeGestionarResoluciones = app(\App\Services\Academico\AutorizacionService::class)->tieneRol(auth()->user(), ['admin', 'asistente']))
+    @if(session('success'))<p class="mb-4 rounded-lg border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-800">{{ session('success') }}</p>@endif
     @if($errors->any())<p class="mb-4 rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-800">{{ $errors->first() }}</p>@endif
 
     @if(isset($agenda))
@@ -26,23 +27,30 @@
                         <p class="text-sm text-slate-600">{{ $caso->tramite }} · {{ $caso->estado_solicitud }} · {{ $caso->carrera }}</p>
                         <p class="text-xs text-slate-500">Código CAFI: {{ $caso->codigo_sistema ?: '—' }} · {{ $agenda->referencia_sesion }}</p>
                         @if($caso->numero_resolucion)<p class="mt-1 text-xs text-slate-500">Resolución {{ $caso->numero_resolucion }}</p>@endif
+                        @if($puedeGestionarResoluciones)
+                            <form method="POST" action="{{ route('revision.agendas.resoluciones.codigo', [$agenda->id, $caso->solicitud_id]) }}" class="mt-3 flex flex-wrap items-end gap-2">
+                                @csrf
+                                @method('PATCH')
+                                <input type="hidden" name="solicitud_id" value="{{ $caso->solicitud_id }}">
+                                <label class="text-xs font-medium text-slate-600">Código de resolución
+                                    <input name="numero_resolucion" type="text" required maxlength="50" value="{{ old('solicitud_id') == $caso->solicitud_id ? old('numero_resolucion', $caso->numero_resolucion) : $caso->numero_resolucion }}" placeholder="RES-2026-ABC123" pattern="[A-Za-z0-9]+(-[A-Za-z0-9]+)*" title="El código no es válido. Usa letras y números; puedes separarlos con guiones." class="mt-1 block w-56 rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-800">
+                                </label>
+                                <button class="rounded-lg border border-red-700 px-3 py-2 text-sm font-semibold text-red-800 hover:bg-red-50">Guardar código</button>
+                                @if(old('solicitud_id') == $caso->solicitud_id)@error('numero_resolucion')<span class="text-xs text-red-700">{{ $message }}</span>@enderror @endif
+                            </form>
+                        @endif
                     </div>
                     @if($caso->decision)
                         <span @class(['rounded-full border px-3 py-1 text-sm font-semibold', 'border-emerald-200 bg-emerald-50 text-emerald-800' => $caso->decision === 'Aprobado', 'border-red-200 bg-red-50 text-red-800' => $caso->decision === 'Rechazado', 'border-amber-200 bg-amber-50 text-amber-800' => $caso->decision === 'Guardar'])>{{ $caso->decision }}</span>
                     @else
                         <span class="rounded-full border border-amber-300 bg-amber-50 px-3 py-1 text-sm font-semibold text-amber-800">Pendiente de resolución</span>
                     @endif
-                    @if($puedeGestionarResoluciones)
+                    @if($puedeGestionarResoluciones && $caso->estado_codigo === \App\Support\Estados::AGENDADA && (! $caso->decision || $caso->decision === 'Guardar'))
                         <form method="POST" action="{{ route('revision.agendas.resoluciones.guardar', [$agenda->id, $caso->solicitud_id]) }}" class="flex flex-wrap items-center gap-2">
                             @csrf
-                            <label class="sr-only" for="decision-{{ $caso->solicitud_id }}">Decisión de {{ $caso->codigo_solicitud }}</label>
-                            <select id="decision-{{ $caso->solicitud_id }}" name="decision" required class="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-800">
-                                <option value="">Selecciona decisión</option>
-                                <option value="Aprobado" @selected($caso->decision === 'Aprobado')>Aprobado</option>
-                                <option value="Rechazado" @selected($caso->decision === 'Rechazado')>Rechazado</option>
-                                <option value="Guardar" @selected($caso->decision === 'Guardar')>Guardar</option>
-                            </select>
-                            <button class="rounded-lg bg-red-700 px-4 py-2 text-sm font-semibold text-white hover:bg-red-800">Guardar</button>
+                            <button name="decision" value="Aprobado" class="rounded-lg bg-red-700 px-3 py-2 text-sm font-semibold text-white hover:bg-red-800 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-red-700">Aprobar</button>
+                            <button name="decision" value="Rechazado" class="rounded-lg border border-red-300 bg-white px-3 py-2 text-sm font-semibold text-red-700 hover:bg-red-50">Rechazar</button>
+                            <button name="decision" value="Guardar" class="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50">Guardar pendiente</button>
                         </form>
                     @endif
                     @if($puedeGestionarResoluciones && $caso->estado_codigo === \App\Support\Estados::APROBADA_EJECUCION)
@@ -62,7 +70,7 @@
                 <div><label for="carrera" class="mb-2 block text-xs font-medium text-slate-600">Carrera</label><input id="carrera" name="carrera" type="search" value="{{ $filtros['carrera'] }}" placeholder="Buscar por carrera" class="w-full rounded-lg border border-slate-300 bg-white px-3 py-2.5 text-sm text-slate-800"></div>
                 <div><label for="tramite" class="mb-2 block text-xs font-medium text-slate-600">Trámite</label><select id="tramite" name="tramite" class="w-full rounded-lg border border-slate-300 bg-white px-3 py-2.5 text-sm text-slate-800"><option value="">Todos los trámites</option>@foreach($tramitesDisponibles as $tramite)<option value="{{ $tramite }}" @selected($filtros['tramite'] === $tramite)>{{ $tramite }}</option>@endforeach</select></div>
                 <div><label for="estado" class="mb-2 block text-xs font-medium text-slate-600">Estado de solicitud</label><select id="estado" name="estado" class="w-full rounded-lg border border-slate-300 bg-white px-3 py-2.5 text-sm text-slate-800"><option value="">Todos los estados</option>@foreach($estadosDisponibles as $estado)<option value="{{ $estado }}" @selected($filtros['estado'] === $estado)>{{ $estado }}</option>@endforeach</select></div>
-                <div class="grid grid-cols-2 gap-3"><div><label for="desde" class="mb-2 block text-xs font-medium text-slate-600">Desde</label><input id="desde" name="desde" type="date" value="{{ $filtros['desde'] }}" class="w-full rounded-lg border border-slate-300 bg-white px-3 py-2.5 text-sm text-slate-800"></div><div><label for="hasta" class="mb-2 block text-xs font-medium text-slate-600">Hasta</label><input id="hasta" name="hasta" type="date" value="{{ $filtros['hasta'] }}" class="w-full rounded-lg border border-slate-300 bg-white px-3 py-2.5 text-sm text-slate-800"></div></div>
+                <div class="grid grid-cols-2 gap-3"><div><label for="desde" class="mb-2 block text-xs font-medium text-slate-600">Sesión desde</label><input id="desde" name="desde" type="text" inputmode="numeric" value="{{ $filtros['desde'] }}" placeholder="DD/MM/AAAA" pattern="\d{2}/\d{2}/\d{4}" title="Escribe la fecha como DD/MM/AAAA" oninput="let v=this.value.replace(/\D/g,'').slice(0,8); if(v.length>4){v=v.slice(0,2)+'/'+v.slice(2,4)+'/'+v.slice(4)}else if(v.length>2){v=v.slice(0,2)+'/'+v.slice(2)}this.value=v" class="w-full rounded-lg border border-slate-300 bg-white px-3 py-2.5 text-sm text-slate-800">@error('desde')<p class="mt-1 text-xs text-red-700">Escribe la fecha como DD/MM/AAAA.</p>@enderror</div><div><label for="hasta" class="mb-2 block text-xs font-medium text-slate-600">Sesión hasta</label><input id="hasta" name="hasta" type="text" inputmode="numeric" value="{{ $filtros['hasta'] }}" placeholder="DD/MM/AAAA" pattern="\d{2}/\d{2}/\d{4}" title="Escribe la fecha como DD/MM/AAAA" oninput="let v=this.value.replace(/\D/g,'').slice(0,8); if(v.length>4){v=v.slice(0,2)+'/'+v.slice(2,4)+'/'+v.slice(4)}else if(v.length>2){v=v.slice(0,2)+'/'+v.slice(2)}this.value=v" class="w-full rounded-lg border border-slate-300 bg-white px-3 py-2.5 text-sm text-slate-800">@error('hasta')<p class="mt-1 text-xs text-red-700">La fecha debe ser DD/MM/AAAA y no anterior a Desde.</p>@enderror</div></div>
                 <div class="flex gap-2 md:col-span-2 xl:col-span-3"><a href="{{ route('revision.resoluciones') }}" class="w-1/3 rounded-lg border border-slate-300 py-2.5 text-center text-sm text-slate-700 hover:bg-slate-50">Limpiar</a><button class="w-2/3 rounded-lg bg-red-700 py-2.5 text-sm font-semibold text-white hover:bg-red-800">Filtrar agendas</button></div>
             </div>
             @if($errors->any())<p class="mt-3 text-sm text-red-700">{{ $errors->first() }}</p>@endif
@@ -85,7 +93,7 @@
                             <td class="p-4 text-right"><a href="{{ route('revision.agendas.resoluciones', $item->id) }}" class="rounded-lg bg-red-700 px-3 py-2 text-xs font-semibold text-white hover:bg-red-800">Resoluciones</a></td>
                         </tr>
                     @empty
-                        <tr><td colspan="7" class="p-8 text-center text-slate-500">@if($filtrosAplicados)No hay agendas para los filtros seleccionados.@elseUsa los filtros y presiona “Filtrar agendas” para consultar los resultados.@endif</td></tr>
+                        <tr><td colspan="7" class="p-8 text-center text-slate-500">@if($filtrosAplicados)No hay agendas para los filtros seleccionados.@else Usa los filtros y presiona “Filtrar agendas” para consultar los resultados.@endif</td></tr>
                     @endforelse
                 </tbody>
             </table></div>
