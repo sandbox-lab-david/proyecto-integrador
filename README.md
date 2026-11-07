@@ -464,3 +464,13 @@ Catálogos que usan los demás módulos, personal e importación del SIAC. Todo 
 | Archivos de ejemplo para importar | `database/data/ejemplos/` |
 | Menú | `config/menu_administracion.php` (Inicio arma sus tarjetas con este mismo archivo) |
 | Pruebas | `tests/Feature/` (`ContratosAcademicosTest`, `ContratosPendientesTest`, `DatosDePruebaTest`, `EstructuraAcademicaTest`, `PersonasTest`, `ImportacionTest`, `PendientesG1Test`, `AccesoYRolesTest`, `LayoutComunTest`) |
+
+---
+
+## 👥 Créditos - Integrantes (Grupo 3)
+
+* **William Francisco Balseca Jimenez**
+* **Briana Estefania Chang Sanchez**
+* **Christian Javier Guerrero Garzon**
+* **Carlos Alessandro Lema Armitano**
+* **Nicolas Rafael Pazos Altamirano**
