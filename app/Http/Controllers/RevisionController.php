@@ -87,6 +87,7 @@ class RevisionController extends Controller
                     ->loadMissing('documentoRequerido')
                     ->map(fn ($documento) => $documento->documentoRequerido?->codigo)
                     ->filter()
+                    ->map(fn ($codigo) => $tramiteId.'_'.str_replace('-', '_', $codigo))
                     ->unique()
                     ->values()
                     ->all();
