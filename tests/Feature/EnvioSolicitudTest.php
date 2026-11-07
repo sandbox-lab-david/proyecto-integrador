@@ -317,4 +317,34 @@ class EnvioSolicitudTest extends TestCase
         $this->postJson(route('solicitudes.enviar'), $datos)->assertCreated();
         $this->assertNull(Solicitud::sole()->detalle['cedula'] ?? null);
     }
+
+    #[DataProvider('asociacionesSinResolver')]
+    public function test_no_confirma_un_envio_si_el_requisito_no_tiene_id(array $mapa): void
+    {
+        $this->integrar();
+        $datos = $this->preparar();
+        $this->contexto['requisitos'] = $mapa;
+        $this->integrar();
+        try {
+            app(EnvioSolicitud::class)->enviar(User::factory()->create(), $datos);
+            $this->fail('Debe impedir guardar un respaldo sin requisito resuelto.');
+        } catch (ValidationException $error) {
+            $this->assertArrayHasKey('requisitos', $error->errors());
+        }
+        $this->assertDatabaseCount('solicitudes', 0);
+        $this->assertDatabaseCount('respaldos', 0);
+        $this->assertSame([], Storage::disk('local')->allFiles('expedientes'));
+        $this->assertNotNull(app(DocumentosTemporales::class)->buscar('gracia'));
+        $this->assertNotNull(app(FirmadosTemporales::class)->buscar('gracia'));
+        $this->assertCount(1, app(RespaldosTemporales::class)->delTramite('gracia'));
+    }
+
+    public static function asociacionesSinResolver(): array
+    {
+        return [
+            'codigo ausente' => [[]],
+            'id nulo' => [['respaldo' => null]],
+            'id cero' => [['respaldo' => 0]],
+        ];
+    }
 }
