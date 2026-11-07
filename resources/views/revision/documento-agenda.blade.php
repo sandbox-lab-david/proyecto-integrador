@@ -38,7 +38,7 @@
     <main>
         <img class="brand" src="{{ asset('images/estudiante/Logo-UEES.gif') }}" alt="UEES">
         <h1>Agendas de Consejo Directivo de la Facultad de Ingeniería</h1>
-        <p class="document-range">@if($filtros['desde'] || $filtros['hasta'])Rango de sesiones: {{ $filtros['desde'] ? \Illuminate\Support\Carbon::parse($filtros['desde'])->format('d/m/Y') : 'Sin fecha inicial' }} a {{ $filtros['hasta'] ? \Illuminate\Support\Carbon::parse($filtros['hasta'])->format('d/m/Y') : 'Sin fecha final' }}@else Todas las agendas registradas @endif</p>
+        <p class="document-range">@if($filtros['desde'] || $filtros['hasta'])Rango de sesiones: {{ $filtros['desde'] ?: 'Sin fecha inicial' }} a {{ $filtros['hasta'] ?: 'Sin fecha final' }}@else Todas las agendas registradas @endif</p>
         @php($criterios = array_filter(['Estudiante' => $filtros['nombre'], 'Código' => $filtros['codigo'], 'Carrera' => $filtros['carrera'], 'Trámite' => $filtros['tramite'], 'Estado' => $filtros['estado']]))
         @if($criterios)<p class="document-range">Filtros: @foreach($criterios as $etiqueta => $valor){{ $etiqueta }}: {{ $valor }}{{ !$loop->last ? ' · ' : '' }}@endforeach</p>@endif
 

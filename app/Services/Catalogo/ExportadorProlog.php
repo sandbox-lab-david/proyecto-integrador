@@ -19,7 +19,7 @@ class ExportadorProlog
                 throw new RuntimeException('Identificador Prolog inválido.');
             }
 
-return $s;
+            return $s;
         };
         $salida = ":- encoding(utf8).\n% Generado desde el catálogo; no contiene datos personales.\n";
         foreach (['tramite/2', 'descripcion/2', 'requisito/3', 'documento_def/5', 'tramite_documento/4', 'costo/3', 'costo_texto/2', 'plazo_texto/2', 'parametro/3', 'pendiente_validacion/2', 'observacion_conocimiento/2'] as $pred) {
@@ -59,8 +59,14 @@ return $s;
                 $salida .= $k.'('.$id.', '.$texto($t[$k]).").\n";
             }
             foreach ($t['parametros'] as $k => $v) {
-                if (! is_numeric($v) || $v < 0) {
+                if (! is_numeric($v) || ! is_finite((float) $v) || $v < 0) {
                     throw new RuntimeException('Parámetro inválido.');
+                }
+                if ($id === 'examen_recuperacion' && (
+                    ($k === 'gpa_general_minimo' && $v > 100)
+                    || ($k === 'intervalo_recuperacion_dias' && ($v < 1 || floor((float) $v) !== (float) $v))
+                )) {
+                    throw new RuntimeException('Referencia de recuperación inválida.');
                 }
                 $salida .= 'parametro('.$id.', '.$atom($k).', '.(float) $v.").\n";
             }

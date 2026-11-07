@@ -10,7 +10,13 @@ Las comprobaciones de 48 horas y 30 días quedan fuera. Historial, sanciones, eq
 
 ## Catálogo y publicación
 
-- `tipos_tramite.contenido`: borrador del contenido y configuración del formulario. Requisitos, campos de captura y documentos se mantienen separados.
+El catálogo dispone de tablas normalizadas para categorías, requisitos, campos y
+umbrales. La migración conserva las ediciones existentes y los servicios reconstruyen
+el mismo formato de lectura. Las asociaciones por facultad y palabras clave quedan
+preparadas sin activar filtros ni reconocimiento nuevo. Véase
+[la guía de administración e integración para G1](catalogo_g4_administracion.md).
+
+- `tipos_tramite.contenido`: información general del borrador y respaldo anterior. En los trámites normalizados, requisitos, campos, categoría y parámetros se leen de sus tablas relacionadas; los documentos conservan su tabla propia.
 - `documentos_requeridos`: identificadores estables, textos y obligaciones explícitas (`obligatorio`, `opcional`, `condicional`). La obligación condicional exige revisión de su caso; no se infiere un requisito obligatorio.
 - `revisiones_catalogo`: instantáneas inmutables; solo una revisión activa se sirve al chat, fichas y formularios.
 - `comprobaciones_informativas`: resultado orientativo asociado a una solicitud cuando otro módulo invoca la fachada C72. No es una decisión ni una acreditación académica.

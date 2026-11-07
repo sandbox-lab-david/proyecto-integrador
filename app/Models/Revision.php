@@ -17,7 +17,13 @@ class Revision extends Model
         'documento_legible',
         'datos_coinciden',
         'requisitos_completos',
+        'documentos_seleccionados',
         'observaciones_internas',
         'decision'
     ];
+
+    protected function casts(): array
+    {
+        return ['documentos_seleccionados' => 'array'];
+    }
 }

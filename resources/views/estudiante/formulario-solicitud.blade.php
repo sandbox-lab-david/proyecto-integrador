@@ -347,6 +347,11 @@
             border-radius: 10px;
         }
 
+        .bloque-resumen.resultado-prevalidacion {
+            background: #fff3d6;
+            border-color: #ecd49a;
+        }
+
         .encabezado-resumen {
             display: flex;
             justify-content: space-between;
@@ -391,7 +396,18 @@
             border-radius: 9px;
         }
 
-        .agregar-materia { display: flex; gap: 12px; }
+        .titulo-materias {
+            margin: 0 0 18px;
+            padding-bottom: 12px;
+            border-bottom: 1px solid #e3e7ee;
+            font-size: 16px;
+            font-weight: bold;
+            color: #202939;
+        }
+        .filtro-materias { margin-bottom: 20px; }
+        .agregar-materia { display: flex; flex-wrap: wrap; gap: 12px; }
+        .agregar-materia select { flex: 1 1 240px; }
+        .agregar-materia + .ayuda { margin-top: 12px; }
         .agregar-materia button { flex-shrink: 0; }
         .detalle-materia .encabezado-resumen { flex-wrap: wrap; row-gap: 4px; margin-bottom: 4px; }
         .detalle-materia .encabezado-resumen h3 { margin: 0; }
@@ -433,6 +449,9 @@
         <h1>{{ ($solicitudCorreccion ?? null) ? 'Corregir solicitud '.$solicitudCorreccion->codigo : 'Solicitud de '.$tramite['nombre'] }}</h1>
         @if ($solicitudCorreccion ?? null)
             <p class="introduccion">Revisa las observaciones, corrige los datos y vuelve a adjuntar los respaldos requeridos. Descarga el documento actualizado y sube su nuevo PDF firmado. Las versiones anteriores se conservan.</p>
+            @if (request()->attributes->get('correccion_desactualizada'))
+                <p class="aviso" role="alert">La solicitud cambió desde que empezaste esta corrección. Conservamos tu borrador, pero deberás descartarlo y volver a abrir la solicitud antes de reenviar.</p>
+            @endif
             <section class="panel" aria-label="Observaciones de revisión">
                 <h2>Observaciones de la facultad</h2>
                 @if ($observacionesCorreccion === null)
@@ -452,7 +471,7 @@
         </p>
 
         <div class="introduccion">
-            Completa tus datos manualmente y selecciona las materias del catálogo académico.
+            Revisa tus datos, completa los que falten y selecciona las materias del catálogo académico.
             La solicitud todavía no se envía.
             @if ($solicitudCorreccion)
                 Los cambios de la corrección y sus archivos se conservan en este
@@ -501,36 +520,44 @@
                     <h2 id="titulo-datos" tabindex="-1">Primero, tus datos</h2>
 
                     <p class="introduccion">
-                        Completa tus datos personales y académicos.
+                        Los datos disponibles en tu perfil se completan para que los revises y puedas corregirlos.
                         @if ($datosCuenta)
                             El nombre y el correo disponibles en tu cuenta se completan automáticamente.
+                        @endif
+                        @if ($modalidadesMatricula)
+                            La facultad, la carrera y la modalidad corresponden a tus inscripciones activas.
                         @endif
                         Revisa que la información sea correcta antes de continuar.
                     </p>
 
                     <form id="formulario-datos">
+                        @php($camposBloqueados = array_keys($datosCuenta + $datosFijos + ($modalidadesMatricula ? ['modalidad' => true] : [])))
                         <div class="campos">
                             @foreach ($camposPersonales as $campoPersonal => [$etiquetaPersonal, $limitePersonal])
                                 <div @class(['campo', 'completo' => $campoPersonal === 'nombre'])>
-                                    <label for="{{ $campoPersonal }}">{{ $etiquetaPersonal }}</label>
+                                    <label for="{{ $campoPersonal }}">{{ $etiquetaPersonal }}{{ $campoPersonal === 'cedula' && $codigoTramite !== 'homologacion' ? ' (opcional)' : '' }}</label>
                                     @if ($campoPersonal === 'facultad')
                                         <select id="facultad" name="facultad" required>
                                             <option value="">Selecciona tu facultad</option>
                                             @foreach ($catalogoFacultades as $nombreFacultad => $carrerasFacultad)
-                                                <option value="{{ $nombreFacultad }}">{{ $nombreFacultad }}</option>
+                                                <option value="{{ $nombreFacultad }}" @selected(($datosIniciales['facultad'] ?? '') === $nombreFacultad)>{{ $nombreFacultad }}</option>
                                             @endforeach
                                         </select>
                                     @elseif ($campoPersonal === 'carrera')
                                         <select id="carrera" name="carrera" required disabled aria-describedby="ayuda-carrera">
                                             <option value="">Primero selecciona tu facultad</option>
                                         </select>
-                                        <p id="ayuda-carrera" class="ayuda">Solo se muestran las carreras de la facultad elegida.</p>
+                                        <p id="ayuda-carrera" class="ayuda">
+                                            {{ $modalidadesMatricula ? 'Solo se muestran las carreras en las que tienes una inscripción activa.' : 'Solo se muestran las carreras de la facultad elegida.' }}
+                                        </p>
                                     @else
                                     <input id="{{ $campoPersonal }}" name="{{ $campoPersonal }}"
                                         type="{{ $campoPersonal === 'correo' ? 'email' : ($campoPersonal === 'celular' ? 'tel' : 'text') }}"
-                                        value="{{ $datosCuenta[$campoPersonal] ?? '' }}"
-                                        required maxlength="{{ $limitePersonal }}"
-                                        @readonly(array_key_exists($campoPersonal, $datosCuenta))
+                                        value="{{ $datosCuenta[$campoPersonal] ?? $datosIniciales[$campoPersonal] ?? '' }}"
+                                        @required($campoPersonal !== 'cedula' || $codigoTramite === 'homologacion') maxlength="{{ $limitePersonal }}"
+                                        @readonly(in_array($campoPersonal, $camposBloqueados, true))
+                                        @if ($campoPersonal === 'modalidad' && $modalidadesMatricula) aria-describedby="ayuda-modalidad" @endif
+                                        @if ($campoPersonal === 'periodo' && isset($datosFijos['periodo'])) aria-describedby="ayuda-periodo" @endif
                                         @if (in_array($campoPersonal, \App\Services\Solicitudes\DatosFormularioSolicitud::SOLO_DIGITOS, true))
                                             @if ($campoPersonal === 'celular') autocomplete="tel" @endif
                                             inputmode="numeric" pattern="[0-9]+"
@@ -542,6 +569,11 @@
                                             autocomplete="name"
                                         @endif
                                     >
+                                    @if ($campoPersonal === 'modalidad' && $modalidadesMatricula)
+                                        <p id="ayuda-modalidad" class="ayuda">Corresponde a tu inscripción en la carrera elegida.</p>
+                                    @elseif ($campoPersonal === 'periodo' && isset($datosFijos['periodo']))
+                                        <p id="ayuda-periodo" class="ayuda">Periodo académico vigente.</p>
+                                    @endif
                                     @endif
                                 </div>
                             @endforeach
@@ -578,12 +610,18 @@
                     @if ($tramite['max_materias'] > 0)
                         <div class="campos">
                             <div class="campo completo">
-                                <p>
+                                <p class="titulo-materias">
                                     {{ $tramite['max_materias'] === 1 ? 'Materia de la solicitud' : 'Materias de la solicitud' }}
                                 </p>
 
+                                <div class="filtro-materias">
+                                    <label for="periodo-materias">Filtrar por período</label>
+                                    <select id="periodo-materias" aria-describedby="ayuda-materia"><option value="">Todos los períodos disponibles</option></select>
+                                </div>
+
+                                <label for="materia">Materia</label>
                                 <div class="agregar-materia">
-                                    <select id="materia" aria-label="Materia del catálogo académico">
+                                    <select id="materia">
                                         <option value="">Selecciona una materia</option>
                                     </select>
                                     <button id="agregar-materia" class="secundario"
@@ -598,7 +636,7 @@
                                         : 'Puedes agregar hasta '.$tramite['max_materias'].' materias.' }}
                                     Los cursos se consultan en la base de datos académica.
                                     @if (empty($materias))
-                                        No hay cursos disponibles. Solicita a la unidad académica que revise el catálogo.
+                                        No hay cursos disponibles. {{ app(\App\Services\Solicitudes\MateriasSolicitud::class)->avisoSinCursos() }}
                                     @endif
                                 </p>
                             </div>
@@ -707,7 +745,7 @@
                         <div class="aviso">{{ $requisitosMotor['aviso'] }}</div>
                     @endif
                     @if ($requisitosMotor['disponible'] && empty($tramite['documentos']))
-                        <p class="ayuda">Prolog no indica documentos de respaldo para este trámite. El PDF firmado se adjunta en el paso de revisión.</p>
+                        <p class="ayuda">Este trámite no pide documentos de respaldo. El PDF firmado se adjunta en el paso de revisión.</p>
                     @endif
                     <ul id="requisitos-respaldo" class="requisitos-respaldo"></ul>
                     @if ($tramite['documentos_orientativos'] ?? false)
@@ -798,14 +836,16 @@
                             <h3 id="resumen-prevalidacion">Comprobación previa</h3>
                         </div>
                         <p class="ayuda">
-                            Prolog compara los datos que declaraste con las
-                            referencias del trámite. Es orientativa: no aprueba
-                            ni rechaza tu solicitud y no impide enviarla.
-                            La facultad revisa cada caso.
+                            Revisamos los datos que declaraste y los documentos
+                            que adjuntaste con las referencias del trámite. Es
+                            orientativa: no aprueba ni rechaza tu solicitud y no
+                            impide enviarla. La facultad revisa cada caso.
                         </p>
-                        <div id="resultado-prevalidacion"
-                            class="resultado-prevalidacion" aria-live="polite"></div>
                     </section>
+
+                    <div id="resultado-prevalidacion"
+                        class="bloque-resumen resultado-prevalidacion"
+                        aria-label="Resultado de Prolog" aria-live="polite"></div>
 
                     @if ($requisitosMotor['aviso'])
                         <div class="aviso">{{ $requisitosMotor['aviso'] }}</div>
@@ -942,15 +982,31 @@
         // Definición publicada del trámite y cursos de la base académica.
         const tramite = @json($tramite);
         const camposPersonales = @json($camposPersonales);
+        const datosIniciales = @json($datosIniciales);
         const camposMateriaManual = @json($camposMateriaManual);
         const materiasCatalogo = @json($materias);
         const selectorCatalogo = document.getElementById('materia');
+        const filtroPeriodo = document.getElementById('periodo-materias');
+        function llenarSelectorMaterias() {
+            if (!selectorCatalogo) return;
+            selectorCatalogo.replaceChildren(new Option('Selecciona una materia', ''));
+            materiasCatalogo.filter(materia => !filtroPeriodo.value || materia.periodo === filtroPeriodo.value)
+                .forEach(materia => selectorCatalogo.append(new Option(materia.codigo + ' — ' + materia.nombre + ' (' + materia.periodo + ', ' + materia.paralelo + ')', materia.id)));
+        }
         if (selectorCatalogo) {
-            materiasCatalogo.forEach(materia => {
-                selectorCatalogo.append(new Option(`${materia.codigo} — ${materia.nombre} (${materia.periodo}, ${materia.paralelo})`, materia.id));
-            });
+            [...new Set(materiasCatalogo.map(materia => materia.periodo))].sort((a,b) => a.localeCompare(b, 'es'))
+                .forEach(periodo => filtroPeriodo.append(new Option(periodo, periodo)));
+            llenarSelectorMaterias();
+            filtroPeriodo.addEventListener('change', () => { llenarSelectorMaterias(); pintarMaterias(); });
         }
         const catalogoFacultades = @json($catalogoFacultades);
+        // Carrera => modalidad de cada inscripción activa; vacío si la cuenta no tiene ninguna.
+        const modalidadesMatricula = @json((object) $modalidadesMatricula);
+
+        function actualizarModalidad() {
+            if (!Object.keys(modalidadesMatricula).length) return;
+            document.getElementById('modalidad').value = modalidadesMatricula[document.getElementById('carrera').value] ?? '';
+        }
 
         function actualizarCarreras(valorGuardado = '') {
             const facultad = document.getElementById('facultad');
@@ -966,6 +1022,7 @@
             }
             carrera.value = valorGuardado;
             validarFacultadYCarrera();
+            actualizarModalidad();
         }
 
         function validarFacultadYCarrera() {
@@ -978,8 +1035,8 @@
         }
 
         document.getElementById('facultad').addEventListener('change', () => actualizarCarreras());
-        document.getElementById('carrera').addEventListener('change', validarFacultadYCarrera);
-        actualizarCarreras();
+        document.getElementById('carrera').addEventListener('change', () => { validarFacultadYCarrera(); actualizarModalidad(); });
+        actualizarCarreras(datosIniciales.carrera ?? '');
         const cambioSolicitado = @json(\App\Services\Solicitudes\DatosFormularioSolicitud::CAMBIOS[$codigoTramite] ?? null);
         const tramiteActual = @json($codigoTramite);
         const relojFormulario = {
@@ -1671,7 +1728,7 @@
                 const sinRequisito = listaArchivos.querySelector('select:invalid');
 
                 if (!requisitosDisponibles) {
-                    errorArchivos.textContent = 'No puedes continuar sin consultar los requisitos en Prolog. Recarga la página.';
+                    errorArchivos.textContent = 'No puedes continuar sin consultar los requisitos del trámite. Recarga la página.';
                     return;
                 }
 
@@ -1797,15 +1854,17 @@
             // Solo se pinta la última consulta si el estudiante entra varias veces al paso 4.
             const numero = ++consultaPrevalidacion;
             resultadoPrevalidacion.setAttribute('aria-busy', 'true');
-            mensajePrevalidacion('Consultando a Prolog…', 'ayuda');
+            mensajePrevalidacion('Haciendo la comprobación…', 'ayuda');
 
             let html = null;
-            let error = 'No se pudo consultar a Prolog. Revisa tu conexión y vuelve a intentarlo.';
+            let error = 'No se pudo hacer la comprobación. Revisa tu conexión y vuelve a intentarlo.';
+            // Los requisitos de cada respaldo dejan a Prolog comprobar los documentos obligatorios.
+            const { campos, requisitos } = datosBorrador();
             try {
                 const respuesta = await fetchSolicitud(urlPrevalidacion, {
                     method: 'POST',
                     headers: { ...cabecerasRespaldos, 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ tramite: @json($codigoTramite), campos: datosBorrador().campos })
+                    body: JSON.stringify({ tramite: @json($codigoTramite), campos, requisitos })
                 });
                 if (respuesta.ok) {
                     html = await respuesta.text();
@@ -2182,7 +2241,7 @@
 
             cancelarGuardado();
             formularioDatos.reset();
-            actualizarCarreras();
+            actualizarCarreras(datosIniciales.carrera ?? '');
             document.getElementById('declaracion').checked = false;
             document.querySelectorAll(
                 '#campos-tramite input, #campos-tramite select, #campos-tramite textarea'

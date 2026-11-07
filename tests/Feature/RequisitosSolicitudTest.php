@@ -23,8 +23,9 @@ class RequisitosSolicitudTest extends TestCase
         $this->discoTemporal();
         config(['chatbot.prolog.url' => 'http://motor.test']);
         // Esta prueba no depende de los cursos de G1.
-        $this->partialMock(\App\Services\Solicitudes\MateriasSolicitud::class)
-            ->shouldReceive('todas')->andReturn([]);
+        $materias = $this->partialMock(\App\Services\Solicitudes\MateriasSolicitud::class);
+        $materias->shouldReceive('todas')->andReturn([]);
+        $materias->shouldReceive('avisoSinCursos')->andReturn('Catálogo académico aislado de esta prueba.');
         $this->motor();
     }
 
@@ -63,7 +64,7 @@ class RequisitosSolicitudTest extends TestCase
     {
         Http::fake(fn () => throw new ConnectionException('Motor apagado'));
         $this->get(route('solicitudes.create', ['tramite' => 'recuperacion']))->assertOk()
-            ->assertSee('No se pudieron consultar los requisitos en Prolog')
+            ->assertSee('No se pudieron consultar los requisitos del trámite')
             ->assertDontSee('registro-calificaciones');
         $this->postJson(route('respaldos-temporales.store'), [
             'tramite' => 'recuperacion', 'requisito' => 'certificado_prolog', 'archivo' => $this->pdf(),

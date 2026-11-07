@@ -30,9 +30,10 @@ final class CatalogoFacultades
         });
     }
 
-    public static function restricciones(mixed $facultad): array
+    /** @param array<string, list<string>>|null $catalogo un subconjunto, p. ej. las inscripciones del estudiante */
+    public static function restricciones(mixed $facultad, ?array $catalogo = null): array
     {
-        $catalogo = self::todas();
+        $catalogo ??= self::todas();
         $carreras = is_string($facultad) && isset($catalogo[$facultad])
             ? $catalogo[$facultad] : array_merge(...array_values($catalogo));
 

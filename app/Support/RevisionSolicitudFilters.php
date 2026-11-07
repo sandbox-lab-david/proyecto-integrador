@@ -17,11 +17,23 @@ class RevisionSolicitudFilters
         $validated = $request->validate([
             'filtrar' => ['nullable', 'boolean'], 'nombre' => ['nullable', 'string', 'max:255'],
             'codigo' => ['nullable', 'string', 'max:255'], 'carrera' => ['nullable', 'string', 'max:255'],
-            'fecha' => ['nullable', 'date_format:d/m/Y'],
+            'desde' => ['nullable', 'date_format:d/m/Y'],
+            'hasta' => ['nullable', 'date_format:d/m/Y', function ($attribute, $value, $fail) use ($request) {
+                $desde = $request->input('desde');
+                if (filled($value) && filled($desde)) {
+                    try {
+                        if (Carbon::createFromFormat('!d/m/Y', $value)->lt(Carbon::createFromFormat('!d/m/Y', $desde))) {
+                            $fail('La fecha Hasta debe ser igual o posterior a Desde.');
+                        }
+                    } catch (\Throwable) {
+                        // La regla date_format informa las fechas mal escritas.
+                    }
+                }
+            }],
             'tramite' => ['nullable', Rule::exists('tipos_tramite', 'nombre')],
             'estado' => ['nullable', Rule::in(self::ESTADOS)],
         ]);
-        foreach (['nombre', 'codigo', 'carrera', 'fecha', 'tramite', 'estado'] as $key) {
+        foreach (['nombre', 'codigo', 'carrera', 'desde', 'hasta', 'tramite', 'estado'] as $key) {
             $validated[$key] = trim((string) ($validated[$key] ?? ''));
         }
         $validated['filtrar'] = $request->boolean('filtrar');
@@ -31,20 +43,25 @@ class RevisionSolicitudFilters
 
     public static function validateWithDateRange(Request $request): array
     {
-        $validated = $request->validate([
-            'desde' => ['nullable', 'date_format:Y-m-d'], 'hasta' => ['nullable', 'date_format:Y-m-d', 'after_or_equal:desde'],
-            'nombre' => ['nullable', 'string', 'max:255'], 'codigo' => ['nullable', 'string', 'max:255'],
-            'carrera' => ['nullable', 'string', 'max:255'], 'tramite' => ['nullable', Rule::exists('tipos_tramite', 'nombre')],
-            'estado' => ['nullable', Rule::in(self::ESTADOS)],
-        ]);
-        foreach (['desde', 'hasta', 'nombre', 'codigo', 'carrera', 'tramite', 'estado'] as $key) {
-            $validated[$key] = trim((string) ($validated[$key] ?? ''));
-        }
-
-        return $validated;
+        return self::validate($request);
     }
 
     public static function apply(Builder $query, array $filters): Builder
+    {
+        self::applyMetadata($query, $filters);
+
+        $column = \Illuminate\Support\Facades\DB::raw('COALESCE(solicitudes.enviada_at, solicitudes.created_at)');
+        if (($filters['desde'] ?? '') !== '') {
+            $query->whereDate($column, '>=', Carbon::createFromFormat('!d/m/Y', $filters['desde'])->toDateString());
+        }
+        if (($filters['hasta'] ?? '') !== '') {
+            $query->whereDate($column, '<=', Carbon::createFromFormat('!d/m/Y', $filters['hasta'])->toDateString());
+        }
+
+        return $query;
+    }
+
+    public static function applyMetadata(Builder $query, array $filters): Builder
     {
         if (($filters['nombre'] ?? '') !== '' || ($filters['codigo'] ?? '') !== '') {
             $query->whereHas('carreraEstudiante.estudiante', function (Builder $student) use ($filters) {
@@ -72,16 +89,7 @@ class RevisionSolicitudFilters
             $code = Estados::codigoDesdeEtiqueta($filters['estado']);
             $query->enEstado($code);
         }
-        if (($filters['fecha'] ?? '') !== '') {
-            $query->whereDate('created_at', Carbon::createFromFormat('!d/m/Y', $filters['fecha'])->toDateString());
-        }
-
         return $query;
-    }
-
-    public static function applyMetadata(Builder $query, array $filters): Builder
-    {
-        return self::apply($query, $filters);
     }
 
     public static function tramitesDisponibles()
@@ -102,7 +110,7 @@ return false;
 
     public static function hasAny(array $filters): bool
     {
-        foreach (['nombre', 'codigo', 'carrera', 'fecha', 'tramite', 'estado'] as $k) {
+        foreach (['nombre', 'codigo', 'carrera', 'desde', 'hasta', 'tramite', 'estado'] as $k) {
             if (($filters[$k] ?? '') !== '') {
                 return true;
             }

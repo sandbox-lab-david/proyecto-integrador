@@ -92,12 +92,12 @@ final class DatosFormularioSolicitud
             fn ($valor) => is_string($valor) && trim($valor) !== '');
     }
 
-    public static function reglas(bool $borrador): array
+    public static function reglas(bool $borrador, ?string $tramite = null): array
     {
         $presencia = $borrador ? 'nullable' : 'required';
         $reglas = [];
         foreach (self::PERSONALES as $campo => [, $limite]) {
-            $reglas[$campo] = [$presencia, 'string', 'max:'.$limite];
+            $reglas[$campo] = [$campo === 'cedula' && $tramite !== 'homologacion' ? 'nullable' : $presencia, 'string', 'max:'.$limite];
         }
         $reglas['correo'][] = 'email';
         foreach (self::SOLO_DIGITOS as $campo) {

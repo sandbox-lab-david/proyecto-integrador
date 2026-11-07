@@ -223,6 +223,9 @@ class RespaldosTemporales
     /** Carpeta temporal de la sesión; la crea la primera vez que se pide. */
     public function carpeta(): string
     {
+        if (request()->filled('solicitud_correccion') && \App\Services\Solicitudes\CorreccionesGuardadas::disponible()) {
+            return \App\Services\Solicitudes\CorreccionesGuardadas::carpeta((int) auth()->id(), (int) request()->input('solicitud_correccion'));
+        }
         $carpeta = $this->sesion->get(self::SESION.'.carpeta');
 
         if ($carpeta === null) {

@@ -10,19 +10,22 @@ use PhpOffice\PhpWord\PhpWord;
 
 class AgendaWordService
 {
-    public function generarAgendaWord(int $corteId)
+    public function generarAgendaWord(int $corteId, ?array $carrerasVisibles = null)
     {
-        return $this->generarDocumento([$corteId]);
+        return $this->generarDocumento([$corteId], [], $carrerasVisibles);
     }
 
-    public function generarDocumento(array $corteIds, array $filtros = [])
+    public function generarDocumento(array $corteIds, array $filtros = [], ?array $carrerasVisibles = null)
     {
         $cortes = CorteAgenda::with(['puntosInternos', 'solicitudes.carreraEstudiante.estudiante', 'solicitudes.carreraEstudiante.carreraModalidad.carrera', 'solicitudes.tipoTramite', 'solicitudes.estadoSolicitud', 'solicitudes.resolucion'])->whereIn('id', $corteIds)->orderBy('fecha_sesion')->orderBy('id')->get();
         abort_if($cortes->isEmpty(), 404, 'No hay agendas para esos filtros.');
-        if ($filtros) {
+        if ($filtros || $carrerasVisibles !== null) {
             foreach ($cortes as $corte) {
                 $solicitudes = $corte->solicitudes()->with(['carreraEstudiante.estudiante', 'carreraEstudiante.carreraModalidad.carrera', 'tipoTramite', 'estadoSolicitud', 'resolucion']);
-                RevisionSolicitudFilters::apply($solicitudes, $filtros);
+                RevisionSolicitudFilters::applyMetadata($solicitudes->getQuery(), $filtros);
+                if ($carrerasVisibles !== null) {
+                    $solicitudes->whereHas('carreraEstudiante.carreraModalidad', fn ($q) => $q->whereIn('carrera_id', $carrerasVisibles));
+                }
                 $corte->setRelation('solicitudes', $solicitudes->get());
             }
         }

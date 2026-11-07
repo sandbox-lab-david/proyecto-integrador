@@ -23,6 +23,9 @@ class PrevalidarSolicitudRequest extends FormRequest
         $reglas = [
             'tramite' => ['required', 'string', 'max:60'],
             'campos' => ['present', 'array'],
+            // Respaldo => documento que cubre; el servicio descarta los archivos que no están subidos.
+            'requisitos' => ['sometimes', 'array', 'max:50'],
+            'requisitos.*' => ['nullable', 'string', 'max:150'],
         ];
         // Solo se validan los campos de la definición; el servicio decide cuáles viajan al motor.
         foreach ($definicion['campos'] ?? [] as $campo) {

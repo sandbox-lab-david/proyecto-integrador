@@ -136,7 +136,7 @@ class RestriccionesFormularioSolicitudTest extends TestCase
         $datos['materias'][0]['datos']['asistencia'] = '   ';
         $datos['campos']['motivo'] = "  Primer párrafo.\n\nSegundo párrafo con  dos espacios internos.  ";
         $esperados = [
-            'nombre' => 'Ana María Pérez', 'codigo' => '00991234', 'facultad' => 'Ciencias de la Comunicación',
+            'nombre' => auth()->user()->name, 'codigo' => '00991234', 'facultad' => 'Ciencias de la Comunicación',
             'materias.0.docente' => 'María Docente', 'materias.0.datos.nota' => '59',
             'materias.0.datos.asistencia' => null,
             'campos.motivo' => "Primer párrafo.\n\nSegundo párrafo con  dos espacios internos.",

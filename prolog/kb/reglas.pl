@@ -15,8 +15,70 @@ consultar(consultar_plazo,T,S) :- plazo_texto(T,Texto),base_respuesta(B),S=B.put
 
 evaluar(examen_recuperacion,P,Fecha,manual,S) :-
     parametro(examen_recuperacion,gpa_general_minimo,Min),parametro(examen_recuperacion,intervalo_recuperacion_dias,Intervalo),
-    referencia_gpa(P,Min,G),referencia_dias(P,Fecha,Intervalo,D),base_respuesta(B),S=B.put(comprobaciones,[G,D]).
-evaluar(T,_,_,manual,S) :- T\==examen_recuperacion,base_respuesta(B),S=B.put(items,["Consulta los requisitos y documentos del trámite. La facultad revisa los antecedentes de tu solicitud."]).
+    referencia_gpa(P,Min,G),referencia_dias(P,Fecha,Intervalo,D),
+    ( get_dict(documentos_subidos, P, _)
+    -> comprobacion_documentos(examen_recuperacion, P, DocComp), Cs = [G, D, DocComp]
+    ;  Cs = [G, D] ),
+    base_respuesta(B),S=B.put(comprobaciones,Cs).
+evaluar(T,P,_,manual,S) :-
+    T\==examen_recuperacion,
+    ( get_dict(documentos_subidos, P, _)
+    -> comprobacion_documentos(T, P, DocComp), base_respuesta(B), S=B.put(comprobaciones,[DocComp])
+    ;  base_respuesta(B),S=B.put(items,["Consulta los requisitos y documentos del trámite. La facultad revisa los antecedentes de tu solicitud."]) ).
+
+documentos_obligatorios_tramite(Tramite, Docs) :-
+    findall(DocId-Nombre,
+        ( tramite_documento(Tramite, _, DocId, obligatorio),
+          documento_def(DocId, Nombre, _, _, _) ),
+        Docs).
+
+comprobacion_documentos(Tramite, Perfil, Comp) :-
+    documentos_obligatorios_tramite(Tramite, Obligatorios),
+    ( get_dict(documentos_subidos, Perfil, Subidos0), is_list(Subidos0)
+    -> maplist(atom_string, Subidos, Subidos0)
+    ; Subidos = []
+    ),
+    findall(Nombre,
+        ( member(DocId-Nombre, Obligatorios),
+          \+ member(DocId, Subidos) ),
+        Faltantes),
+    ( tramite(Tramite, NombreTramite) -> true ; NombreTramite = Tramite ),
+    length(Obligatorios, TotalOblig),
+    length(Faltantes, TotalFaltantes),
+    ( TotalOblig == 0 ->
+        PuedeAvanzar = true,
+        Cumple = true,
+        format(string(Texto), "El trámite «~w» no exige documentos obligatorios de respaldo. Puedes continuar con tu solicitud.", [NombreTramite])
+    ; TotalFaltantes == 0 ->
+        PuedeAvanzar = true,
+        Cumple = true,
+        format(string(Texto), "¡Comprobación exitosa! Has presentado todos los documentos obligatorios requeridos para «~w». Puedes continuar al siguiente paso.", [NombreTramite])
+    ; TotalFaltantes == 1, Faltantes = [Unico] ->
+        PuedeAvanzar = false,
+        Cumple = false,
+        format(string(Texto), "No puedes avanzar al siguiente paso. Te falta adjuntar el siguiente documento obligatorio: ~w.", [Unico])
+    ;
+        PuedeAvanzar = false,
+        Cumple = false,
+        atomic_list_concat(Faltantes, ", ", FaltantesTexto),
+        format(string(Texto), "No puedes avanzar al siguiente paso. Te faltan adjuntar los siguientes documentos obligatorios: ~w.", [FaltantesTexto])
+    ),
+    Comp = _{
+        codigo: "verificacion_documentos",
+        texto: Texto,
+        datos: _{
+            cumple: Cumple,
+            puede_avanzar: PuedeAvanzar,
+            total_obligatorios: TotalOblig,
+            total_faltantes: TotalFaltantes,
+            documentos_faltantes: Faltantes
+        }
+    }.
+
+verificar_documentos(Tramite, Subidos, Resultado) :-
+    comprobacion_documentos(Tramite, _{documentos_subidos: Subidos}, Comp),
+    Resultado = Comp.datos.put(_{texto: Comp.texto, codigo: Comp.codigo}).
+
 
 referencia_gpa(P,Min,R) :-
     (get_dict(gpa_general,P,G),G\==null -> number(G),G>=0,G=<100,

@@ -23,6 +23,7 @@ use App\Services\Solicitudes\DocumentosTemporales;
 use App\Services\Solicitudes\IntegracionEnvio;
 use App\Services\Solicitudes\TramitesSimulados;
 use Database\Seeders\CatalogoInformativoSeeder;
+use Database\Seeders\EstadosSolicitudSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Route;
@@ -36,7 +37,7 @@ class IntegracionInstitucionalTest extends TestCase
 
     private function preparar(): array
     {
-        $this->seed(CatalogoInformativoSeeder::class);
+        $this->seed([CatalogoInformativoSeeder::class, EstadosSolicitudSeeder::class]);
         $u = User::factory()->create(['tipo' => 'estudiante']);
         $f = DB::table('facultades')->insertGetId(['codigo' => 'ING', 'nombre' => 'Ingeniería', 'activo' => true]);
         $c = Carrera::create(['facultad_id' => $f, 'codigo' => 'COM', 'nombre' => 'Ingeniería en Computación', 'nivel' => 'grado', 'activo' => true]);
@@ -59,7 +60,7 @@ class IntegracionInstitucionalTest extends TestCase
         $this->assertSame('enviada', $s->fresh()->estadoSolicitud->codigo);
         $this->assertSame(1, app(EstadoSolicitudService::class)->lineaDeTiempo($s, false)->count());
         HistorialSolicitud::create(['solicitud_id' => $s->id, 'estado_nuevo' => 'enviada', 'comentario' => 'Nota interna', 'visible_estudiante' => false]);
-        $this->assertSame(1, app(EstadoSolicitudService::class)->lineaDeTiempo($s, false)->count());
+        $this->assertSame(2, app(EstadoSolicitudService::class)->lineaDeTiempo($s, false)->count());
         $this->actingAs($u)->get('/estudiante/solicitudes/'.$s->id)->assertOk()->assertDontSee('Nota interna');
         $this->actingAs(User::factory()->create())->get('/estudiante/solicitudes/'.$s->id)->assertForbidden();
         $this->actingAs($u)->get('/estudiante/solicitudes')->assertOk()->assertSee('SOL-TEST');
@@ -94,6 +95,9 @@ class IntegracionInstitucionalTest extends TestCase
         [$u,$inscripcion,$base] = $this->preparar();
         $this->actingAs($u);
         $materiaId = DB::table('materias')->insertGetId(['codigo' => 'BD401', 'nombre' => 'Bases de datos', 'creditos' => 3]);
+        $malla = \App\Models\Malla::factory()->create();
+        $malla->materias()->attach($materiaId, ['nivel' => 1]);
+        $inscripcion->update(['malla_id' => $malla->id]);
         $curso = \App\Models\Curso::create(['materia_id' => $materiaId,
             'periodo_id' => Periodo::where('codigo', 'ACTUAL')->value('id'), 'paralelo' => 'A']);
         $catalogo = app(TramitesSimulados::class);

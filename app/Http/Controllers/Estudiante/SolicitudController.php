@@ -37,7 +37,7 @@ class SolicitudController extends Controller
             $solicitud = $envio->enviar($request->user(), $datos);
         } catch (\App\Services\Chatbot\Prolog\PrologException $error) {
             report($error);
-            return response()->json(['message' => 'No se pudieron verificar los requisitos en Prolog. No se envió la solicitud; tus archivos se conservan.'], 503);
+            return response()->json(['message' => 'No se pudieron verificar los requisitos del trámite. No se envió la solicitud; tus archivos se conservan.'], 503);
         }
         return response()->json(['codigo' => $solicitud->codigo, 'url' => route('solicitudes.index')], 201);
     }
@@ -76,7 +76,7 @@ class SolicitudController extends Controller
             $guardada = $envio->enviar($request->user(), $datos, $expediente, $request->session()->get('correcciones_base.'.$solicitud));
         } catch (\App\Services\Chatbot\Prolog\PrologException $error) {
             report($error);
-            return response()->json(['message' => 'No se pudieron verificar los requisitos en Prolog. La corrección no se envió.'], 503);
+            return response()->json(['message' => 'No se pudieron verificar los requisitos del trámite. La corrección no se envió.'], 503);
         }
         $request->session()->forget('correcciones_base.'.$solicitud);
         return response()->json(['codigo' => $guardada->codigo, 'url' => route('solicitudes.index')]);
@@ -181,6 +181,7 @@ class SolicitudController extends Controller
         BorradoresSolicitud $borradores,
         FirmadosTemporales $firmados,
         DocumentosTemporales $temporales,
+        \App\Services\Solicitudes\PerfilFormularioSolicitud $perfil,
     ): View {
         $codigoTramite = (string) (
             $request->route('tramite') ?? $request->query('tramite')
@@ -214,17 +215,26 @@ class SolicitudController extends Controller
                 ->entrada($borrador + ['origen_materias' => 'catalogo']));
         }
 
+        $datosCuenta = DatosFormularioSolicitud::cuenta($request->user());
+        if ($borrador) {
+            $borrador = array_replace($borrador, $datosCuenta, $perfil->fijos($borrador));
+        }
+        $datosFijos = $perfil->fijos([]);
+
         return view('estudiante.formulario-solicitud', [
             'solicitudCorreccion' => $expedienteCorreccion,
             'observacionesCorreccion' => $observacionesCorreccion,
             'requisitosMotor' => $requisitosMotor,
             'codigoTramite' => $codigoTramite,
             'tramite' => $tramite,
-            'datosCuenta' => [],
+            'datosCuenta' => $datosCuenta,
+            'datosIniciales' => array_replace($perfil->iniciales(), $datosFijos),
+            'datosFijos' => $datosFijos,
+            'modalidadesMatricula' => $perfil->modalidades(),
             'camposPersonales' => DatosFormularioSolicitud::PERSONALES,
             'camposMateriaManual' => DatosFormularioSolicitud::MATERIA,
             'materias' => app(\App\Services\Solicitudes\MateriasSolicitud::class)->todas(),
-            'catalogoFacultades' => CatalogoFacultades::todas(),
+            'catalogoFacultades' => $perfil->facultades(),
             'respaldosSubidos' => $respaldos->delTramite($codigoTramite),
             'borrador' => $borrador,
             'firmado' => $firmados->delTramite($codigoTramite),

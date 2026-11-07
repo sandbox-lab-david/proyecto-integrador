@@ -8,11 +8,12 @@ use App\Models\EstadoSolicitud;
 use App\Models\Periodo;
 use App\Models\TipoTramite;
 use Database\Seeders\CatalogoInformativoSeeder;
+use Database\Seeders\EstadosSolicitudSeeder;
 
 /**
  * Filas reales de G1, G3 y G4 para las llaves foráneas de las tablas de G2.
- * Salen de las factories de G1 y del seeder del catálogo de G4, que también
- * crea los estados borrador y enviada (regla 9 de modelos.xlsx).
+ * Salen de las factories de G1, del seeder del catálogo de G4 y del seeder de
+ * estados y transiciones de G3 (regla 9 de modelos.xlsx).
  */
 trait LlavesAjenasPrueba
 {
@@ -53,7 +54,7 @@ trait LlavesAjenasPrueba
     private function sembrarCatalogo(): void
     {
         if (! TipoTramite::query()->exists()) {
-            $this->seed(CatalogoInformativoSeeder::class);
+            $this->seed([CatalogoInformativoSeeder::class, EstadosSolicitudSeeder::class]);
         }
     }
 }

@@ -4,6 +4,8 @@ namespace App\Support;
 
 final class Estados
 {
+    public const BORRADOR = 'borrador';
+
     public const ENVIADA = 'enviada';
 
     public const REVISADA = 'revisada';
@@ -23,7 +25,7 @@ final class Estados
     public static function codigoDesdeEtiqueta(string $label): string
     {
         return match ($label) {
-            'Enviado por estudiante' => self::ENVIADA, 'Revisado' => self::REVISADA,
+            'Borrador' => self::BORRADOR, 'Enviado por estudiante' => self::ENVIADA, 'Revisado' => self::REVISADA,
             'Observado' => self::OBSERVADA, 'Apto para consejo' => self::APTA_CONSEJO,
             'Agendado' => self::AGENDADA, 'Aprobado para ejecución' => self::APROBADA_EJECUCION,
             'Ejecutado' => self::EJECUTADA, 'Rechazado' => self::RECHAZADA,
