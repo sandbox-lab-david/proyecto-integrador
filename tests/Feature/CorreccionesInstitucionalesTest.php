@@ -39,7 +39,7 @@ class CorreccionesInstitucionalesTest extends TestCase
         foreach (app(TramitesSimulados::class)->buscar('gracia')['documentos'] as $documento) {
             if ($documento['obligatorio'] || $datos['requisitos'] === []) {
                 $archivo = app(RespaldosTemporales::class)->agregar($this->pdf(), 'gracia');
-                $datos['requisitos'][$archivo['id']] = $documento['id'];
+                $datos['requisitos'][$archivo['id']] = 'examen_gracia_'.str_replace('-', '_', $documento['id']);
             }
         }
         return $datos;
@@ -99,5 +99,10 @@ class CorreccionesInstitucionalesTest extends TestCase
         Storage::disk('local')->assertExists($rutaAnterior);
         $this->assertDatabaseHas('historial_solicitud', ['solicitud_id' => $inicial->id,
             'estado_anterior' => 'observada', 'estado_nuevo' => 'enviada', 'visible_estudiante' => true]);
+    }
+
+    protected function usarIdentificadoresProlog(): bool
+    {
+        return true;
     }
 }

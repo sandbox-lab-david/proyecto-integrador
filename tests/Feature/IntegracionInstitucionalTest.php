@@ -143,7 +143,7 @@ class IntegracionInstitucionalTest extends TestCase
                     continue;
                 }
                 $archivo = app(RespaldosTemporales::class)->agregar($this->pdf(), $codigo);
-                $datos['requisitos'][$archivo['id']] = $doc['id'];
+                $datos['requisitos'][$archivo['id']] = app(\App\Services\Catalogo\CatalogoTramites::class)->buscar($codigo)['id'].'_'.str_replace('-', '_', $doc['id']);
             }
             $primera = $this->postJson(route('solicitudes.enviar'), $datos)->assertCreated()->json();
             $this->assertSame($primera, $this->postJson(route('solicitudes.enviar'), $datos)->assertCreated()->json());
@@ -152,7 +152,7 @@ class IntegracionInstitucionalTest extends TestCase
             foreach ($expediente->respaldos as $respaldo) {
                 $this->assertNotNull($respaldo->documento_requerido_id, $codigo);
                 $this->assertSame($expediente->tipo_tramite_id, $respaldo->documentoRequerido->tipo_tramite_id, $codigo);
-                $this->assertContains($respaldo->documentoRequerido->codigo, array_values($datos['requisitos']), $codigo);
+                $this->assertContains($expediente->tipoTramite->codigo.'_'.str_replace('-', '_', $respaldo->documentoRequerido->codigo), array_values($datos['requisitos']), $codigo);
             }
             if ($def['max_materias'] > 0) {
                 $this->assertSame($curso->id, $expediente->materias()->firstOrFail()->curso_id, $codigo);
@@ -187,16 +187,16 @@ class IntegracionInstitucionalTest extends TestCase
     {
         [$u, $i, $datos] = $this->preparar();
         $documento = \App\Models\TipoTramite::where('codigo', 'examen_recuperacion')->firstOrFail()->documentos()->firstOrFail();
-        $datos['requisitos'] = ['archivo-de-prueba' => $documento->codigo];
+        $datos['requisitos'] = ['archivo-de-prueba' => 'examen_recuperacion_'.str_replace('-', '_', $documento->codigo)];
         $contexto = app(IntegracionEnvio::class)->resolver($u, $datos);
-        $this->assertSame($documento->id, $contexto['requisitos'][$documento->codigo]);
+        $this->assertSame($documento->id, $contexto['requisitos']['examen_recuperacion_'.str_replace('-', '_', $documento->codigo)]);
     }
 
     public function test_rechaza_un_documento_de_otro_tramite(): void
     {
         [$u, $i, $datos] = $this->preparar();
         $ajeno = \App\Models\TipoTramite::where('codigo', 'examen_gracia')->firstOrFail()->documentos()->firstOrFail();
-        $datos['requisitos'] = ['archivo-de-prueba' => $ajeno->codigo];
+        $datos['requisitos'] = ['archivo-de-prueba' => 'examen_gracia_'.str_replace('-', '_', $ajeno->codigo)];
         try {
             app(IntegracionEnvio::class)->resolver($u, $datos);
             $this->fail('Debe rechazar documentos de otro trámite.');
@@ -209,7 +209,7 @@ class IntegracionInstitucionalTest extends TestCase
     {
         [$u, $i, $datos] = $this->preparar();
         $documento = \App\Models\TipoTramite::where('codigo', 'examen_recuperacion')->firstOrFail()->documentos()->firstOrFail();
-        $datos['requisitos'] = ['archivo-de-prueba' => $documento->codigo];
+        $datos['requisitos'] = ['archivo-de-prueba' => 'examen_recuperacion_'.str_replace('-', '_', $documento->codigo)];
         $documento->delete();
         try {
             app(IntegracionEnvio::class)->resolver($u, $datos);
@@ -217,5 +217,21 @@ class IntegracionInstitucionalTest extends TestCase
         } catch (ValidationException $error) {
             $this->assertArrayHasKey('requisitos', $error->errors());
         }
+    }
+
+    protected function usarIdentificadoresProlog(): bool
+    {
+        return true;
+    }
+
+    public function test_resuelve_el_identificador_completo_con_guiones_del_documento(): void
+    {
+        [$u, $i, $datos] = $this->preparar();
+        $datos['tramite'] = 'retiro-carrera';
+        $datos['requisitos'] = ['archivo-de-prueba' => 'retiro_carrera_respaldo_motivo'];
+        $documento = \App\Models\TipoTramite::where('codigo', 'retiro_carrera')->firstOrFail()
+            ->documentos()->where('codigo', 'respaldo-motivo')->firstOrFail();
+        $contexto = app(IntegracionEnvio::class)->resolver($u, $datos);
+        $this->assertSame($documento->id, $contexto['requisitos']['retiro_carrera_respaldo_motivo']);
     }
 }

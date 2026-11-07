@@ -41,7 +41,8 @@ class IntegracionEnvioInstitucional implements IntegracionEnvio
         $codigo = app(CatalogoTramites::class)->buscar($datos['tramite'])['id'] ?? null;
         $tipo = TipoTramite::where('codigo', $codigo)->firstOrFail();
 
-        $documentos = $tipo->documentos()->pluck('id', 'codigo')->all();
+        $documentos = $tipo->documentos()->get(['id', 'codigo'])
+            ->mapWithKeys(fn ($d) => [$tipo->codigo.'_'.str_replace('-', '_', $d->codigo) => $d->id])->all();
         foreach (array_unique(array_values($datos['requisitos'] ?? [])) as $requisito) {
             if (! is_string($requisito) || ! isset($documentos[$requisito])) {
                 throw ValidationException::withMessages([
