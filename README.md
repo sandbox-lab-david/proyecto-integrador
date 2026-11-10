@@ -474,3 +474,54 @@ Catálogos que usan los demás módulos, personal e importación del SIAC. Todo 
 * **Christian Javier Guerrero Garzon**
 * **Carlos Alessandro Lema Armitano**
 * **Nicolas Rafael Pazos Altamirano**
+
+---
+
+## Créditos - Integrantes (Grupo 2)
+
+<p>
+  <img alt="Módulo 2: Portal del estudiante" src="https://img.shields.io/badge/M%C3%B3dulo%202-Portal%20del%20estudiante-781c35">
+</p>
+
+<table>
+  <tr>
+    <td align="center" width="25%">
+      <a href="https://github.com/Juan04A"><img src="https://github.com/Juan04A.png?size=120" width="100" alt="Foto de perfil de Juan04A"></a><br>
+      <b>Juan Sebastián Araujo Pacheco</b><br>
+      <a href="https://github.com/Juan04A">Juan04A</a>
+    </td>
+    <td align="center" width="25%">
+      <a href="https://github.com/AlejandraIturralde"><img src="https://github.com/AlejandraIturralde.png?size=120" width="100" alt="Foto de perfil de AlejandraIturralde"></a><br>
+      <b>María Alejandra Iturralde Zamora</b><br>
+      <a href="https://github.com/AlejandraIturralde">AlejandraIturralde</a>
+    </td>
+    <td align="center" width="25%">
+      <a href="https://github.com/NathalyYcaza"><img src="https://github.com/NathalyYcaza.png?size=120" width="100" alt="Foto de perfil de NathalyYcaza"></a><br>
+      <b>Gina Nathaly Ycaza Laínez</b><br>
+      <a href="https://github.com/NathalyYcaza">NathalyYcaza</a>
+    </td>
+    <td align="center" width="25%">
+      <a href="https://github.com/MarcusLopez-ING"><img src="https://github.com/MarcusLopez-ING.png?size=120" width="100" alt="Foto de perfil de MarcusLopez-ING"></a><br>
+      <b>Marcos Antonio López López</b><br>
+      <a href="https://github.com/MarcusLopez-ING">MarcusLopez-ING</a>
+    </td>
+  </tr>
+</table>
+
+**Rama de trabajo:** `grupo-2/modulo-portal-estudiante` (los cambios llegan a `develop` por *pull request*).
+
+### Qué hicimos
+
+Construimos el **Portal del estudiante**: la parte del sistema donde el estudiante pide sus trámites académicos sin documentos de Word sueltos ni carpetas. Cubre todo el camino, desde que elige el trámite hasta que ve la resolución.
+
+| Función | Qué puede hacer el estudiante |
+|---|---|
+| **Catálogo y ficha** | Buscar entre los 20 trámites y leer los requisitos y documentos de cada uno, que se consultan a la base de conocimiento en Prolog del Grupo 4, y hacerle preguntas a su chatbot, que también funciona con Prolog |
+| **Formulario en 4 pasos** | Llenar sus datos, los del trámite y las materias de su malla. Los campos cambian según el trámite y se validan en el navegador y en el servidor |
+| **Respaldos** | Subir varios archivos por cada documento requerido y revisarlos en un visor antes de enviar |
+| **Comprobación previa** | Ver, antes de enviar, una revisión informativa de su caso que hace el motor en Prolog del Grupo 4 con los datos que declaró, sin que bloquee el envío |
+| **Documento oficial** | Descargar su solicitud en Word o PDF, llenada sobre las plantillas originales de la facultad, firmarla y subirla |
+| **Borrador** | Dejar la solicitud a medias: se guarda sola en su cuenta y puede seguirla desde cualquier navegador |
+| **Envío y seguimiento** | Recibir un código `SOL-AAAA-00000` y seguir en "Mis solicitudes" el estado, el historial y la resolución |
+| **Correcciones** | Corregir y reenviar una solicitud observada con el mismo código, sin perder las versiones anteriores |
+| **Notificaciones** | Recibir un aviso en la campanita y por correo cada vez que cambia el estado de su solicitud |
