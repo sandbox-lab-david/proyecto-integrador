@@ -17,7 +17,7 @@ class AgendaConsejoController extends Controller
 {
     public function index(Request $request, AutorizacionService $authz)
     {
-        $filtros = RevisionSolicitudFilters::validate($request);
+        $filtros = RevisionSolicitudFilters::validate($request, RevisionSolicitudFilters::ESTADOS_AGENDAS);
         $aprobadas = collect();
         if ($filtros['filtrar']) {
             $query = Solicitud::with(['carreraEstudiante.estudiante', 'carreraEstudiante.carreraModalidad.carrera', 'tipoTramite', 'estadoSolicitud'])
@@ -34,7 +34,7 @@ class AgendaConsejoController extends Controller
             }
         }
 
-        return view('revision.agendas', ['aprobadas' => $aprobadas, 'filtros' => $filtros, 'filtrosAplicados' => $filtros['filtrar'], 'tramitesDisponibles' => RevisionSolicitudFilters::tramitesDisponibles(), 'estadosDisponibles' => RevisionSolicitudFilters::ESTADOS]);
+        return view('revision.agendas', ['aprobadas' => $aprobadas, 'filtros' => $filtros, 'filtrosAplicados' => $filtros['filtrar'], 'tramitesDisponibles' => RevisionSolicitudFilters::tramitesDisponibles(), 'estadosDisponibles' => RevisionSolicitudFilters::ESTADOS_AGENDAS]);
     }
 
     public function store(Request $request, AutorizacionService $authz, EstadoSolicitudService $estados, SolicitudService $solicitudService)

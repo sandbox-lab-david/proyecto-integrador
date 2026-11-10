@@ -12,7 +12,15 @@ class RevisionSolicitudFilters
 {
     public const ESTADOS = ['Enviado por estudiante', 'Revisado', 'Observado', 'Apto para consejo', 'Agendado', 'Aprobado para ejecución', 'Ejecutado', 'Rechazado'];
 
-    public static function validate(Request $request): array
+    public const ESTADOS_ASISTENTE = ['Enviado por estudiante'];
+
+    public const ESTADOS_DIRECTOR = ['Revisado'];
+
+    public const ESTADOS_AGENDAS = ['Apto para consejo'];
+
+    public const ESTADOS_RESOLUCIONES = ['Agendado', 'Aprobado para ejecución', 'Ejecutado', 'Rechazado'];
+
+    public static function validate(Request $request, ?array $estadosDisponibles = null): array
     {
         $validated = $request->validate([
             'filtrar' => ['nullable', 'boolean'], 'nombre' => ['nullable', 'string', 'max:255'],
@@ -31,7 +39,7 @@ class RevisionSolicitudFilters
                 }
             }],
             'tramite' => ['nullable', Rule::exists('tipos_tramite', 'nombre')],
-            'estado' => ['nullable', Rule::in(self::ESTADOS)],
+            'estado' => ['nullable', Rule::in($estadosDisponibles ?? self::ESTADOS)],
         ]);
         foreach (['nombre', 'codigo', 'carrera', 'desde', 'hasta', 'tramite', 'estado'] as $key) {
             $validated[$key] = trim((string) ($validated[$key] ?? ''));
