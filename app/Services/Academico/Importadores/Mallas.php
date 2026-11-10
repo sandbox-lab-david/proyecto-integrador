@@ -52,11 +52,11 @@ class Mallas extends Importador
     {
         $errores = [];
 
-        if (! Carrera::where('codigo', $fila['carrera_codigo'])->exists()) {
+        if ($fila['carrera_codigo'] && ! Carrera::where('codigo', $fila['carrera_codigo'])->exists()) {
             $errores[] = "No existe la carrera con código {$fila['carrera_codigo']}.";
         }
 
-        if (! Materia::where('codigo', $fila['materia_codigo'])->exists()) {
+        if ($fila['materia_codigo'] && ! Materia::where('codigo', $fila['materia_codigo'])->exists()) {
             $errores[] = "No existe la materia con código {$fila['materia_codigo']}. Impórtala primero.";
         }
 
