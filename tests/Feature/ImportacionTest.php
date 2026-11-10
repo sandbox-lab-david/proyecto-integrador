@@ -163,6 +163,19 @@ class ImportacionTest extends TestCase
         $this->actingAs($this->admin)->post(route('cargas.procesar', $importacion))->assertStatus(409);
     }
 
+    public function test_una_fila_con_varios_errores_los_muestra_todos(): void
+    {
+        $contenido = "codigo,nombres,apellidos,correo,carrera_codigo,modalidad\n"
+            ."2026200010,Fila,Doble,error@gmail.com,XYZ,Presencial\n"
+            ."2026200011,Sin,Carrera,sincarrera@uees.edu.ec,,Presencial\n";
+
+        $importacion = $this->importar('estudiantes', $this->csv('estudiantes.csv', $contenido));
+        $motivos = collect($importacion->errores)->pluck('motivo', 'fila');
+
+        $this->assertSame('correo debe terminar en @uees.edu.ec. No existe la carrera con código XYZ.', $motivos[2]);
+        $this->assertSame('Falta carrera codigo.', $motivos[3]);
+    }
+
     public function test_si_faltan_columnas_no_se_puede_confirmar(): void
     {
         $importacion = $this->subir('materias', $this->csv('materias.csv', "codigo,nombre\nX1,Algo\n"));
