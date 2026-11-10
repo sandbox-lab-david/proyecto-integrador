@@ -41,7 +41,17 @@ class IntegracionEnvioInstitucional implements IntegracionEnvio
         $codigo = app(CatalogoTramites::class)->buscar($datos['tramite'])['id'] ?? null;
         $tipo = TipoTramite::where('codigo', $codigo)->firstOrFail();
 
-        return ['carrera_estudiante_id' => $inscripcion->id, 'tipo_tramite_id' => $tipo->id, 'periodo_id' => $periodos->first()->id, 'estado_solicitud_id' => EstadoSolicitud::where('codigo', Estados::BORRADOR)->firstOrFail()->id, 'requisitos' => $tipo->documentos()->pluck('id', 'codigo')->all()];
+        $documentos = $tipo->documentos()->get(['id', 'codigo'])
+            ->mapWithKeys(fn ($d) => [$tipo->codigo.'_'.str_replace('-', '_', $d->codigo) => $d->id])->all();
+        foreach (array_unique(array_values($datos['requisitos'] ?? [])) as $requisito) {
+            if (! is_string($requisito) || ! isset($documentos[$requisito])) {
+                throw ValidationException::withMessages([
+                    'requisitos' => 'No se pudo vincular un respaldo con el catálogo de documentos del trámite. Tus archivos se conservan; solicita la revisión del catálogo antes de enviar.',
+                ]);
+            }
+        }
+
+        return ['carrera_estudiante_id' => $inscripcion->id, 'tipo_tramite_id' => $tipo->id, 'periodo_id' => $periodos->first()->id, 'estado_solicitud_id' => EstadoSolicitud::where('codigo', Estados::BORRADOR)->firstOrFail()->id, 'requisitos' => $documentos];
     }
 
     public function contextoBorrador(User $usuario, string $tramite, array $datos): ?array

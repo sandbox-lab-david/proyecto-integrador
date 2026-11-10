@@ -59,29 +59,31 @@ class Estudiantes extends Importador
     protected function validarRelaciones(array $fila): array
     {
         $errores = [];
-        $carrera = Carrera::where('codigo', $fila['carrera_codigo'])->first();
+        $carrera = $fila['carrera_codigo'] ? Carrera::where('codigo', $fila['carrera_codigo'])->first() : null;
 
-        if (! $carrera) {
-            return ["No existe la carrera con código {$fila['carrera_codigo']}."];
+        if ($fila['carrera_codigo'] && ! $carrera) {
+            $errores[] = "No existe la carrera con código {$fila['carrera_codigo']}.";
         }
 
-        if (! $this->carreraModalidad($carrera, $fila['modalidad'])) {
+        if ($carrera && $fila['modalidad'] && ! $this->carreraModalidad($carrera, $fila['modalidad'])) {
             $errores[] = "La carrera {$carrera->codigo} no se ofrece en la modalidad {$fila['modalidad']}.";
         }
 
-        if ($fila['malla_version'] && ! $carrera->mallas()->where('version', $fila['malla_version'])->exists()) {
+        if ($carrera && $fila['malla_version'] && ! $carrera->mallas()->where('version', $fila['malla_version'])->exists()) {
             $errores[] = "La carrera {$carrera->codigo} no tiene la malla {$fila['malla_version']}.";
         }
 
-        $estudiante = Estudiante::where('codigo', $fila['codigo'])->first();
-        $correo = mb_strtolower($fila['correo']);
+        $estudiante = $fila['codigo'] ? Estudiante::where('codigo', $fila['codigo'])->first() : null;
 
-        $otraCuenta = User::where('email', $correo)->where('id', '!=', $estudiante?->user_id ?? 0)->first();
-        if ($otraCuenta && ($otraCuenta->tipo !== 'estudiante' || $otraCuenta->estudiante)) {
-            $errores[] = "El correo {$correo} ya pertenece a otra persona.";
+        if ($fila['correo']) {
+            $correo = mb_strtolower($fila['correo']);
+            $otraCuenta = User::where('email', $correo)->where('id', '!=', $estudiante?->user_id ?? 0)->first();
+            if ($otraCuenta && ($otraCuenta->tipo !== 'estudiante' || $otraCuenta->estudiante)) {
+                $errores[] = "El correo {$correo} ya pertenece a otra persona.";
+            }
         }
 
-        if ($fila['cedula'] && Estudiante::where('cedula', $fila['cedula'])->where('codigo', '!=', $fila['codigo'])->exists()) {
+        if ($fila['cedula'] && $fila['codigo'] && Estudiante::where('cedula', $fila['cedula'])->where('codigo', '!=', $fila['codigo'])->exists()) {
             $errores[] = "La cédula {$fila['cedula']} ya pertenece a otro estudiante.";
         }
 

@@ -54,7 +54,7 @@ class Docentes extends Importador
             $errores[] = "No existe la facultad con código {$fila['facultad_codigo']}.";
         }
 
-        if (Trabajador::where('correo', mb_strtolower($fila['correo']))->where('codigo', '!=', $fila['codigo'])->exists()) {
+        if ($fila['correo'] && $fila['codigo'] && Trabajador::where('correo', mb_strtolower($fila['correo']))->where('codigo', '!=', $fila['codigo'])->exists()) {
             $errores[] = "El correo {$fila['correo']} ya pertenece a otra persona del personal.";
         }
 

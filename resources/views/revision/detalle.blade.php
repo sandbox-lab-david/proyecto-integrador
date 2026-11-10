@@ -8,6 +8,7 @@
 @section('content')
     @if(session('success'))<div class="mb-4 rounded-lg border border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-800">{{ session('success') }}</div>@endif
     @if(session('error'))<div class="mb-4 rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-800">{{ session('error') }}</div>@endif
+    @if($errors->has('documentos_seleccionados'))<div class="mb-4 rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-800" role="alert">{{ $errors->first('documentos_seleccionados') }}</div>@endif
 
     <section class="mb-6 rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
         <h2 class="mb-4 text-lg font-semibold text-slate-900">Expediente y estudiante</h2>
@@ -30,7 +31,7 @@
         @php($documentosMarcados = old('documentos_seleccionados', $documentosSeleccionados))
         @php($documentosMarcados = is_array($documentosMarcados) ? array_map(fn ($documento) => ctype_digit((string) $documento) ? 'respaldo:'.$documento : (string) $documento, $documentosMarcados) : [])
         @if($puedeSeleccionarDocumentos)
-            <p class="mb-3 text-sm text-slate-600">Selecciona los archivos que se enviarán al director. Todos aparecen seleccionados inicialmente.</p>
+            <p class="mb-3 text-sm text-slate-600">Todos los archivos disponibles, incluidos los nuevos y el PDF firmado más reciente, aparecen seleccionados inicialmente. Desmarca únicamente los que no hayas validado; para enviar al director, todos deben quedar validados.</p>
             <input type="hidden" form="form-revision" name="documentos_seleccionados_present" value="1">
         @endif
         @forelse($solicitud->respaldos as $documento)

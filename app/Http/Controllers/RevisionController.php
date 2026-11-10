@@ -21,7 +21,7 @@ class RevisionController extends Controller
 {
     public function bandejaAsistente(Request $request, AutorizacionService $authz)
     {
-        $filtros = RevisionSolicitudFilters::validate($request);
+        $filtros = RevisionSolicitudFilters::validate($request, RevisionSolicitudFilters::ESTADOS_ASISTENTE);
         $usuario = auth()->user();
         $facultades = $usuario->trabajador ? $authz->facultadesDe($usuario->trabajador) : collect();
         $nombreFacultades = $authz->tieneRol($usuario, 'asistente') ? $facultades->pluck('nombre')->implode(', ') : '';
@@ -36,7 +36,7 @@ class RevisionController extends Controller
             $solicitudes = $query->latest('created_at')->get()->map(fn ($s) => $this->presentar($s));
         }
 
-        return view('revision.asistente', ['solicitudes' => $solicitudes, 'filtros' => $filtros, 'tramitesDisponibles' => RevisionSolicitudFilters::tramitesDisponibles(), 'estadosDisponibles' => RevisionSolicitudFilters::ESTADOS, 'filtrosAplicados' => $filtros['filtrar'], 'nombreFacultades' => $nombreFacultades]);
+        return view('revision.asistente', ['solicitudes' => $solicitudes, 'filtros' => $filtros, 'tramitesDisponibles' => RevisionSolicitudFilters::tramitesDisponibles(), 'estadosDisponibles' => RevisionSolicitudFilters::ESTADOS_ASISTENTE, 'filtrosAplicados' => $filtros['filtrar'], 'nombreFacultades' => $nombreFacultades]);
     }
 
     public function detalleCaso(int $id, AutorizacionService $authz, SolicitudService $solicitudes, RequisitosSolicitud $requisitos, PrologService $prolog, EstadoSolicitudService $estados)
@@ -54,11 +54,16 @@ class RevisionController extends Controller
         if ($documentoFirmado) {
             $documentosDisponibles[] = 'firmado:'.$documentoFirmado->id;
         }
-        $documentosSeleccionados = $ultimaSeleccion
-            ? $this->normalizarDocumentosSeleccionados($ultimaSeleccion->documentos_seleccionados ?? [])
-            : $documentosDisponibles;
         $esAsistente = $authz->tieneRol($usuario, 'asistente');
         $puedeSeleccionarDocumentos = $esAsistente && $solicitud->estadoSolicitud?->codigo === Estados::ENVIADA;
+        // Cada revisión de la asistente comienza con todos los archivos vigentes
+        // seleccionados, incluidos los subidos al corregir y el nuevo PDF firmado.
+        // El último conjunto validado se reserva para filtrar lo que verá el director.
+        $documentosSeleccionados = $puedeSeleccionarDocumentos
+            ? $documentosDisponibles
+            : ($ultimaSeleccion
+                ? $this->normalizarDocumentosSeleccionados($ultimaSeleccion->documentos_seleccionados ?? [])
+                : $documentosDisponibles);
         if ($authz->tieneRol($usuario, 'director') && $ultimaSeleccion) {
             $solicitud->setRelation('respaldos', $solicitud->respaldos->filter(
                 fn ($documento) => in_array('respaldo:'.$documento->id, $documentosSeleccionados, true)
@@ -87,6 +92,7 @@ class RevisionController extends Controller
                     ->loadMissing('documentoRequerido')
                     ->map(fn ($documento) => $documento->documentoRequerido?->codigo)
                     ->filter()
+                    ->map(fn ($codigo) => $tramiteId.'_'.str_replace('-', '_', $codigo))
                     ->unique()
                     ->values()
                     ->all();
@@ -122,6 +128,11 @@ class RevisionController extends Controller
             ? $this->normalizarDocumentosSeleccionados($data['documentos_seleccionados'] ?? [])
             : $documentosDisponibles;
         abort_if(array_diff($documentosMarcados, $documentosDisponibles) !== [], 422, 'Selecciona únicamente archivos de esta solicitud.');
+        if ($data['accion'] === 'aprobar' && array_diff($documentosDisponibles, $documentosMarcados) !== []) {
+            throw \Illuminate\Validation\ValidationException::withMessages([
+                'documentos_seleccionados' => 'Valida todos los documentos, incluido el PDF firmado, antes de enviar la solicitud al director.',
+            ]);
+        }
         DB::transaction(function () use ($solicitud, $data, $destino, $usuario, $trabajadorId, $estados, $documentosMarcados) {
             Revision::create(['solicitud_id' => $solicitud->id, 'trabajador_id' => $trabajadorId, 'documento_legible' => (bool) ($data['check_documento'] ?? false), 'datos_coinciden' => (bool) ($data['check_datos'] ?? false), 'requisitos_completos' => (bool) ($data['check_requisitos'] ?? false), 'documentos_seleccionados' => $documentosMarcados, 'observaciones_internas' => $data['observaciones'] ?? null, 'decision' => $destino]);
             $estados->transicionar($solicitud, $destino, $usuario, $data['observaciones'] ?? null);
@@ -180,7 +191,7 @@ class RevisionController extends Controller
 
     public function bandejaDirector(Request $request, AutorizacionService $authz)
     {
-        $filtros = RevisionSolicitudFilters::validate($request);
+        $filtros = RevisionSolicitudFilters::validate($request, RevisionSolicitudFilters::ESTADOS_DIRECTOR);
         // La asignación vigente determina el alcance del director; no necesita
         // volver a restringir su bandeja con un filtro manual de carrera.
         $filtros['carrera'] = '';
@@ -201,7 +212,7 @@ class RevisionController extends Controller
             $solicitudes = $query->latest('created_at')->get()->map(fn ($s) => $this->presentar($s));
         }
 
-        return view('revision.director', ['solicitudes' => $solicitudes, 'filtros' => $filtros, 'filtrosAplicados' => $filtros['filtrar'], 'tramitesDisponibles' => RevisionSolicitudFilters::tramitesDisponibles(), 'estadosDisponibles' => RevisionSolicitudFilters::ESTADOS, 'nombreCarreras' => $nombreCarreras]);
+        return view('revision.director', ['solicitudes' => $solicitudes, 'filtros' => $filtros, 'filtrosAplicados' => $filtros['filtrar'], 'tramitesDisponibles' => RevisionSolicitudFilters::tramitesDisponibles(), 'estadosDisponibles' => RevisionSolicitudFilters::ESTADOS_DIRECTOR, 'nombreCarreras' => $nombreCarreras]);
     }
 
     public function guardarDecisionDirector(Request $request, int $id, AutorizacionService $authz, EstadoSolicitudService $estados)

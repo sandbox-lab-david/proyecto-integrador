@@ -365,6 +365,7 @@ class BorradoresSolicitudTest extends TestCase
 
     public function test_al_enviar_el_borrador_se_convierte_en_la_solicitud(): void
     {
+        $this->identificadoresPrologPrueba = true;
         // Un trámite sin materias, para no depender del catálogo académico de G1.
         $catalogo = app(TramitesSimulados::class);
         $tramite = collect(array_keys(DocumentoSolicitud::PLANTILLAS))->first(fn ($codigo) => $catalogo->buscar($codigo)['max_materias'] === 0);
@@ -384,7 +385,7 @@ class BorradoresSolicitudTest extends TestCase
         app(FirmadosTemporales::class)->guardar($this->pdf(), $tramite);
         // Un respaldo por documento, subido con el requisito del siguiente y reasignado después.
         $datos['requisitos'] = [];
-        $ids = array_column($def['documentos'], 'id');
+        $ids = array_column($this->documentosMotorPrueba($tramite), 'id');
         foreach ($ids as $i => $requisito) {
             $subido = app(RespaldosTemporales::class)->agregar($this->pdf(), $tramite, $ids[($i + 1) % count($ids)]);
             $datos['requisitos'][$subido['id']] = $requisito;
@@ -406,7 +407,8 @@ class BorradoresSolicitudTest extends TestCase
         $this->assertCount(count($ids), $respaldos);
         foreach ($respaldos as $respaldo) {
             $this->assertStringStartsWith('expedientes/', $respaldo->ruta);
-            $this->assertSame($datos['requisitos'][pathinfo($respaldo->ruta, PATHINFO_FILENAME)], $respaldo->documentoRequerido?->codigo);
+            $this->assertNotNull($respaldo->documento_requerido_id);
+            $this->assertSame($datos['requisitos'][pathinfo($respaldo->ruta, PATHINFO_FILENAME)], $enviada->tipoTramite->codigo.'_'.str_replace('-', '_', $respaldo->documentoRequerido->codigo));
         }
         $generado = DocumentoGenerado::sole();
         $this->assertStringStartsWith('expedientes/', $generado->ruta_docx);

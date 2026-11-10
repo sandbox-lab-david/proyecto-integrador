@@ -51,7 +51,7 @@ class Carreras extends Importador
     {
         $errores = [];
 
-        if (! Facultad::where('codigo', $fila['facultad_codigo'])->exists()) {
+        if ($fila['facultad_codigo'] && ! Facultad::where('codigo', $fila['facultad_codigo'])->exists()) {
             $errores[] = "No existe la facultad con código {$fila['facultad_codigo']}.";
         }
 
