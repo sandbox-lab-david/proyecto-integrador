@@ -8,7 +8,7 @@ class HistorialSolicitud extends Model
 {
     protected $table = 'historial_solicitud';
 
-    protected $fillable = ['solicitud_id', 'estado_anterior', 'estado_nuevo', 'user_id', 'comentario', 'visible_estudiante'];
+    protected $fillable = ['solicitud_id', 'estado_anterior', 'estado_nuevo', 'user_id', 'comentario', 'observacion_interna', 'visible_estudiante'];
 
     public function solicitud()
     {

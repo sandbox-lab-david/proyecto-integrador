@@ -10,8 +10,10 @@
     $flotante = $modo === 'flotante';
     $id = 'cb-chat-' . $modo;
     $nombreFacultad = $facultad ?? 'Facultad de Ingeniería';
+    $visible = ! $flotante || app(\App\Services\Chatbot\VisibilidadChatbot::class)->puedeVer(auth()->user());
 @endphp
 
+@if ($visible)
 @if ($flotante)
     <div class="cb cb-flotante" data-cb-flotante>
         <button type="button" class="cb-lanzador" data-cb-abrir aria-expanded="false" aria-controls="{{ $id }}">
@@ -119,3 +121,4 @@
 
     <script src="{{ asset('assets/chatbot/chatbot.js') }}" defer></script>
 @endonce
+@endif

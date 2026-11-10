@@ -460,15 +460,18 @@ intencion_valida(evaluar, "comprobar_referencias").
 
 perfil_tipo(gpa_general, porcentaje).
 perfil_tipo(fecha_ultima_recuperacion, fecha).
+perfil_tipo(documentos_subidos, lista_texto).
 
 valor_valido(fecha,V) :- fecha_iso_valida(V).
 
 valor_valido(texto, V)      :- string(V), V \== "".
 valor_valido(porcentaje, V) :- number(V), V >= 0, V =< 100.
+valor_valido(lista_texto, V) :- is_list(V), forall(member(X, V), (string(X) ; atom(X))).
 
 mensaje_tipo(fecha,"Debe ser una fecha YYYY-MM-DD válida.").
 mensaje_tipo(texto,      "Debe ser texto no vacio.").
 mensaje_tipo(porcentaje, "Debe ser un numero entre 0 y 100.").
+mensaje_tipo(lista_texto, "Debe ser una lista de identificadores de documentos.").
 
 % null o clave ausente = desconocimiento: las reglas no ven las claves nulas.
 perfil_sin_nulos(P0, P) :-

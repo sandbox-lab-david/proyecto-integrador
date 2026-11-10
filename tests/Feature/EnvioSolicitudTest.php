@@ -280,4 +280,71 @@ class EnvioSolicitudTest extends TestCase
         $this->postJson(route('solicitudes.enviar'), $datos)->assertUnprocessable()->assertJsonValidationErrors('clave_envio');
         $this->assertDatabaseCount('solicitudes', 0);
     }
+
+    public function test_el_envio_no_avisa_por_su_cuenta_porque_lo_hace_la_transicion(): void
+    {
+        \Illuminate\Support\Facades\Notification::fake();
+        $this->integrar();
+        $usuario = \App\Models\CarreraEstudiante::findOrFail($this->contexto['carrera_estudiante_id'])->estudiante->user;
+        app(EnvioSolicitud::class)->enviar($usuario, $this->preparar());
+        // El adaptador simulado no llama a transicionar() de G3, que es quien avisa al estudiante.
+        \Illuminate\Support\Facades\Notification::assertNothingSent();
+    }
+
+    public function test_un_envio_revertido_no_produce_avisos(): void
+    {
+        \Illuminate\Support\Facades\Notification::fake();
+        $this->integrar(true);
+        try {
+            app(EnvioSolicitud::class)->enviar(User::factory()->create(), $this->preparar());
+            $this->fail('Debe fallar la transición.');
+        } catch (\RuntimeException $error) {
+            $this->assertSame('Error de transición', $error->getMessage());
+        }
+        \Illuminate\Support\Facades\Notification::assertNothingSent();
+    }
+
+    public function test_permite_enviar_un_tramite_distinto_de_homologacion_sin_cedula(): void
+    {
+        $this->integrar();
+        $this->actingAs(User::factory()->create(['name' => 'Ana Pérez', 'email' => 'ana@uees.edu.ec']));
+        $datos = $this->preparar();
+        unset($datos['cedula']);
+        // La firma debe corresponder a la versión generada sin cédula.
+        app(DocumentosTemporales::class)->guardar('gracia', 'Word sin cédula', $datos);
+        $datos['clave_envio'] = app(DocumentosTemporales::class)->buscar('gracia')['version'];
+        app(FirmadosTemporales::class)->guardar($this->pdf(), 'gracia');
+        $this->postJson(route('solicitudes.enviar'), $datos)->assertCreated();
+        $this->assertNull(Solicitud::sole()->detalle['cedula'] ?? null);
+    }
+
+    #[DataProvider('asociacionesSinResolver')]
+    public function test_no_confirma_un_envio_si_el_requisito_no_tiene_id(array $mapa): void
+    {
+        $this->integrar();
+        $datos = $this->preparar();
+        $this->contexto['requisitos'] = $mapa;
+        $this->integrar();
+        try {
+            app(EnvioSolicitud::class)->enviar(User::factory()->create(), $datos);
+            $this->fail('Debe impedir guardar un respaldo sin requisito resuelto.');
+        } catch (ValidationException $error) {
+            $this->assertArrayHasKey('requisitos', $error->errors());
+        }
+        $this->assertDatabaseCount('solicitudes', 0);
+        $this->assertDatabaseCount('respaldos', 0);
+        $this->assertSame([], Storage::disk('local')->allFiles('expedientes'));
+        $this->assertNotNull(app(DocumentosTemporales::class)->buscar('gracia'));
+        $this->assertNotNull(app(FirmadosTemporales::class)->buscar('gracia'));
+        $this->assertCount(1, app(RespaldosTemporales::class)->delTramite('gracia'));
+    }
+
+    public static function asociacionesSinResolver(): array
+    {
+        return [
+            'codigo ausente' => [[]],
+            'id nulo' => [['respaldo' => null]],
+            'id cero' => [['respaldo' => 0]],
+        ];
+    }
 }

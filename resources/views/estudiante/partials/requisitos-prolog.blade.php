@@ -1,7 +1,7 @@
 @if (!$requisitosMotor['disponible'])
     <p role="alert">{{ $requisitosMotor['error'] }}</p>
 @elseif (empty($requisitosMotor['items']))
-    <p>Prolog no indica condiciones adicionales para este trámite.</p>
+    <p>Este trámite no tiene condiciones adicionales.</p>
 @else
     <ol class="lista-requisitos" role="list">
         @foreach ($requisitosMotor['items'] as $requisitoMotor)

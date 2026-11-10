@@ -23,6 +23,7 @@ use App\Services\Solicitudes\DocumentosTemporales;
 use App\Services\Solicitudes\IntegracionEnvio;
 use App\Services\Solicitudes\TramitesSimulados;
 use Database\Seeders\CatalogoInformativoSeeder;
+use Database\Seeders\EstadosSolicitudSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Route;
@@ -36,7 +37,7 @@ class IntegracionInstitucionalTest extends TestCase
 
     private function preparar(): array
     {
-        $this->seed(CatalogoInformativoSeeder::class);
+        $this->seed([CatalogoInformativoSeeder::class, EstadosSolicitudSeeder::class]);
         $u = User::factory()->create(['tipo' => 'estudiante']);
         $f = DB::table('facultades')->insertGetId(['codigo' => 'ING', 'nombre' => 'Ingeniería', 'activo' => true]);
         $c = Carrera::create(['facultad_id' => $f, 'codigo' => 'COM', 'nombre' => 'Ingeniería en Computación', 'nivel' => 'grado', 'activo' => true]);
@@ -59,7 +60,7 @@ class IntegracionInstitucionalTest extends TestCase
         $this->assertSame('enviada', $s->fresh()->estadoSolicitud->codigo);
         $this->assertSame(1, app(EstadoSolicitudService::class)->lineaDeTiempo($s, false)->count());
         HistorialSolicitud::create(['solicitud_id' => $s->id, 'estado_nuevo' => 'enviada', 'comentario' => 'Nota interna', 'visible_estudiante' => false]);
-        $this->assertSame(1, app(EstadoSolicitudService::class)->lineaDeTiempo($s, false)->count());
+        $this->assertSame(2, app(EstadoSolicitudService::class)->lineaDeTiempo($s, false)->count());
         $this->actingAs($u)->get('/estudiante/solicitudes/'.$s->id)->assertOk()->assertDontSee('Nota interna');
         $this->actingAs(User::factory()->create())->get('/estudiante/solicitudes/'.$s->id)->assertForbidden();
         $this->actingAs($u)->get('/estudiante/solicitudes')->assertOk()->assertSee('SOL-TEST');
@@ -94,6 +95,9 @@ class IntegracionInstitucionalTest extends TestCase
         [$u,$inscripcion,$base] = $this->preparar();
         $this->actingAs($u);
         $materiaId = DB::table('materias')->insertGetId(['codigo' => 'BD401', 'nombre' => 'Bases de datos', 'creditos' => 3]);
+        $malla = \App\Models\Malla::factory()->create();
+        $malla->materias()->attach($materiaId, ['nivel' => 1]);
+        $inscripcion->update(['malla_id' => $malla->id]);
         $curso = \App\Models\Curso::create(['materia_id' => $materiaId,
             'periodo_id' => Periodo::where('codigo', 'ACTUAL')->value('id'), 'paralelo' => 'A']);
         $catalogo = app(TramitesSimulados::class);
@@ -139,11 +143,17 @@ class IntegracionInstitucionalTest extends TestCase
                     continue;
                 }
                 $archivo = app(RespaldosTemporales::class)->agregar($this->pdf(), $codigo);
-                $datos['requisitos'][$archivo['id']] = $doc['id'];
+                $datos['requisitos'][$archivo['id']] = app(\App\Services\Catalogo\CatalogoTramites::class)->buscar($codigo)['id'].'_'.str_replace('-', '_', $doc['id']);
             }
             $primera = $this->postJson(route('solicitudes.enviar'), $datos)->assertCreated()->json();
             $this->assertSame($primera, $this->postJson(route('solicitudes.enviar'), $datos)->assertCreated()->json());
             $expediente = Solicitud::where('codigo', $primera['codigo'])->firstOrFail();
+            $this->assertCount(count($datos['requisitos']), $expediente->respaldos, $codigo);
+            foreach ($expediente->respaldos as $respaldo) {
+                $this->assertNotNull($respaldo->documento_requerido_id, $codigo);
+                $this->assertSame($expediente->tipo_tramite_id, $respaldo->documentoRequerido->tipo_tramite_id, $codigo);
+                $this->assertContains($expediente->tipoTramite->codigo.'_'.str_replace('-', '_', $respaldo->documentoRequerido->codigo), array_values($datos['requisitos']), $codigo);
+            }
             if ($def['max_materias'] > 0) {
                 $this->assertSame($curso->id, $expediente->materias()->firstOrFail()->curso_id, $codigo);
                 $this->assertSame('Bases de datos', $expediente->detalle['materias'][0]['nombre'], $codigo);
@@ -171,5 +181,57 @@ class IntegracionInstitucionalTest extends TestCase
         $this->assertFalse(app(SolicitudPolicy::class)->view($director, $s));
         DB::table('rol_trabajador')->insert(['trabajador_id' => $t->id, 'rol' => 'admin']);
         $this->assertTrue(app(AutorizacionService::class)->tieneRol($director, 'admin'));
+    }
+
+    public function test_asocia_el_codigo_del_requisito_con_su_id_del_catalogo(): void
+    {
+        [$u, $i, $datos] = $this->preparar();
+        $documento = \App\Models\TipoTramite::where('codigo', 'examen_recuperacion')->firstOrFail()->documentos()->firstOrFail();
+        $datos['requisitos'] = ['archivo-de-prueba' => 'examen_recuperacion_'.str_replace('-', '_', $documento->codigo)];
+        $contexto = app(IntegracionEnvio::class)->resolver($u, $datos);
+        $this->assertSame($documento->id, $contexto['requisitos']['examen_recuperacion_'.str_replace('-', '_', $documento->codigo)]);
+    }
+
+    public function test_rechaza_un_documento_de_otro_tramite(): void
+    {
+        [$u, $i, $datos] = $this->preparar();
+        $ajeno = \App\Models\TipoTramite::where('codigo', 'examen_gracia')->firstOrFail()->documentos()->firstOrFail();
+        $datos['requisitos'] = ['archivo-de-prueba' => 'examen_gracia_'.str_replace('-', '_', $ajeno->codigo)];
+        try {
+            app(IntegracionEnvio::class)->resolver($u, $datos);
+            $this->fail('Debe rechazar documentos de otro trámite.');
+        } catch (ValidationException $error) {
+            $this->assertArrayHasKey('requisitos', $error->errors());
+        }
+    }
+
+    public function test_rechaza_un_documento_que_ya_no_existe_en_el_catalogo(): void
+    {
+        [$u, $i, $datos] = $this->preparar();
+        $documento = \App\Models\TipoTramite::where('codigo', 'examen_recuperacion')->firstOrFail()->documentos()->firstOrFail();
+        $datos['requisitos'] = ['archivo-de-prueba' => 'examen_recuperacion_'.str_replace('-', '_', $documento->codigo)];
+        $documento->delete();
+        try {
+            app(IntegracionEnvio::class)->resolver($u, $datos);
+            $this->fail('Debe rechazar un documento retirado del catálogo.');
+        } catch (ValidationException $error) {
+            $this->assertArrayHasKey('requisitos', $error->errors());
+        }
+    }
+
+    protected function usarIdentificadoresProlog(): bool
+    {
+        return true;
+    }
+
+    public function test_resuelve_el_identificador_completo_con_guiones_del_documento(): void
+    {
+        [$u, $i, $datos] = $this->preparar();
+        $datos['tramite'] = 'retiro-carrera';
+        $datos['requisitos'] = ['archivo-de-prueba' => 'retiro_carrera_respaldo_motivo'];
+        $documento = \App\Models\TipoTramite::where('codigo', 'retiro_carrera')->firstOrFail()
+            ->documentos()->where('codigo', 'respaldo-motivo')->firstOrFail();
+        $contexto = app(IntegracionEnvio::class)->resolver($u, $datos);
+        $this->assertSame($documento->id, $contexto['requisitos']['retiro_carrera_respaldo_motivo']);
     }
 }

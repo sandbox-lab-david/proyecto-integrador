@@ -8,6 +8,7 @@ use App\Models\User;
 use App\Services\Archivos\ArchivoService;
 use App\Services\Archivos\FirmadosTemporales;
 use App\Services\Archivos\RespaldosTemporales;
+use App\Services\Academico\EstudianteService;
 use Illuminate\Database\QueryException;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
@@ -28,6 +29,7 @@ class EnvioSolicitud
         private readonly TramitesSimulados $catalogo,
         private readonly SolicitudService $solicitudes,
         private readonly PrevalidacionSolicitud $prevalidacion,
+        private readonly EstudianteService $estudiantes,
     ) {}
 
     public static function revision(Solicitud $solicitud): string
@@ -101,9 +103,25 @@ class EnvioSolicitud
             } catch (\Throwable $error) {
                 report($error);
             }
+            // El aviso al estudiante lo envía transicionar() de G3 al confirmar la transacción.
             $this->prevalidacion->registrar($solicitud);
+            $this->actualizarCelular($usuario, $datos['celular'] ?? null);
         }
         return $solicitud;
+    }
+
+    /** El celular declarado pasa al perfil de G1 (C14) para precargarlo en el próximo trámite. */
+    private function actualizarCelular(User $usuario, mixed $celular): void
+    {
+        try {
+            $estudiante = $usuario->estudiante;
+            if ($estudiante && is_string($celular) && $celular !== '' && $estudiante->celular !== $celular) {
+                $this->estudiantes->actualizarContacto($estudiante, $celular);
+            }
+        } catch (\Throwable $error) {
+            // La solicitud ya está confirmada; el perfil puede actualizarse en el siguiente envío.
+            report($error);
+        }
     }
 
     private function huellaEnvio(array $datos): string
@@ -154,6 +172,14 @@ class EnvioSolicitud
         foreach (['carrera_estudiante_id', 'tipo_tramite_id', 'periodo_id', 'estado_solicitud_id'] as $clave) {
             if (! is_int($contexto[$clave] ?? null) || $contexto[$clave] < 1) {
                 throw new RuntimeException('La integración no devolvió un contexto académico válido.');
+            }
+        }
+        foreach ($asignaciones as $requisito) {
+            $documentoId = $contexto['requisitos'][$requisito] ?? null;
+            if (! is_int($documentoId) || $documentoId < 1) {
+                throw ValidationException::withMessages([
+                    'requisitos' => 'No se pudo identificar el documento requerido de un respaldo. Tus archivos se conservan; solicita la revisión del catálogo antes de enviar.',
+                ]);
             }
         }
         $datos['documento_version'] = $documento['version'];
@@ -256,7 +282,7 @@ class EnvioSolicitud
                         }
                         foreach ($respaldos as $archivo) {
                             $solicitud->respaldos()->create([
-                                'documento_requerido_id' => $contexto['requisitos'][$archivo['requisito']] ?? null,
+                                'documento_requerido_id' => $contexto['requisitos'][$archivo['requisito']],
                                 'nombre_original' => $archivo['nombre_original'], 'ruta' => $archivo['ruta_definitiva'],
                                 'mime' => $archivo['mime'], 'tamano_bytes' => $archivo['tamano_bytes'],
                             ]);

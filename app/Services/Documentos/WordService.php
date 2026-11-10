@@ -74,20 +74,33 @@ class WordService
 
     private function buscarLibreOffice(): string
     {
-        $buscador = new ExecutableFinder;
-        $candidatos = PHP_OS_FAMILY === 'Windows'
-            ? [
-                (getenv('ProgramFiles') ?: 'C:/Program Files').'/LibreOffice/program/soffice.com',
-                (getenv('ProgramFiles(x86)') ?: 'C:/Program Files (x86)').'/LibreOffice/program/soffice.com',
-                getenv('LOCALAPPDATA') ? getenv('LOCALAPPDATA').'/Programs/LibreOffice/program/soffice.com' : null,
-                $buscador->find('soffice.com'),
-            ]
-            : [$buscador->find('libreoffice'), $buscador->find('soffice'), '/usr/bin/libreoffice'];
-
-        foreach ($candidatos as $candidato) {
+        foreach ($this->candidatosLibreOffice(PHP_OS_FAMILY) as $candidato) {
             if (is_string($candidato) && is_file($candidato)) return $candidato;
         }
 
         throw new RuntimeException('La descarga PDF no está disponible en este momento. Puedes descargar el Word y guardarlo como PDF.');
+    }
+
+    /** Rutas en las que se busca LibreOffice según el sistema del servidor (PHP_OS_FAMILY). */
+    private function candidatosLibreOffice(string $sistema): array
+    {
+        $buscador = new ExecutableFinder;
+
+        return match ($sistema) {
+            'Windows' => [
+                (getenv('ProgramFiles') ?: 'C:/Program Files').'/LibreOffice/program/soffice.com',
+                (getenv('ProgramFiles(x86)') ?: 'C:/Program Files (x86)').'/LibreOffice/program/soffice.com',
+                getenv('LOCALAPPDATA') ? getenv('LOCALAPPDATA').'/Programs/LibreOffice/program/soffice.com' : null,
+                $buscador->find('soffice.com'),
+            ],
+            // En macOS el instalador deja soffice dentro del paquete .app, fuera del PATH.
+            'Darwin' => [
+                '/Applications/LibreOffice.app/Contents/MacOS/soffice',
+                getenv('HOME') ? getenv('HOME').'/Applications/LibreOffice.app/Contents/MacOS/soffice' : null,
+                $buscador->find('soffice'),
+                $buscador->find('libreoffice'),
+            ],
+            default => [$buscador->find('libreoffice'), $buscador->find('soffice'), '/usr/bin/libreoffice'],
+        };
     }
 }

@@ -30,6 +30,7 @@ class SolicitudesSinTerminar
      */
     public function todas(): array
     {
+        app(CorreccionesGuardadas::class)->restaurarPendientes();
         $sinTerminar = [];
         $guardados = [];
 
@@ -73,7 +74,7 @@ class SolicitudesSinTerminar
                     'guardado_at' => $borrador['guardado_at'],
                     'respaldos' => count($this->respaldos->delTramite($claveTemporal)),
                     'firmado' => $this->firmados->delTramite($claveTemporal)['nombre_original'] ?? null,
-                    'en_cuenta' => false,
+                    'en_cuenta' => ! empty($borrador['en_cuenta']),
                 ];
             }
         }

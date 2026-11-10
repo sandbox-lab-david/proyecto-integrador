@@ -8,6 +8,7 @@
 @section('content')
     @if(session('success'))<div class="mb-4 rounded-lg border border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-800">{{ session('success') }}</div>@endif
     @if(session('error'))<div class="mb-4 rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-800">{{ session('error') }}</div>@endif
+    @if($errors->has('documentos_seleccionados'))<div class="mb-4 rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-800" role="alert">{{ $errors->first('documentos_seleccionados') }}</div>@endif
 
     <section class="mb-6 rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
         <h2 class="mb-4 text-lg font-semibold text-slate-900">Expediente y estudiante</h2>
@@ -19,19 +20,63 @@
             <div><dt class="text-slate-500">Fecha de envío</dt><dd class="font-medium text-slate-900">{{ $solicitud->fecha }}</dd></div>
             <div><dt class="text-slate-500">Código CAFI</dt><dd class="font-medium text-slate-900">{{ $solicitud->codigo_sistema ?: 'Pendiente de asignación' }}</dd></div>
         </dl>
-        <div class="mt-4 border-t border-slate-100 pt-4"><h3 class="text-sm font-semibold text-slate-700">Detalle declarado</h3><pre class="mt-2 whitespace-pre-wrap rounded-lg bg-slate-50 p-3 text-sm text-slate-700">{{ is_array($solicitud->detalle) ? json_encode($solicitud->detalle, JSON_PRETTY_PRINT|JSON_UNESCAPED_UNICODE) : ($solicitud->detalle ?: 'Sin detalle adicional.') }}</pre></div>
+        <div class="mt-4 border-t border-slate-100 pt-4">
+            <h3 class="mb-3 text-sm font-semibold text-slate-700">Detalles declarados</h3>
+            <x-resumen-solicitud :solicitud="$solicitud" :encabezado="false" class="resumen-solicitud--sin-marco" />
+        </div>
     </section>
 
     <section class="mb-6 rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
         <h2 class="mb-4 text-lg font-semibold text-slate-900">Documentos del expediente</h2>
+        @php($documentosMarcados = old('documentos_seleccionados', $documentosSeleccionados))
+        @php($documentosMarcados = is_array($documentosMarcados) ? array_map(fn ($documento) => ctype_digit((string) $documento) ? 'respaldo:'.$documento : (string) $documento, $documentosMarcados) : [])
+        @if($puedeSeleccionarDocumentos)
+            <p class="mb-3 text-sm text-slate-600">Todos los archivos disponibles, incluidos los nuevos y el PDF firmado más reciente, aparecen seleccionados inicialmente. Desmarca únicamente los que no hayas validado; para enviar al director, todos deben quedar validados.</p>
+            <input type="hidden" form="form-revision" name="documentos_seleccionados_present" value="1">
+        @endif
         @forelse($solicitud->respaldos as $documento)
             <div class="mb-3 grid gap-3 rounded-lg border border-slate-200 p-3 md:grid-cols-[1fr_auto]">
                 <div><p class="font-medium text-slate-900">{{ $documento->nombre_original }}</p><p class="text-xs text-slate-500">{{ $documento->documentoRequerido?->nombre ?? 'Documento adjunto' }} · {{ number_format(($documento->tamano_bytes ?? 0)/1024,1) }} KB</p></div>
-                <a href="{{ route('revision.documento',[$solicitud->id,$documento->id]) }}" target="_blank" class="rounded-lg border border-slate-300 px-3 py-2 text-center text-sm font-semibold text-slate-700 hover:border-red-700 hover:text-red-800">Ver documento</a>
+                <div class="flex flex-wrap items-center gap-3">
+                    @if($puedeSeleccionarDocumentos)
+                        <label class="flex cursor-pointer items-center gap-2 text-sm text-slate-700">
+                            <input form="form-revision" type="checkbox" role="switch" aria-label="Validación de {{ $documento->nombre_original }}" name="documentos_seleccionados[]" value="respaldo:{{ $documento->id }}" @checked(in_array('respaldo:'.$documento->id, $documentosMarcados, true)) class="peer sr-only">
+                            <span aria-hidden="true" class="relative inline-flex h-6 w-11 shrink-0 rounded-full bg-slate-300 transition-colors before:absolute before:left-0.5 before:top-0.5 before:h-5 before:w-5 before:rounded-full before:bg-white before:shadow before:transition-transform peer-checked:bg-red-700 peer-checked:before:translate-x-5 peer-focus-visible:outline peer-focus-visible:outline-2 peer-focus-visible:outline-offset-2 peer-focus-visible:outline-red-700"></span>
+                            <span class="hidden min-w-24 font-medium peer-checked:inline">Validado</span>
+                            <span class="min-w-24 font-medium peer-checked:hidden">No validado</span>
+                        </label>
+                    @endif
+                    <a href="{{ route('revision.documento',[$solicitud->id,$documento->id]) }}" target="_blank" class="rounded-lg border border-slate-300 px-3 py-2 text-center text-sm font-semibold text-slate-700 hover:border-red-700 hover:text-red-800">Ver documento</a>
+                </div>
             </div>
         @empty
-            <p class="text-sm text-slate-500">No hay respaldos cargados en el expediente.</p>
+            @unless($documentoFirmado)
+            <p class="text-sm text-slate-500">
+                @if($esAsistente)
+                    No hay respaldos cargados en el expediente.
+                @else
+                    La asistente no seleccionó archivos para compartir con el director.
+                @endif
+            </p>
+            @endunless
         @endforelse
+        @if($documentoFirmado)
+            @php($nombreFirmado = 'Documento firmado · versión '.$documentoFirmado->documentoGenerado->version)
+            <div class="mb-3 grid gap-3 rounded-lg border border-slate-200 p-3 md:grid-cols-[1fr_auto]">
+                <div><p class="font-medium text-slate-900">{{ $nombreFirmado }}</p><p class="text-xs text-slate-500">PDF firmado por el estudiante · {{ number_format(($documentoFirmado->tamano_bytes ?? 0)/1024,1) }} KB</p></div>
+                <div class="flex flex-wrap items-center gap-3">
+                    @if($puedeSeleccionarDocumentos)
+                        <label class="flex cursor-pointer items-center gap-2 text-sm text-slate-700">
+                            <input form="form-revision" type="checkbox" role="switch" aria-label="Validación de {{ $nombreFirmado }}" name="documentos_seleccionados[]" value="firmado:{{ $documentoFirmado->id }}" @checked(in_array('firmado:'.$documentoFirmado->id, $documentosMarcados, true)) class="peer sr-only">
+                            <span aria-hidden="true" class="relative inline-flex h-6 w-11 shrink-0 rounded-full bg-slate-300 transition-colors before:absolute before:left-0.5 before:top-0.5 before:h-5 before:w-5 before:rounded-full before:bg-white before:shadow before:transition-transform peer-checked:bg-red-700 peer-checked:before:translate-x-5 peer-focus-visible:outline peer-focus-visible:outline-2 peer-focus-visible:outline-offset-2 peer-focus-visible:outline-red-700"></span>
+                            <span class="hidden min-w-24 font-medium peer-checked:inline">Validado</span>
+                            <span class="min-w-24 font-medium peer-checked:hidden">No validado</span>
+                        </label>
+                    @endif
+                    <a href="{{ route('revision.documento-firmado',[$solicitud->id,$documentoFirmado->id]) }}" target="_blank" class="rounded-lg border border-slate-300 px-3 py-2 text-center text-sm font-semibold text-slate-700 hover:border-red-700 hover:text-red-800">Ver documento firmado</a>
+                </div>
+            </div>
+        @endif
         @foreach($solicitud->documentosGenerados as $documento)
             <div class="mb-2 rounded-lg border border-slate-200 p-3 text-sm text-slate-700">Documento generado · versión {{ $documento->version }} · {{ $documento->ruta_pdf ?: $documento->ruta_docx }}</div>
         @endforeach
@@ -48,23 +93,61 @@
         @else
             <p class="mb-3 rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">{{ $requisitosProlog['error'] ?? 'El motor Prolog no está disponible en este momento.' }}</p>
         @endif
-        @if($validacionProlog)<pre class="mt-4 overflow-x-auto rounded-lg bg-slate-50 p-3 text-xs text-slate-700">{{ json_encode($validacionProlog,JSON_PRETTY_PRINT|JSON_UNESCAPED_UNICODE) }}</pre>@endif
+        @if($validacionProlog)
+            <div class="mt-5 border-t border-slate-100 pt-4">
+                <h3 class="mb-2 text-sm font-semibold text-slate-800">Comprobación informativa</h3>
+                <p class="mb-3 text-xs text-slate-500">Referencias consultadas · versión {{ $validacionProlog['kb_version'] }}</p>
+                @if($validacionProlog['comprobaciones'] !== [])
+                    <ul class="space-y-3">
+                        @foreach($validacionProlog['comprobaciones'] as $comprobacion)
+                            <li class="rounded-lg border border-slate-200 bg-slate-50 p-4">
+                                <p class="text-sm font-medium text-slate-800">{{ $comprobacion['texto'] }}</p>
+                                @if($comprobacion['datos'] !== [])
+                                    <dl class="mt-3 grid gap-3 text-sm sm:grid-cols-2">
+                                        @foreach($comprobacion['datos'] as $clave => $valor)
+                                            @if(is_scalar($valor) && (string) $valor !== '')
+                                                <div>
+                                                    <dt class="text-xs text-slate-500">{{ \Illuminate\Support\Str::headline(str_replace('_', ' ', (string) $clave)) }}</dt>
+                                                    <dd class="font-medium text-slate-800">{{ $valor }}</dd>
+                                                </div>
+                                            @endif
+                                        @endforeach
+                                    </dl>
+                                @endif
+                            </li>
+                        @endforeach
+                    </ul>
+                @else
+                    <p class="text-sm text-slate-600">No hay comprobaciones de referencia adicionales para los datos declarados.</p>
+                @endif
+                @if($validacionProlog['aviso'])
+                    <p class="mt-3 rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">{{ $validacionProlog['aviso'] }}</p>
+                @endif
+            </div>
+        @endif
     </section>
 
     <section class="mb-6 rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
         <h2 class="mb-4 text-lg font-semibold text-slate-900">Historial del expediente</h2>
-        <ol class="space-y-3 border-l-2 border-red-100 pl-4">@forelse($lineaTiempo as $evento)<li class="relative"><span class="absolute -left-[22px] top-1 h-3 w-3 rounded-full bg-red-700"></span><p class="text-sm font-semibold text-slate-900">{{ $evento->estado_anterior ?: 'Inicio' }} → {{ $evento->estado_nuevo }}</p><p class="text-sm text-slate-600">{{ $evento->comentario ?: 'Sin observación' }}</p><p class="text-xs text-slate-500">{{ $evento->created_at?->format('d/m/Y H:i') }} · {{ $evento->user?->name ?? 'Sistema' }}</p></li>@empty<li class="text-sm text-slate-500">No hay movimientos registrados todavía.</li>@endforelse</ol>
+        <ol class="space-y-3 border-l-2 border-red-100 pl-4">@forelse($lineaTiempo as $evento)<li class="relative"><span class="absolute -left-[22px] top-1 h-3 w-3 rounded-full bg-red-700"></span><p class="text-sm font-semibold text-slate-900">{{ $evento->estado_anterior ?: 'Inicio' }} → {{ $evento->estado_nuevo }}</p>@if($evento->comentario)<p class="text-sm text-slate-600">{{ $evento->comentario }}</p>@endif @if($evento->observacion_interna)<p class="rounded-md bg-amber-50 px-3 py-2 text-sm text-amber-900">Nota interna: {{ $evento->observacion_interna }}</p>@endif<p class="text-xs text-slate-500">{{ $evento->created_at?->format('d/m/Y H:i') }} · {{ $evento->user?->name ?? 'Sistema' }}</p></li>@empty<li class="text-sm text-slate-500">No hay movimientos registrados todavía.</li>@endforelse</ol>
     </section>
 
-    @if(auth()->user()->trabajador && app(\App\Services\Academico\AutorizacionService::class)->tieneRol(auth()->user(),'asistente') && $solicitud->estadoSolicitud?->codigo === \App\Support\Estados::ENVIADA)
-        <form action="{{ route('revision.guardar',$solicitud->id) }}" method="POST" class="rounded-xl border border-slate-200 bg-white p-6 shadow-sm" onsubmit="return confirm('¿Registrar esta decisión y notificar al estudiante?')">@csrf
+    @if($puedeSeleccionarDocumentos)
+        <form id="form-revision" action="{{ route('revision.guardar',$solicitud->id) }}" method="POST" class="rounded-xl border border-slate-200 bg-white p-6 shadow-sm" onsubmit="return confirm('¿Registrar esta decisión y notificar al estudiante?')">@csrf
             <h2 class="mb-4 text-lg font-semibold text-slate-900">Registrar revisión documental</h2>
             <div class="mb-4 grid gap-3 md:grid-cols-3 text-sm text-slate-700">
                 <label class="flex items-center gap-2"><input type="checkbox" name="check_documento" value="1"> Documento legible</label>
                 <label class="flex items-center gap-2"><input type="checkbox" name="check_datos" value="1"> Datos coinciden</label>
                 <label class="flex items-center gap-2"><input type="checkbox" name="check_requisitos" value="1"> Requisitos completos</label>
             </div>
-            <label class="mb-4 block text-sm font-medium text-slate-700">Observación <textarea name="observaciones" rows="3" class="mt-1 w-full rounded-lg border border-slate-300 p-3" placeholder="Indica el motivo de observación o rechazo"></textarea></label>
+            @if(filled($observacionProlog))
+                <div class="mb-4 rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm text-amber-950" role="status">
+                    <h3 class="font-semibold">Comprobación automática de documentos (Prolog)</h3>
+                    <p class="mt-1">{{ $observacionProlog }}</p>
+                    <p class="mt-2 text-xs text-amber-800">Este resultado es informativo y no se enviará al estudiante como observación.</p>
+                </div>
+            @endif
+            <label class="mb-4 block text-sm font-medium text-slate-700">Observaciones para el estudiante <textarea name="observaciones" rows="4" class="mt-1 w-full rounded-lg border border-slate-300 p-3" placeholder="Escribe aquí una observación para el estudiante.">{{ old('observaciones') }}</textarea></label>
             <div class="flex flex-wrap justify-end gap-2"><button name="accion" value="observar" class="rounded-lg border border-amber-300 bg-amber-50 px-4 py-2 text-sm font-semibold text-amber-900">Marcar como observado</button><button name="accion" value="rechazar" class="rounded-lg border border-red-300 bg-white px-4 py-2 text-sm font-semibold text-red-800">Rechazar</button><button name="accion" value="aprobar" class="rounded-lg bg-red-700 px-4 py-2 text-sm font-semibold text-white">Enviar al director</button></div>
         </form>
     @endif
