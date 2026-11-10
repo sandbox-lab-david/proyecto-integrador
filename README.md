@@ -467,6 +467,66 @@ Catálogos que usan los demás módulos, personal e importación del SIAC. Todo 
 
 ---
 
+## Créditos - Integrantes (Grupo 1)
+
+<p>
+  <img alt="Módulo 1: Administración académica" src="https://img.shields.io/badge/M%C3%B3dulo%201-Administraci%C3%B3n%20acad%C3%A9mica-781c35">
+</p>
+
+<table>
+  <tr>
+    <td align="center" width="20%">
+      <a href="https://github.com/fcostar25"><img src="https://github.com/fcostar25.png?size=120" width="100" alt="Foto de perfil de fcostar25"></a><br>
+      <b>Fernando Costa Rosales</b><br>
+      <a href="https://github.com/fcostar25">fcostar25</a>
+    </td>
+    <td align="center" width="20%">
+      <a href="https://github.com/GdavidM"><img src="https://github.com/GdavidM.png?size=120" width="100" alt="Foto de perfil de GdavidM"></a><br>
+      <b>Guillermo David Motoche Mendez</b><br>
+      <img alt="Scrum Master" src="https://img.shields.io/badge/Scrum%20Master-781c35?style=for-the-badge"><br>
+      <a href="https://github.com/GdavidM">GdavidM</a>
+    </td>
+    <td align="center" width="20%">
+      <a href="https://github.com/jorgemedinauees"><img src="https://github.com/jorgemedinauees.png?size=120" width="100" alt="Foto de perfil de jorgemedinauees"></a><br>
+      <b>Jorge Luis Medina Riofrio</b><br>
+      <a href="https://github.com/jorgemedinauees">jorgemedinauees</a>
+    </td>
+    <td align="center" width="20%">
+      <a href="https://github.com/JoseTroya-coder"><img src="https://github.com/JoseTroya-coder.png?size=120" width="100" alt="Foto de perfil de JoseTroya-coder"></a><br>
+      <b>Jose Luis Troya Alava</b><br>
+      <a href="https://github.com/JoseTroya-coder">JoseTroya-coder</a>
+    </td>
+    <td align="center" width="20%">
+      <a href="https://github.com/jBrito2002"><img src="https://github.com/jBrito2002.png?size=120" width="100" alt="Foto de perfil de jBrito2002"></a><br>
+      <b>Jose Rafael Brito Chamorro</b><br>
+      <a href="https://github.com/jBrito2002">jBrito2002</a>
+    </td>
+  </tr>
+</table>
+
+**Rama de trabajo:** `grupo-3/modulo-administracion` (los cambios llegan a `develop` por *pull request*).
+
+### Qué hicimos
+
+Construimos la **Administración académica**: la base sobre la que trabajan los demás módulos. Mantenemos los catálogos académicos, el personal y sus cuentas, la importación de datos del SIAC, el marco común de las páginas y el acceso por roles.
+
+| Función | Qué hace |
+|---|---|
+| **Marco común** | Barra superior con el logo de la UEES y menú lateral `<x-layouts.app>`, que comparten todas las páginas del sistema; cada grupo solo pone su contenido y su menú |
+| **Acceso y roles** | Inicio de sesión con Laravel Breeze, roles reales (`admin`, `asistente`, `director`, `docente`, `consulta`), rutas protegidas y que cada usuario llegue a la pantalla de su módulo |
+| **Cuentas sin registro público** | Las cuentas de estudiantes se crean al importarlos del SIAC y las del personal al registrarlo; cada persona recibe un enlace para crear su contraseña |
+| **Estructura académica** | Administrar facultades, carreras, mallas, periodos académicos, materias, paralelos y docentes |
+| **Personas** | Administrar el personal, los directores de carrera, las cuentas de acceso y los roles |
+| **Importaciones SIAC** | Cargar archivos de Excel con plantillas, vista previa, historial y descarga de errores en CSV, mostrando todos los errores de cada fila |
+| **Contratos para los otros grupos** | Servicios, middleware, componentes, enums, *factories* y una API interna que los demás módulos usan para leer los datos académicos |
+| **Datos de prueba y documentación** | Usuarios y datos de prueba con `migrate:fresh --seed`, manual por perfil y diagrama del modelo de datos (19 tablas) |
+
+### Agradecimientos
+
+Un enorme agradecimiento a nuestro Scrum Master, **David Motoche**, por toda la gestión y la ayuda durante el desarrollo del proyecto.
+
+---
+
 ## 👥 Créditos - Integrantes (Grupo 3)
 
 * **William Francisco Balseca Jimenez**
