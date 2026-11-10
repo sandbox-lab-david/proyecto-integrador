@@ -8,6 +8,7 @@
 - [Acceso, registro y roles](#acceso-registro-y-roles--grupo-1) — Grupo 1
 - [Cómo agregar una pantalla o un módulo](#cómo-agregar-una-pantalla-o-un-módulo--grupo-1) — Grupo 1
 - [Módulo 1: Administración académica](#módulo-1-administración-académica--grupo-1) — Grupo 1
+- [Créditos del Grupo 4](#créditos---integrantes-grupo-4) — Chatbot con Prolog
 
 ## Instalación
 
@@ -585,3 +586,57 @@ Construimos el **Portal del estudiante**: la parte del sistema donde el estudian
 | **Envío y seguimiento** | Recibir un código `SOL-AAAA-00000` y seguir en "Mis solicitudes" el estado, el historial y la resolución |
 | **Correcciones** | Corregir y reenviar una solicitud observada con el mismo código, sin perder las versiones anteriores |
 | **Notificaciones** | Recibir un aviso en la campanita y por correo cada vez que cambia el estado de su solicitud |
+
+---
+
+## Créditos - Integrantes (Grupo 4)
+
+<p>
+  <img alt="Módulo 4: Chatbot con Prolog" src="https://img.shields.io/badge/M%C3%B3dulo%204-Chatbot%20con%20Prolog-781c35">
+</p>
+
+<table>
+  <tr>
+    <td align="center" width="20%">
+      <a href="https://github.com/AlexGamerylo"><img src="https://github.com/AlexGamerylo.png?size=120" width="100" alt="Foto de perfil de AlexGamerylo"></a><br>
+      <b>Jeremy Llerena</b><br>
+      <a href="https://github.com/AlexGamerylo">AlexGamerylo</a>
+    </td>
+    <td align="center" width="20%">
+      <a href="https://github.com/mchavez23MC"><img src="https://github.com/mchavez23MC.png?size=120" width="100" alt="Foto de perfil de mchavez23MC"></a><br>
+      <b>Mateo Chávez</b><br>
+      <a href="https://github.com/mchavez23MC">mchavez23MC</a>
+    </td>
+    <td align="center" width="20%">
+      <a href="https://github.com/becerrallan"><img src="https://github.com/becerrallan.png?size=120" width="100" alt="Foto de perfil de becerrallan"></a><br>
+      <b>Allan Becerra</b><br>
+      <a href="https://github.com/becerrallan">becerrallan</a>
+    </td>
+    <td align="center" width="20%">
+      <a href="https://github.com/saskiabrito"><img src="https://github.com/saskiabrito.png?size=120" width="100" alt="Foto de perfil de saskiabrito"></a><br>
+      <b>Saskia Brito</b><br>
+      <a href="https://github.com/saskiabrito">saskiabrito</a>
+    </td>
+    <td align="center" width="20%">
+      <a href="https://github.com/BryanGrogan24"><img src="https://github.com/BryanGrogan24.png?size=120" width="100" alt="Foto de perfil de BryanGrogan24"></a><br>
+      <b>Bryan Grogan</b><br>
+      <a href="https://github.com/BryanGrogan24">BryanGrogan24</a>
+    </td>
+  </tr>
+</table>
+
+**Rama de trabajo:** [`grupo-4/modulo-chatbot`](https://github.com/sandbox-lab-david/proyecto-integrador/tree/grupo-4/modulo-chatbot) (los cambios llegan a `develop` por *pull request*).
+
+### Qué hicimos
+
+Construimos el **Chatbot con Prolog**: el asistente que orienta sobre los trámites académicos, consulta sus requisitos y documentos y permite comprobar previamente los datos de una solicitud. Integramos la base de conocimiento y el motor de reglas en Prolog con Laravel y los demás módulos.
+
+### Aportes por integrante
+
+| Integrante | GitHub | Aporte |
+|---|---|---|
+| Jeremy Llerena | [@AlexGamerylo](https://github.com/AlexGamerylo) | Interfaz gráfica del chatbot: vista del chat, componentes, estilos generales, burbuja flotante con Ueesito y visibilidad por roles |
+| Mateo Chávez | [@mchavez23MC](https://github.com/mchavez23MC) | Integración con Laravel: catálogo de trámites, contrato v3, categorías y umbrales configurables, seeders y unión con los demás módulos |
+| Allan Becerra | [@becerrallan](https://github.com/becerrallan) | API del chatbot: persistencia en base de datos, contrato v2, seguridad de la API, rutas de trámites y verificación de documentos de respaldo en Prolog |
+| Saskia Brito | [@saskiabrito](https://github.com/saskiabrito) | Puente HTTP entre Laravel y Prolog: servidor, clave de acceso, límites y pruebas |
+| Bryan Grogan | [@BryanGrogan24](https://github.com/BryanGrogan24) | Base de conocimiento en Prolog: catálogo de hechos de los trámites y su documentación |
