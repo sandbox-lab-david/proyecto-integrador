@@ -25,9 +25,10 @@ abstract class Importador
 
     public function validar(array $fila): array
     {
-        $errores = Validator::make($fila, $this->reglas(), $this->mensajes())->errors()->all();
+        $errores = Validator::make($fila, $this->reglas(), $this->mensajes())->errors();
+        $filaSinErrores = array_merge($fila, array_fill_keys($errores->keys(), null));
 
-        return $errores ?: $this->validarRelaciones($fila);
+        return array_values(array_unique(array_merge($errores->all(), $this->validarRelaciones($filaSinErrores))));
     }
 
     protected function validarRelaciones(array $fila): array
