@@ -29,7 +29,7 @@ En el código, cada método tiene una marca `// C01`, `// C02`… para encontrar
 | Estudiante | C11–C14 | `app/Services/Academico/EstudianteService.php` |
 | Permisos | C15–C20 | `app/Services/Academico/AutorizacionService.php` |
 | Middleware | C21, C22 | `app/Http/Middleware/VerificarRol.php`, `SoloEstudiante.php` |
-| API | C32–C35 | `routes/api.php` · ver [grupo-1-api.md](grupo-1-api.md) |
+| API | C32–C35 | `routes/api.php` · ver [api.md](api.md) |
 | Componentes | C37, C38, C39 | `resources/views/components/` |
 | Enums | C40 | `app/Enums/` |
 | Seeders | C41 | `database/seeders/` |
