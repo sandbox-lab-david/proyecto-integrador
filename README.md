@@ -181,11 +181,55 @@ Construimos el **Portal del estudiante**: la parte del sistema donde el estudian
 
 ### Grupo 3 · Revisión y Consejo
 
-* **William Francisco Balseca Jimenez**
-* **Briana Estefania Chang Sanchez**
-* **Christian Javier Guerrero Garzon**
-* **Carlos Alessandro Lema Armitano**
-* **Nicolas Rafael Pazos Altamirano**
+<p>
+  <img alt="Módulo 3: Revisión y Consejo" src="https://img.shields.io/badge/M%C3%B3dulo%203-Revisi%C3%B3n%20y%20Consejo-781c35">
+</p>
+
+<table>
+  <tr>
+    <td align="center" width="20%">
+      <a href="https://github.com/williambjc"><img src="https://github.com/williambjc.png?size=120" width="100" alt="Foto de perfil de williambjc"></a><br>
+      <b>William Francisco Balseca Jimenez</b><br>
+      <a href="https://github.com/williambjc">williambjc</a>
+    </td>
+    <td align="center" width="20%">
+      <a href="https://github.com/brichang625"><img src="https://github.com/brichang625.png?size=120" width="100" alt="Foto de perfil de brichang625"></a><br>
+      <b>Briana Estefania Chang Sanchez</b><br>
+      <a href="https://github.com/brichang625">brichang625</a>
+    </td>
+    <td align="center" width="20%">
+      <a href="https://github.com/ChristianG777"><img src="https://github.com/ChristianG777.png?size=120" width="100" alt="Foto de perfil de ChristianG777"></a><br>
+      <b>Christian Javier Guerrero Garzon</b><br>
+      <a href="https://github.com/ChristianG777">ChristianG777</a>
+    </td>
+    <td align="center" width="20%">
+      <a href="https://github.com/carloslema0158776"><img src="https://github.com/carloslema0158776.png?size=120" width="100" alt="Foto de perfil de carloslema0158776"></a><br>
+      <b>Carlos Alessandro Lema Armitano</b><br>
+      <a href="https://github.com/carloslema0158776">carloslema0158776</a>
+    </td>
+    <td align="center" width="20%">
+      <a href="https://github.com/NicolasPazos123"><img src="https://github.com/NicolasPazos123.png?size=120" width="100" alt="Foto de perfil de NicolasPazos123"></a><br>
+      <b>Nicolas Rafael Pazos Altamirano</b><br>
+      <a href="https://github.com/NicolasPazos123">NicolasPazos123</a>
+    </td>
+  </tr>
+</table>
+
+**Rama de trabajo:** [`grupo-1/modulo-administracion-g3`](https://github.com/sandbox-lab-david/proyecto-integrador/tree/grupo-1/modulo-administracion-g3) (los cambios llegan a `develop` por *pull request*).
+
+#### Qué hicimos
+
+Construimos **Revisión y Consejo**: la parte del sistema donde la facultad recibe las solicitudes, las revisa y las lleva hasta su resolución, sin carpetas ni agendas armadas a mano.
+
+| Función | Qué hace |
+|---|---|
+| **Bandeja de la asistente** | Muestra las solicitudes de su facultad, con filtros por facultad, carrera, trámite y fecha |
+| **Revisión del caso** | Detalle con los datos, las materias, los documentos y el PDF firmado; comprobación automática de documentos con Prolog; validar cada documento, observar, rechazar o enviar al director |
+| **Aprobación del director** | Bandeja con los casos de sus carreras, para marcarlos como aptos para el Consejo o rechazarlos |
+| **Agenda del Consejo** | Arma la agenda de una sesión con los casos aptos y puntos internos, y la genera en Word |
+| **Resoluciones** | Registra el número y la decisión de cada caso, marca los ejecutados y exporta el listado |
+| **Estados e historial** | Controla los cambios de estado de cada solicitud, guarda el historial y avisa al estudiante y al personal |
+| **Consulta** | Vista de solo lectura de las resoluciones para el rol de consulta |
 
 ---
 

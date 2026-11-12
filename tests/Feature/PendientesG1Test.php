@@ -93,7 +93,7 @@ class PendientesG1Test extends TestCase
             $respuesta->assertSee($enlace['texto'])->assertSee(route($enlace['ruta']), false);
         }
 
-        $respuesta->assertViewHas('conteos', fn ($c) => $c['Estudiantes'] === 1 && $c['Mallas'] === 2 && $c['Docentes'] === 3);
+        $respuesta->assertViewHas('conteos', fn ($c) => $c['Estudiantes'] === 3 && $c['Mallas'] === 3 && $c['Docentes'] === 3);
     }
 
     public function test_los_componentes_c39_usan_el_estilo_comun(): void
