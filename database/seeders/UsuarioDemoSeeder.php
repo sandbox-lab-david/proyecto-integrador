@@ -25,6 +25,26 @@ class UsuarioDemoSeeder extends Seeder
         ['asistente@uees.edu.ec', 'Asistente de Ingeniería', 'Ana', 'Asistente', 'asistente', 'AST-001'],
         ['director@uees.edu.ec', 'Director de Computación', 'Diego', 'Director', 'director', 'DIR-001'],
         ['consulta@uees.edu.ec', 'Consulta Secretaría General', 'Carla', 'Consulta', 'consulta', 'CON-001'],
+        ['asistente.salud@uees.edu.ec', 'Asistente de Salud', 'Sofía', 'Salud', 'asistente', 'AST-SAL'],
+        ['director.civil@uees.edu.ec', 'Directora de Civil', 'Cecilia', 'Civil', 'director', 'DIR-CIV'],
+        ['director.medicina@uees.edu.ec', 'Director de Medicina', 'Mario', 'Medicina', 'director', 'DIR-MED'],
+    ];
+
+    private const ASISTENTES = [
+        'AST-001' => 'ING',
+        'AST-SAL' => 'SAL',
+    ];
+
+    private const DIRECTORES = [
+        'DIR-001' => 'COMP',
+        'DIR-CIV' => 'CIV',
+        'DIR-MED' => 'MED',
+    ];
+
+    private const ESTUDIANTES = [
+        ['estudiante@uees.edu.ec', '2026000001', 'Estudiante', 'de Prueba', 'COMP'],
+        ['estudiante.civil@uees.edu.ec', '2026000002', 'Pedro', 'Civil', 'CIV'],
+        ['estudiante.medicina@uees.edu.ec', '2026000003', 'Lucía', 'Medicina', 'MED'],
     ];
 
     private const DOCENTES = [
@@ -51,43 +71,54 @@ class UsuarioDemoSeeder extends Seeder
             $this->trabajador(null, $codigo, $nombres, $apellidos, $correo, 'docente');
         }
 
-        $ingenieria = Facultad::where('codigo', 'ING')->first();
-        if ($ingenieria) {
-            Trabajador::where('codigo', 'AST-001')->first()->facultades()->attach($ingenieria->id);
+        foreach (self::ASISTENTES as $codigo => $facultad) {
+            $facultadId = Facultad::where('codigo', $facultad)->value('id');
+            if ($facultadId) {
+                Trabajador::where('codigo', $codigo)->first()->facultades()->attach($facultadId);
+            }
         }
 
-        $computacion = Carrera::where('codigo', 'COMP')->first();
-        if ($computacion) {
-            DirectorCarrera::create([
-                'carrera_id' => $computacion->id,
-                'trabajador_id' => Trabajador::where('codigo', 'DIR-001')->value('id'),
-                'fecha_inicio' => '2026-01-01',
-            ]);
+        foreach (self::DIRECTORES as $codigo => $carrera) {
+            $carreraId = Carrera::where('codigo', $carrera)->value('id');
+            if ($carreraId) {
+                DirectorCarrera::create([
+                    'carrera_id' => $carreraId,
+                    'trabajador_id' => Trabajador::where('codigo', $codigo)->value('id'),
+                    'fecha_inicio' => '2026-01-01',
+                ]);
+            }
         }
 
-        $usuarioEstudiante = User::create([
-            'name' => 'Estudiante de Prueba',
-            'email' => 'estudiante@uees.edu.ec',
+        foreach (self::ESTUDIANTES as [$correo, $codigo, $nombres, $apellidos, $carrera]) {
+            $this->estudiante($correo, $codigo, $nombres, $apellidos, Carrera::where('codigo', $carrera)->first());
+        }
+    }
+
+    private function estudiante(string $correo, string $codigo, string $nombres, string $apellidos, ?Carrera $carrera): void
+    {
+        $usuario = User::create([
+            'name' => "$nombres $apellidos",
+            'email' => $correo,
             'password' => Hash::make(self::CLAVE),
             'tipo' => 'estudiante',
             'activo' => true,
         ]);
 
         $estudiante = Estudiante::create([
-            'user_id' => $usuarioEstudiante->id,
-            'codigo' => '2026000001',
-            'nombres' => 'Estudiante',
-            'apellidos' => 'de Prueba',
-            'correo' => 'estudiante@uees.edu.ec',
+            'user_id' => $usuario->id,
+            'codigo' => $codigo,
+            'nombres' => $nombres,
+            'apellidos' => $apellidos,
+            'correo' => $correo,
         ]);
 
-        if ($computacion) {
+        if ($carrera) {
             CarreraEstudiante::create([
                 'estudiante_id' => $estudiante->id,
-                'carrera_modalidad_id' => CarreraModalidad::where('carrera_id', $computacion->id)
+                'carrera_modalidad_id' => CarreraModalidad::where('carrera_id', $carrera->id)
                     ->where('modalidad_id', Modalidad::where('nombre', 'Presencial')->value('id'))
                     ->value('id'),
-                'malla_id' => $computacion->mallas()->where('vigente', true)->value('id'),
+                'malla_id' => $carrera->mallas()->where('vigente', true)->value('id'),
                 'fecha_inscripcion' => '2025-05-05',
                 'estado' => 'activo',
             ]);

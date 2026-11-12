@@ -8,7 +8,7 @@ Rutas en JSON para llenar listas desplegables con JavaScript (por ejemplo, carga
 | Acceso | Cualquier usuario con **sesión iniciada** (middleware `web` + `auth`). No necesita token: usa la misma sesión del navegador. |
 | Formato | Siempre pidan JSON con la cabecera `Accept: application/json`. |
 
-> Si la página es Blade y solo necesitan una lista, es más simple usar los componentes `<x-select-facultad>`, `<x-select-carrera>` y `<x-select-periodo>` (C38). Ver [grupo-1-contratos.md](grupo-1-contratos.md#c38--selects-compartidos).
+> Si la página es Blade y solo necesitan una lista, es más simple usar los componentes `<x-select-facultad>`, `<x-select-carrera>` y `<x-select-periodo>` (C38). Ver [contratos.md](contratos.md#c38--selects-compartidos).
 
 ## Resumen
 

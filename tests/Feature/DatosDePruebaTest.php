@@ -91,10 +91,34 @@ class DatosDePruebaTest extends TestCase
         $this->assertContains($inscripcion->estado, CarreraEstudiante::ESTADOS);
     }
 
+    public function test_hay_usuarios_de_prueba_en_varias_facultades_y_carreras(): void
+    {
+        $autorizacion = app(AutorizacionService::class);
+        $catalogo = app(CatalogoAcademicoService::class);
+
+        $this->assertSame(
+            ['asistente.salud@uees.edu.ec'],
+            $autorizacion->asistentesDeFacultad(Facultad::where('codigo', 'SAL')->value('id'))->pluck('correo')->all()
+        );
+        $this->assertSame('director.civil@uees.edu.ec', $autorizacion->directorDeCarrera(Carrera::where('codigo', 'CIV')->value('id'))->correo);
+        $this->assertSame('director.medicina@uees.edu.ec', $autorizacion->directorDeCarrera(Carrera::where('codigo', 'MED')->value('id'))->correo);
+
+        foreach (['estudiante.civil@uees.edu.ec' => ['Ingeniería Civil', 3], 'estudiante.medicina@uees.edu.ec' => ['Medicina', 4]] as $correo => [$carrera, $materias]) {
+            $inscripcion = app(EstudianteService::class)->carrerasActivas(User::where('email', $correo)->first()->estudiante->id)->sole();
+
+            $this->assertSame($carrera, $inscripcion->carreraModalidad->carrera->nombre);
+            $this->assertCount($materias, $catalogo->materiasDeMalla($inscripcion->malla_id));
+        }
+    }
+
     public function test_solo_quedan_los_usuarios_de_prueba(): void
     {
         $this->assertEqualsCanonicalizing(
-            ['admin@uees.edu.ec', 'asistente@uees.edu.ec', 'director@uees.edu.ec', 'consulta@uees.edu.ec', 'estudiante@uees.edu.ec'],
+            [
+                'admin@uees.edu.ec', 'asistente@uees.edu.ec', 'director@uees.edu.ec', 'consulta@uees.edu.ec', 'estudiante@uees.edu.ec',
+                'asistente.salud@uees.edu.ec', 'director.civil@uees.edu.ec', 'director.medicina@uees.edu.ec',
+                'estudiante.civil@uees.edu.ec', 'estudiante.medicina@uees.edu.ec',
+            ],
             User::pluck('email')->all()
         );
     }
@@ -107,6 +131,11 @@ class DatosDePruebaTest extends TestCase
             'director@uees.edu.ec' => route('revision.director'),
             'consulta@uees.edu.ec' => route('revision.resoluciones'),
             'estudiante@uees.edu.ec' => route('estudiante.catalogo'),
+            'asistente.salud@uees.edu.ec' => route('revision.asistente'),
+            'director.civil@uees.edu.ec' => route('revision.director'),
+            'director.medicina@uees.edu.ec' => route('revision.director'),
+            'estudiante.civil@uees.edu.ec' => route('estudiante.catalogo'),
+            'estudiante.medicina@uees.edu.ec' => route('estudiante.catalogo'),
         ];
 
         foreach ($destinos as $correo => $destino) {
