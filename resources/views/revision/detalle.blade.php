@@ -28,6 +28,18 @@
 
     <section class="mb-6 rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
         <h2 class="mb-4 text-lg font-semibold text-slate-900">Documentos del expediente</h2>
+        <style>
+            .validacion-documento { position: relative; display: inline-flex; min-height: 1.5rem; align-items: center; gap: .5rem; cursor: pointer; }
+            .validacion-documento input { position: absolute; left: 0; z-index: 2; width: 2.75rem; height: 1.5rem; margin: 0; cursor: pointer; opacity: 0; }
+            .validacion-documento__switch { position: relative; display: inline-block; width: 2.75rem; height: 1.5rem; flex: none; border-radius: 9999px; background: #cbd5e1; transition: background-color .15s ease; }
+            .validacion-documento__switch::after { position: absolute; top: .125rem; left: .125rem; width: 1.25rem; height: 1.25rem; border-radius: 9999px; background: #fff; box-shadow: 0 1px 3px #0003; content: ''; transition: transform .15s ease; }
+            .validacion-documento input:checked + .validacion-documento__switch { background: #b91c1c; }
+            .validacion-documento input:checked + .validacion-documento__switch::after { transform: translateX(1.25rem); }
+            .validacion-documento input:focus-visible + .validacion-documento__switch { outline: 2px solid #b91c1c; outline-offset: 2px; }
+            .validacion-documento__texto--si { display: none; }
+            .validacion-documento input:checked ~ .validacion-documento__texto--si { display: inline; }
+            .validacion-documento input:checked ~ .validacion-documento__texto--no { display: none; }
+        </style>
         @php($documentosMarcados = old('documentos_seleccionados', $documentosSeleccionados))
         @php($documentosMarcados = is_array($documentosMarcados) ? array_map(fn ($documento) => ctype_digit((string) $documento) ? 'respaldo:'.$documento : (string) $documento, $documentosMarcados) : [])
         @if($puedeSeleccionarDocumentos)
@@ -39,11 +51,11 @@
                 <div><p class="font-medium text-slate-900">{{ $documento->nombre_original }}</p><p class="text-xs text-slate-500">{{ $documento->documentoRequerido?->nombre ?? 'Documento adjunto' }} · {{ number_format(($documento->tamano_bytes ?? 0)/1024,1) }} KB</p></div>
                 <div class="flex flex-wrap items-center gap-3">
                     @if($puedeSeleccionarDocumentos)
-                        <label class="flex cursor-pointer items-center gap-2 text-sm text-slate-700">
-                            <input form="form-revision" type="checkbox" role="switch" aria-label="Validación de {{ $documento->nombre_original }}" name="documentos_seleccionados[]" value="respaldo:{{ $documento->id }}" @checked(in_array('respaldo:'.$documento->id, $documentosMarcados, true)) class="peer sr-only">
-                            <span aria-hidden="true" class="relative inline-flex h-6 w-11 shrink-0 rounded-full bg-slate-300 transition-colors before:absolute before:left-0.5 before:top-0.5 before:h-5 before:w-5 before:rounded-full before:bg-white before:shadow before:transition-transform peer-checked:bg-red-700 peer-checked:before:translate-x-5 peer-focus-visible:outline peer-focus-visible:outline-2 peer-focus-visible:outline-offset-2 peer-focus-visible:outline-red-700"></span>
-                            <span class="hidden min-w-24 font-medium peer-checked:inline">Validado</span>
-                            <span class="min-w-24 font-medium peer-checked:hidden">No validado</span>
+                        <label class="validacion-documento text-sm text-slate-700">
+                            <input form="form-revision" type="checkbox" role="switch" aria-label="Validación de {{ $documento->nombre_original }}" name="documentos_seleccionados[]" value="respaldo:{{ $documento->id }}" @checked(in_array('respaldo:'.$documento->id, $documentosMarcados, true))>
+                            <span class="validacion-documento__switch" aria-hidden="true"></span>
+                            <span class="validacion-documento__texto--no min-w-24 font-medium">No validado</span>
+                            <span class="validacion-documento__texto--si min-w-24 font-medium">Validado</span>
                         </label>
                     @endif
                     <a href="{{ route('revision.documento',[$solicitud->id,$documento->id]) }}" target="_blank" class="rounded-lg border border-slate-300 px-3 py-2 text-center text-sm font-semibold text-slate-700 hover:border-red-700 hover:text-red-800">Ver documento</a>
@@ -66,20 +78,17 @@
                 <div><p class="font-medium text-slate-900">{{ $nombreFirmado }}</p><p class="text-xs text-slate-500">PDF firmado por el estudiante · {{ number_format(($documentoFirmado->tamano_bytes ?? 0)/1024,1) }} KB</p></div>
                 <div class="flex flex-wrap items-center gap-3">
                     @if($puedeSeleccionarDocumentos)
-                        <label class="flex cursor-pointer items-center gap-2 text-sm text-slate-700">
-                            <input form="form-revision" type="checkbox" role="switch" aria-label="Validación de {{ $nombreFirmado }}" name="documentos_seleccionados[]" value="firmado:{{ $documentoFirmado->id }}" @checked(in_array('firmado:'.$documentoFirmado->id, $documentosMarcados, true)) class="peer sr-only">
-                            <span aria-hidden="true" class="relative inline-flex h-6 w-11 shrink-0 rounded-full bg-slate-300 transition-colors before:absolute before:left-0.5 before:top-0.5 before:h-5 before:w-5 before:rounded-full before:bg-white before:shadow before:transition-transform peer-checked:bg-red-700 peer-checked:before:translate-x-5 peer-focus-visible:outline peer-focus-visible:outline-2 peer-focus-visible:outline-offset-2 peer-focus-visible:outline-red-700"></span>
-                            <span class="hidden min-w-24 font-medium peer-checked:inline">Validado</span>
-                            <span class="min-w-24 font-medium peer-checked:hidden">No validado</span>
+                        <label class="validacion-documento text-sm text-slate-700">
+                            <input form="form-revision" type="checkbox" role="switch" aria-label="Validación de {{ $nombreFirmado }}" name="documentos_seleccionados[]" value="firmado:{{ $documentoFirmado->id }}" @checked(in_array('firmado:'.$documentoFirmado->id, $documentosMarcados, true))>
+                            <span class="validacion-documento__switch" aria-hidden="true"></span>
+                            <span class="validacion-documento__texto--no min-w-24 font-medium">No validado</span>
+                            <span class="validacion-documento__texto--si min-w-24 font-medium">Validado</span>
                         </label>
                     @endif
                     <a href="{{ route('revision.documento-firmado',[$solicitud->id,$documentoFirmado->id]) }}" target="_blank" class="rounded-lg border border-slate-300 px-3 py-2 text-center text-sm font-semibold text-slate-700 hover:border-red-700 hover:text-red-800">Ver documento firmado</a>
                 </div>
             </div>
         @endif
-        @foreach($solicitud->documentosGenerados as $documento)
-            <div class="mb-2 rounded-lg border border-slate-200 p-3 text-sm text-slate-700">Documento generado · versión {{ $documento->version }} · {{ $documento->ruta_pdf ?: $documento->ruta_docx }}</div>
-        @endforeach
     </section>
 
     <section class="mb-6 rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
