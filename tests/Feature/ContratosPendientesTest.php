@@ -61,10 +61,10 @@ class ContratosPendientesTest extends TestCase
         $this->travelTo('2026-10-21 10:00');
         $servicio = app(AutorizacionService::class);
         $computacion = Carrera::where('codigo', 'COMP')->first();
-        $medicina = Carrera::where('codigo', 'MED')->first();
+        $enfermeria = Carrera::where('codigo', 'ENF')->first();
         $diego = Trabajador::where('codigo', 'DIR-001')->first();
 
-        DirectorCarrera::create(['carrera_id' => $medicina->id, 'trabajador_id' => $diego->id, 'fecha_inicio' => '2025-01-01', 'fecha_fin' => '2025-12-31']);
+        DirectorCarrera::create(['carrera_id' => $enfermeria->id, 'trabajador_id' => $diego->id, 'fecha_inicio' => '2025-01-01', 'fecha_fin' => '2025-12-31']);
 
         $this->assertSame(['Ingeniería en Computación'], $servicio->carrerasQueDirige($diego)->pluck('nombre')->all());
         $this->assertSame(['Ingeniería en Computación'], $servicio->carrerasQueDirige($diego->id)->pluck('nombre')->all());
@@ -79,7 +79,7 @@ class ContratosPendientesTest extends TestCase
         $this->travelTo('2026-10-22 10:00');
         $this->assertSame($nuevo->id, $servicio->directorDeCarrera($computacion->id)?->id);
         $this->assertTrue($servicio->carrerasQueDirige($diego)->isEmpty());
-        $this->assertNull($servicio->directorDeCarrera($medicina->id));
+        $this->assertNull($servicio->directorDeCarrera($enfermeria->id));
     }
 
     public function test_c35_devuelve_el_formato_del_excel(): void

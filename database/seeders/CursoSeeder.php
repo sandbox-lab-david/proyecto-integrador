@@ -18,6 +18,13 @@ class CursoSeeder extends Seeder
         ['MAT201', 'A1', 'DOC-001'],
         ['COM201', 'A1', 'DOC-002'],
         ['FIS101', 'A1', 'DOC-003'],
+        ['MED101', 'A1', 'DOC-001'],
+        ['MED102', 'A1', 'DOC-002'],
+        ['MED201', 'A1', 'DOC-003'],
+        ['MED202', 'A1', 'DOC-001'],
+        ['CIV101', 'A1', 'DOC-001'],
+        ['CIV201', 'A1', 'DOC-002'],
+        ['CIV301', 'A1', 'DOC-003'],
     ];
 
     public function run(): void

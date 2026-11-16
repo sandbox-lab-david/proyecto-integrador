@@ -14,7 +14,7 @@ El catálogo dispone de tablas normalizadas para categorías, requisitos, campos
 umbrales. La migración conserva las ediciones existentes y los servicios reconstruyen
 el mismo formato de lectura. Las asociaciones por facultad y palabras clave quedan
 preparadas sin activar filtros ni reconocimiento nuevo. Véase
-[la guía de administración e integración para G1](catalogo_g4_administracion.md).
+[la guía de administración e integración para G1](catalogo-administracion.md).
 
 - `tipos_tramite.contenido`: información general del borrador y respaldo anterior. En los trámites normalizados, requisitos, campos, categoría y parámetros se leen de sus tablas relacionadas; los documentos conservan su tabla propia.
 - `documentos_requeridos`: identificadores estables, textos y obligaciones explícitas (`obligatorio`, `opcional`, `condicional`). La obligación condicional exige revisión de su caso; no se infiere un requisito obligatorio.

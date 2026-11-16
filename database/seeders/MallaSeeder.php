@@ -29,6 +29,11 @@ class MallaSeeder extends Seeder
             ['MED201', 'Fisiología', 5, 'Profesional', 2],
             ['MED202', 'Histología', 4, 'Profesional', 2],
         ]],
+        'CIV' => ['version' => '2026', 'materias' => [
+            ['CIV101', 'Estática', 4, 'Básica', 1],
+            ['CIV201', 'Resistencia de Materiales', 4, 'Profesional', 2],
+            ['CIV301', 'Hormigón Armado', 4, 'Profesional', 3],
+        ]],
     ];
 
     public function run(): void

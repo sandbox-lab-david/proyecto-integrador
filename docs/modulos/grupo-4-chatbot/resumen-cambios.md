@@ -50,14 +50,14 @@ flowchart LR
 
 ### B. Alineación de Campos y Formularios
 
-1. **Reglas de validación en [ChatbotMensajeRequest.php](../app/Modules/Chatbot/Http/Requests/ChatbotMensajeRequest.php):**
-   * Se incorporaron y homologaron en `rules()` y `messages()` los nombres de campo y alias utilizados en [hechos.pl](../prolog/kb/hechos.pl):
+1. **Reglas de validación en [ChatbotMensajeRequest.php](../../../app/Modules/Chatbot/Http/Requests/ChatbotMensajeRequest.php):**
+   * Se incorporaron y homologaron en `rules()` y `messages()` los nombres de campo y alias utilizados en [hechos.pl](../../../prolog/kb/hechos.pl):
      * Calificaciones y notas: `gpa_general`, `subject_grade`, `current_grade`.
      * Asistencia y oyente: `attendance`, `attended_as_listener`.
      * Historial y fechas: `last_recovery_date`.
      * Justificaciones: `reason`, `motivo`.
 
-2. **Normalización hacia Prolog en [ChatbotOrchestratorService.php](../app/Services/Chatbot/ChatbotOrchestratorService.php):**
+2. **Normalización hacia Prolog en [ChatbotOrchestratorService.php](../../../app/Services/Chatbot/ChatbotOrchestratorService.php):**
    * El método `normalizarPerfilParaProlog()` mapea de forma transparente todos los alias hacia los 4 campos canónicos aceptados por `servidor.pl`:
      * `promedio` (float, entre 0 y 100)
      * `asistencia` (float, entre 0 y 100)
@@ -79,27 +79,27 @@ flowchart LR
 | **Examen de recuperación**| `examen-recuperacion` | `recuperacion` | `/estudiante/solicitudes/recuperacion/nueva` (formulario propio) |
 | **Examen de gracia** | `examen-gracia` | `gracia` | `/estudiante/solicitudes/gracia/nueva` (formulario propio) |
 
-2. **Normalización Defensiva en [TramitesSimulados.php](../app/Services/Solicitudes/TramitesSimulados.php):**
+2. **Normalización Defensiva en [TramitesSimulados.php](../../../app/Services/Solicitudes/TramitesSimulados.php):**
    * En `TramitesSimulados::buscar()`, se agregó resolución de alias para que si un usuario ingresa directamente `/estudiante/solicitudes/nueva?tramite=ayudante-catedra` o `examen-suficiencia`, el sistema resuelva correctamente la configuración del trámite y no devuelva 404.
 
-3. **Alineación de Rutas en [routes/estudiantes.php](../routes/estudiantes.php):**
+3. **Alineación de Rutas en [routes/estudiantes.php](../../../routes/estudiantes.php):**
    * Se agregó redirección de `/estudiante/tramites/recalificacion` hacia `/estudiante/tramites/recalificacion-examen` para prevenir errores 404 entre el slug de la base de hechos y la vista Blade de ficha informativa.
    * Se aseguró la ruta `/estudiante/solicitudes/supletorio/nueva` para el formulario específico de examen supletorio.
 
 4. **Contexto de Facultad Dinámico:**
-   * En [chat-widget.blade.php](../resources/views/components/chat-widget.blade.php) y [chatbot.js](../public/assets/chatbot/chatbot.js), se configuró la propiedad `facultad` (`data-facultad`) para que el encabezado del chat no quede rígidamente estático, sino que adopte dinámicamente la facultad correspondiente o la predeterminada del estudiante.
+   * En [chat-widget.blade.php](../../../resources/views/components/chat-widget.blade.php) y [chatbot.js](../../../public/assets/chatbot/chatbot.js), se configuró la propiedad `facultad` (`data-facultad`) para que el encabezado del chat no quede rígidamente estático, sino que adopte dinámicamente la facultad correspondiente o la predeterminada del estudiante.
 
 ---
 
 ### D. Verificación de Datos e Integridad del Atributo `con_datos_verificados`
 
 1. **Garantía de `con_datos_verificados: false` para Sesión y Datos Declarados:**
-   * En [ChatbotOrchestratorService.php](../app/Services/Chatbot/ChatbotOrchestratorService.php), `$resultado['con_datos_verificados']` se establece explícitamente en `false` tanto para origen `manual` como `sesion`.
+   * En [ChatbotOrchestratorService.php](../../../app/Services/Chatbot/ChatbotOrchestratorService.php), `$resultado['con_datos_verificados']` se establece explícitamente en `false` tanto para origen `manual` como `sesion`.
    * **Justificación técnica:** Hoy los datos de sesión del usuario en Laravel no provienen de una integración oficial sincronizada con el SIAC institucional. Por consiguiente, los requisitos evaluados no pueden marcarse como institucionalmente verificados, garantizando que el widget `<x-resultado-elegibilidad>` muestre siempre la advertencia de carácter orientativo.
-   * Se actualizó [respuesta.blade.php](../resources/views/components/chat/respuesta.blade.php) para respetar la bandera `con_datos_verificados` del resultado.
+   * Se actualizó [respuesta.blade.php](../../../resources/views/components/chat/respuesta.blade.php) para respetar la bandera `con_datos_verificados` del resultado.
 
 2. **Documentos con obligación explícita:**
-   * En la respuesta pública de Laravel, cada documento adjunto garantiza la presencia de la propiedad `obligacion` (`'obligatorio'` o `'por_confirmar'`), consumida tanto por [documento.blade.php](../resources/views/components/chat/documento.blade.php) como por el motor de renderizado de `chatbot.js`.
+   * En la respuesta pública de Laravel, cada documento adjunto garantiza la presencia de la propiedad `obligacion` (`'obligatorio'` o `'por_confirmar'`), consumida tanto por [documento.blade.php](../../../resources/views/components/chat/documento.blade.php) como por el motor de renderizado de `chatbot.js`.
 
 ---
 
@@ -107,15 +107,15 @@ flowchart LR
 
 | Archivo | Tipo de Cambio | Propósito |
 | :--- | :--- | :--- |
-| [ChatbotOrchestratorService.php](../app/Services/Chatbot/ChatbotOrchestratorService.php) | Backend / Orquestación | Tabla de equivalencias de URLs para trámites, garantía de `con_datos_verificados = false` para sesión y normalización de alias hacia Prolog. |
-| [TramitesSimulados.php](../app/Services/Solicitudes/TramitesSimulados.php) | Backend / Portal | Normalización de alias en `buscar()` para prevenir 404 en el formulario de solicitudes del estudiante. |
-| [ChatbotCatalogoService.php](../app/Services/Chatbot/ChatbotCatalogoService.php) | Backend / Catálogo | Extracción de `costo_texto` y `plazo_texto` desde [hechos.pl](../prolog/kb/hechos.pl). |
-| [ChatbotMensajeRequest.php](../app/Modules/Chatbot/Http/Requests/ChatbotMensajeRequest.php) | Backend / Validación | Reglas y mensajes de validación para alias de calificaciones, asistencias y motivos. |
-| [respuesta.blade.php](../resources/views/components/chat/respuesta.blade.php) | Frontend / Blade | Integración de `con_datos_verificados` en el componente de respuesta. |
-| [chat-widget.blade.php](../resources/views/components/chat-widget.blade.php) | Frontend / Blade | Soporte para propiedad y atributo dinámico `facultad`. |
-| [chatbot.js](../public/assets/chatbot/chatbot.js) | Frontend / JavaScript | Lectura del atributo `data-facultad` para la cabecera del chat cuando no hay trámite seleccionado. |
-| [routes/estudiantes.php](../routes/estudiantes.php) | Enrutamiento | Redirección de ficha `/estudiante/tramites/recalificacion` y ruta para formulario de supletorio. |
-| [ChatbotMensajeValidationTest.php](../tests/Feature/Chatbot/ChatbotMensajeValidationTest.php) | Pruebas Automatizadas | Tests de regresión para equivalencias de trámites (ayudante, suficiencia, supletorio) y validación de `con_datos_verificados = false` en sesión. |
+| [ChatbotOrchestratorService.php](../../../app/Services/Chatbot/ChatbotOrchestratorService.php) | Backend / Orquestación | Tabla de equivalencias de URLs para trámites, garantía de `con_datos_verificados = false` para sesión y normalización de alias hacia Prolog. |
+| [TramitesSimulados.php](../../../app/Services/Solicitudes/TramitesSimulados.php) | Backend / Portal | Normalización de alias en `buscar()` para prevenir 404 en el formulario de solicitudes del estudiante. |
+| [ChatbotCatalogoService.php](../../../app/Services/Chatbot/ChatbotCatalogoService.php) | Backend / Catálogo | Extracción de `costo_texto` y `plazo_texto` desde [hechos.pl](../../../prolog/kb/hechos.pl). |
+| [ChatbotMensajeRequest.php](../../../app/Modules/Chatbot/Http/Requests/ChatbotMensajeRequest.php) | Backend / Validación | Reglas y mensajes de validación para alias de calificaciones, asistencias y motivos. |
+| [respuesta.blade.php](../../../resources/views/components/chat/respuesta.blade.php) | Frontend / Blade | Integración de `con_datos_verificados` en el componente de respuesta. |
+| [chat-widget.blade.php](../../../resources/views/components/chat-widget.blade.php) | Frontend / Blade | Soporte para propiedad y atributo dinámico `facultad`. |
+| [chatbot.js](../../../public/assets/chatbot/chatbot.js) | Frontend / JavaScript | Lectura del atributo `data-facultad` para la cabecera del chat cuando no hay trámite seleccionado. |
+| [routes/estudiantes.php](../../../routes/estudiantes.php) | Enrutamiento | Redirección de ficha `/estudiante/tramites/recalificacion` y ruta para formulario de supletorio. |
+| [ChatbotMensajeValidationTest.php](../../../tests/Feature/Chatbot/ChatbotMensajeValidationTest.php) | Pruebas Automatizadas | Tests de regresión para equivalencias de trámites (ayudante, suficiencia, supletorio) y validación de `con_datos_verificados = false` en sesión. |
 
 ---
 
@@ -124,12 +124,12 @@ flowchart LR
 Se ejecutaron todas las suites de pruebas tanto de Laravel como de SWI-Prolog con éxito rotundo:
 
 ### Pruebas Feature Laravel (`php artisan test tests/Feature/Chatbot`):
-* **[ChatbotControllerTest.php](../tests/Feature/Chatbot/ChatbotControllerTest.php):** 6/6 pasadas (10 assertions).
-* **[ChatbotMensajeValidationTest.php](../tests/Feature/Chatbot/ChatbotMensajeValidationTest.php):** 24/24 pasadas (93 assertions).
-* **[ChatbotPruebasTest.php](../tests/Feature/Chatbot/ChatbotPruebasTest.php):** 5/5 pasadas (17 assertions).
-* **[HttpPrologClientTest.php](../tests/Feature/Chatbot/HttpPrologClientTest.php):** 13/13 pasadas (15 assertions).
-* **[InterfazChatTest.php](../tests/Feature/Chatbot/InterfazChatTest.php):** 17/17 pasadas (80 assertions).
-* **[PrologServiceTest.php](../tests/Feature/Chatbot/PrologServiceTest.php):** 6/6 pasadas (15 assertions).
+* **[ChatbotControllerTest.php](../../../tests/Feature/Chatbot/ChatbotControllerTest.php):** 6/6 pasadas (10 assertions).
+* **[ChatbotMensajeValidationTest.php](../../../tests/Feature/Chatbot/ChatbotMensajeValidationTest.php):** 24/24 pasadas (93 assertions).
+* **[ChatbotPruebasTest.php](../../../tests/Feature/Chatbot/ChatbotPruebasTest.php):** 5/5 pasadas (17 assertions).
+* **[HttpPrologClientTest.php](../../../tests/Feature/Chatbot/HttpPrologClientTest.php):** 13/13 pasadas (15 assertions).
+* **[InterfazChatTest.php](../../../tests/Feature/Chatbot/InterfazChatTest.php):** 17/17 pasadas (80 assertions).
+* **[PrologServiceTest.php](../../../tests/Feature/Chatbot/PrologServiceTest.php):** 6/6 pasadas (15 assertions).
 * **Total:** **71 pruebas pasadas (262 assertions)**.
 
 ### Pruebas SWI-Prolog:

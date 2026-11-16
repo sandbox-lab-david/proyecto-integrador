@@ -50,11 +50,11 @@ class Paralelos extends Importador
     {
         $errores = [];
 
-        if (! Materia::where('codigo', $fila['materia_codigo'])->exists()) {
+        if ($fila['materia_codigo'] && ! Materia::where('codigo', $fila['materia_codigo'])->exists()) {
             $errores[] = "No existe la materia con código {$fila['materia_codigo']}.";
         }
 
-        if (! Periodo::where('codigo', $fila['periodo_codigo'])->exists()) {
+        if ($fila['periodo_codigo'] && ! Periodo::where('codigo', $fila['periodo_codigo'])->exists()) {
             $errores[] = "No existe el periodo con código {$fila['periodo_codigo']}.";
         }
 

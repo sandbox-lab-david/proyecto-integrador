@@ -335,7 +335,7 @@ también los estilos compilados; no versionar `public/hot` ni `public/build`.
 Los datos académicos y las inscripciones de G1 se cargan en la base de cada
 entorno; no se distribuyen con el push del portal.
 
-Configuración local y comprobación de subidas de 10 MB: [Archivos y PDF](grupo-2-archivos-pdf.md).
+Configuración local y comprobación de subidas de 10 MB: [Archivos y PDF](archivos-pdf.md).
 
 ## Pendientes que requieren coordinación entre grupos
 

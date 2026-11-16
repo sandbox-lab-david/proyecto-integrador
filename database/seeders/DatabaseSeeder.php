@@ -18,11 +18,16 @@ class DatabaseSeeder extends Seeder
             CarreraSeeder::class,
             ModalidadSeeder::class,
             CategoriaMateriaSeeder::class,
-            MallaSeeder::class,
-            PeriodoSeeder::class,
-            UsuarioDemoSeeder::class,
-            CursoSeeder::class,
         ]);
+
+        if (app()->environment(['local', 'testing'])) {
+            $this->call([
+                MallaSeeder::class,
+                PeriodoSeeder::class,
+                UsuarioDemoSeeder::class,
+                CursoSeeder::class,
+            ]);
+        }
 
         $this->call(CatalogoInformativoSeeder::class);
 
