@@ -1,0 +1,81 @@
+name: solicitudes-uees
+
+x-app: &app
+  image: solicitudes-uees-app
+  restart: unless-stopped
+  init: true
+  volumes:
+    - ./.env:/var/www/html/.env:ro
+    - storage:/var/www/html/storage
+  environment: &app-env
+    APP_KEY: ${APP_KEY:?Falta APP_KEY en el archivo .env}
+    DB_HOST: db
+    DB_PORT: "5432"
+    PROLOG_API_URL: http://prolog:8081
+    DB_QUEUE_RETRY_AFTER: "660"
+
+services:
+  db:
+    image: postgres:18
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${DB_DATABASE:?Falta DB_DATABASE en el archivo .env}
+      POSTGRES_USER: ${DB_USERNAME:?Falta DB_USERNAME en el archivo .env}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:?Falta DB_PASSWORD en el archivo .env}
+    volumes:
+      - db:/var/lib/postgresql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U \"$${POSTGRES_USER}\" -d \"$${POSTGRES_DB}\""]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  prolog:
+    <<: *app
+    pull_policy: never
+    entrypoint: []
+    command: ["swipl", "/var/www/html/prolog/kb/servidor.pl"]
+    environment:
+      PROLOG_HOST: 0.0.0.0
+      PROLOG_PORT: "8081"
+      PROLOG_ENTORNO: produccion
+      PROLOG_API_KEY: ${PROLOG_API_KEY:?Falta PROLOG_API_KEY en el archivo .env}
+    volumes:
+      - storage:/var/www/html/storage
+
+  app:
+    <<: *app
+    build:
+      context: .
+      target: app
+    environment:
+      <<: *app-env
+      EJECUTAR_MIGRACIONES: "true"
+    depends_on:
+      db:
+        condition: service_healthy
+      prolog:
+        condition: service_started
+
+  worker:
+    <<: *app
+    pull_policy: never
+    command: ["php", "artisan", "queue:work", "--sleep=3", "--tries=3", "--timeout=600", "--max-time=3600"]
+    depends_on:
+      app:
+        condition: service_started
+
+  web:
+    build:
+      context: .
+      target: web
+    image: solicitudes-uees-web
+    restart: unless-stopped
+    ports:
+      - "${PUERTO_WEB:-8080}:80"
+    depends_on:
+      - app
+
+volumes:
+  db:
+  storage:

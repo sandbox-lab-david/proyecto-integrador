@@ -7,6 +7,7 @@ use App\Models\CarreraEstudiante;
 use App\Models\CarreraModalidad;
 use App\Models\Estudiante;
 use App\Models\User;
+use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Str;
 
 class Estudiantes extends Importador
@@ -97,7 +98,7 @@ class Estudiantes extends Importador
         $estudiante = Estudiante::where('codigo', $fila['codigo'])->first();
 
         $usuario = $estudiante?->user ?? User::where('email', $correo)->first() ?? new User([
-            'password' => Str::password(32),
+            'password' => Hash::make(Str::password(32), ['rounds' => 4]),
             'tipo' => 'estudiante',
             'activo' => true,
         ]);
