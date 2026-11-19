@@ -38,6 +38,7 @@ COPY --from=assets /app/public/build ./public/build
 
 RUN composer dump-autoload --optimize --no-dev --no-interaction \
     && mkdir -p storage/app/private storage/framework/cache/data storage/framework/sessions storage/framework/views storage/logs storage/prolog bootstrap/cache \
+    && cp -R storage/app/private/plantillas /opt/plantillas \
     && chown -R www-data:www-data storage bootstrap/cache \
     && chmod +x docker/app/entrypoint.sh
 

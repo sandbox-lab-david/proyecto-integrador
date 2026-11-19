@@ -3,7 +3,8 @@ set -e
 
 cd /var/www/html
 
-mkdir -p storage/app/private storage/framework/cache/data storage/framework/sessions storage/framework/views storage/logs storage/prolog
+mkdir -p storage/app/private/plantillas storage/framework/cache/data storage/framework/sessions storage/framework/views storage/logs storage/prolog
+cp -R /opt/plantillas/. storage/app/private/plantillas/
 
 if [ "${PREPARAR_LARAVEL:-true}" = "true" ]; then
     php artisan config:cache

@@ -113,6 +113,8 @@ docker compose up -d --build
 
 La caja `app` corre las migraciones nuevas sola al encender. Los volúmenes `db` y `storage` se conservan.
 
+Las 20 plantillas Word de los trámites vienen del repositorio (`storage/app/private/plantillas/`). La imagen guarda una copia en `/opt/plantillas` y, cada vez que la caja enciende, la copia al volumen `storage`. Así, una plantilla cambiada en el repositorio llega al servidor con la actualización. Si se borra una plantilla del repositorio, en el servidor queda la copia anterior; no molesta, porque ningún trámite la pide.
+
 ## Comandos útiles
 
 | Para… | Comando |
