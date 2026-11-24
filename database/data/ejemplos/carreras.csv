@@ -1,0 +1,4 @@
+facultad_codigo,codigo,nombre,nivel,admite_tercer_registro,modalidades
+ING,MECA,Ingeniería Mecatrónica,grado,si,Presencial
+ING,DATA,Ciencia de Datos,grado,si,Presencial;En línea
+SAL,FISI,Fisioterapia,grado,no,Presencial

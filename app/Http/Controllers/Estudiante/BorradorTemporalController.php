@@ -1,0 +1,76 @@
+<?php
+
+namespace App\Http\Controllers\Estudiante;
+
+use App\Http\Controllers\Controller;
+use App\Services\Archivos\FirmadosTemporales;
+use App\Services\Archivos\RespaldosTemporales;
+use App\Services\Solicitudes\BorradoresSolicitud;
+use App\Services\Solicitudes\TramitesSimulados;
+use App\Services\Solicitudes\DocumentosTemporales;
+use App\Services\Solicitudes\DatosFormularioSolicitud;
+use Illuminate\Http\JsonResponse;
+use App\Http\Requests\Estudiante\GuardarBorradorRequest;
+use Illuminate\Http\Response;
+use Illuminate\Support\Arr;
+
+
+/**
+ * Borrador del formulario (RF-2.12): una solicitud sin enviar guardada en la
+ * cuenta, o en la sesión cuando todavía no se puede (BorradoresSolicitud).
+ * Las rutas conservan el nombre «borradores-temporales».
+ */
+class BorradorTemporalController extends Controller
+{
+    public function __construct(
+        private readonly BorradoresSolicitud $borradores,
+        private readonly TramitesSimulados $tramites,
+        private readonly RespaldosTemporales $respaldos,
+        private readonly FirmadosTemporales $firmados,
+        private readonly DocumentosTemporales $documentos,
+    ) {}
+
+    public function update(GuardarBorradorRequest $request, string $tramite): JsonResponse
+    {
+        $definicion = $this->tramites->buscar($tramite);
+
+        abort_if($definicion === null, 404);
+
+        $datos = $request->validated();
+
+        $camposMateria = array_column($definicion['campos_materia'], 'nombre');
+
+        $borrador = $this->borradores->guardar($tramite, Arr::only($datos, array_keys(DatosFormularioSolicitud::PERSONALES)) + [
+            'paso' => (int) $datos['paso'],
+            'origen_materias' => $datos['origen_materias'] ?? null,
+            'celular' => $datos['celular'] ?? null,
+            'materias' => array_map(fn (array $materia) => Arr::only($materia, array_keys(DatosFormularioSolicitud::MATERIA)) + [
+                'id' => $materia['id'],
+                'datos' => Arr::only($materia['datos'] ?? [], $camposMateria),
+            ], array_values($datos['materias'] ?? [])),
+            'campos' => Arr::only($datos['campos'] ?? [], array_column($definicion['campos'], 'nombre')),
+            // Solo de los archivos que esta sesión subió para este trámite.
+            'requisitos' => Arr::only(
+                $datos['requisitos'] ?? [],
+                array_column($this->respaldos->delTramite($tramite), 'id')
+            ),
+        ]);
+
+        return response()->json(['guardado_at' => $borrador['guardado_at'], 'en_cuenta' => $borrador['en_cuenta']]);
+    }
+
+    public function destroy(string $tramite): Response
+    {
+        $this->borradores->descartar($tramite);
+
+        // Los respaldos y el PDF firmado de ese trámite son parte del borrador.
+        foreach ($this->respaldos->delTramite($tramite) as $respaldo) {
+            $this->respaldos->quitar($respaldo['id']);
+        }
+
+        $this->firmados->quitar($tramite);
+        $this->documentos->quitar($tramite);
+
+        return response()->noContent();
+    }
+}

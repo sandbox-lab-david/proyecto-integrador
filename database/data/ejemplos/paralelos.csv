@@ -1,0 +1,5 @@
+materia_codigo,periodo_codigo,paralelo,docente_codigo,cupo
+MEC101,ORD-2-2026,A1,DOC-101,30
+MEC201,ORD-2-2026,A1,DOC-102,30
+DAT101,ORD-2-2026,A1,DOC-101,35
+EST101,ORD-2-2026,A1,,40

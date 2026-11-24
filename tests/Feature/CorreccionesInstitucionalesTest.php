@@ -1,0 +1,108 @@
+<?php
+
+namespace Tests\Feature;
+
+use App\Models\Carrera;
+use App\Models\CarreraEstudiante;
+use App\Models\CarreraModalidad;
+use App\Models\Estudiante;
+use App\Models\Modalidad;
+use App\Models\EstadoSolicitud;
+use App\Models\Periodo;
+use App\Models\User;
+use App\Notifications\NotificacionPortal;
+use App\Services\Archivos\FirmadosTemporales;
+use App\Services\Archivos\RespaldosTemporales;
+use App\Services\Solicitudes\DocumentosTemporales;
+use App\Services\Solicitudes\EnvioSolicitud;
+use App\Services\Solicitudes\TramitesSimulados;
+use App\Support\Estados;
+use Database\Seeders\CatalogoInformativoSeeder;
+use Database\Seeders\EstadosSolicitudSeeder;
+use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Notification;
+use Illuminate\Support\Facades\Storage;
+use Tests\TestCase;
+
+class CorreccionesInstitucionalesTest extends TestCase
+{
+    use ArchivosDePrueba, RefreshDatabase, RequisitosPrologPrueba;
+
+    private function prepararDocumentos(array $datos): array
+    {
+        app(DocumentosTemporales::class)->guardar('gracia', 'Word de prueba', $datos);
+        app(FirmadosTemporales::class)->guardar($this->pdf(), 'gracia');
+        $datos['clave_envio'] = app(DocumentosTemporales::class)->buscar('gracia')['version'];
+        $datos['requisitos'] = [];
+        foreach (app(TramitesSimulados::class)->buscar('gracia')['documentos'] as $documento) {
+            if ($documento['obligatorio'] || $datos['requisitos'] === []) {
+                $archivo = app(RespaldosTemporales::class)->agregar($this->pdf(), 'gracia');
+                $datos['requisitos'][$archivo['id']] = 'examen_gracia_'.str_replace('-', '_', $documento['id']);
+            }
+        }
+        return $datos;
+    }
+
+    public function test_reenvio_real_conserva_expediente_y_registra_estado_anterior_correcto(): void
+    {
+        $this->discoTemporal();
+        Notification::fake();
+        $this->seed([CatalogoInformativoSeeder::class, EstadosSolicitudSeeder::class]);
+        $usuario = User::factory()->create(['tipo' => 'estudiante', 'activo' => true]);
+        $this->actingAs($usuario);
+        $facultad = DB::table('facultades')->insertGetId(['codigo' => 'ING', 'nombre' => 'Ingeniería', 'activo' => true]);
+        $carrera = Carrera::create(['facultad_id' => $facultad, 'codigo' => 'COM', 'nombre' => 'Computación', 'nivel' => 'grado', 'activo' => true]);
+        $periodo = Periodo::create(['codigo' => 'ACTUAL', 'nombre' => 'Período actual', 'tipo' => 'ordinario', 'fecha_inicio' => today()->subDays(10), 'fecha_fin' => today()->addDays(30), 'semana_primer_parcial' => 4, 'activo' => true]);
+        $estudiante = Estudiante::create(['user_id' => $usuario->id, 'codigo' => '2026000001', 'nombres' => 'Estudiante', 'apellidos' => 'Prueba', 'correo' => $usuario->email]);
+        $carreraModalidad = CarreraModalidad::create(['carrera_id' => $carrera->id, 'modalidad_id' => Modalidad::firstOrCreate(['nombre' => 'Presencial'])->id]);
+        CarreraEstudiante::create(['estudiante_id' => $estudiante->id, 'carrera_modalidad_id' => $carreraModalidad->id, 'estado' => 'activo']);
+        $datos = ['tramite' => 'gracia', 'nombre' => $usuario->name, 'codigo' => '20260001',
+            'carrera' => $carrera->nombre, 'periodo' => $periodo->codigo, 'correo' => $usuario->email,
+            'celular' => '0991234567', 'declaracion' => true, 'campos' => ['motivo' => 'Solicitud inicial'],
+            'materias' => [app(TramitesSimulados::class)->materias()[0] + ['datos' => ['nota' => '70', 'asistencia' => '80']]]];
+        $envio = app(EnvioSolicitud::class);
+        $preparados = $this->prepararDocumentos($datos);
+        $inicial = $envio->enviar($usuario, $preparados);
+        // Un reintento idempotente devuelve la misma solicitud sin volver a transicionar.
+        $this->assertSame($inicial->id, $envio->enviar($usuario, $preparados)->id);
+        // transicionar() de G3 avisa una sola vez; el envío ya no manda su propio aviso.
+        Notification::assertSentToTimes($usuario, NotificacionPortal::class, 1);
+        Notification::assertSentTo($usuario, NotificacionPortal::class,
+            fn ($aviso) => str_contains($aviso->titulo, $inicial->codigo)
+                && $aviso->url === route('solicitudes.show', $inicial->id, false));
+        $rutaAnterior = $inicial->documentosGenerados()->firstOrFail()->ruta_docx;
+        $observada = EstadoSolicitud::where('codigo', Estados::OBSERVADA)->firstOrFail();
+        $inicial->forceFill(['estado_solicitud_id' => $observada->id])->save();
+        $inicial = $inicial->fresh();
+        $base = EnvioSolicitud::revision($inicial);
+
+        $request = Request::create('/', 'POST', ['solicitud_correccion' => $inicial->id]);
+        $request->setLaravelSession($this->app['session.store']);
+        $this->app->instance('request', $request);
+        $datos['campos']['motivo'] = 'Motivo corregido';
+        $corregida = $envio->enviar($usuario, $this->prepararDocumentos($datos), $inicial, $base);
+
+        $this->assertSame($inicial->id, $corregida->id);
+        $this->assertGreaterThanOrEqual(2, $corregida->respaldos()->count());
+        foreach ($corregida->respaldos as $respaldo) {
+            $this->assertNotNull($respaldo->documento_requerido_id);
+            $this->assertSame($corregida->tipo_tramite_id, $respaldo->documentoRequerido->tipo_tramite_id);
+            $this->assertSame('examen_gracia', $respaldo->documentoRequerido->tipoTramite->codigo);
+        }
+        Notification::assertSentToTimes($usuario, NotificacionPortal::class, 2);
+        $this->assertSame($inicial->codigo, $corregida->codigo);
+        $this->assertDatabaseCount('solicitudes', 1);
+        $this->assertSame('enviada', $corregida->fresh()->estadoSolicitud->codigo);
+        $this->assertSame([1, 2], $corregida->documentosGenerados()->orderBy('version')->pluck('version')->all());
+        Storage::disk('local')->assertExists($rutaAnterior);
+        $this->assertDatabaseHas('historial_solicitud', ['solicitud_id' => $inicial->id,
+            'estado_anterior' => 'observada', 'estado_nuevo' => 'enviada', 'visible_estudiante' => true]);
+    }
+
+    protected function usarIdentificadoresProlog(): bool
+    {
+        return true;
+    }
+}

@@ -1,0 +1,32 @@
+[
+  {
+    "id": "evaluaciones",
+    "nombre": "Evaluaciones",
+    "descripcion": "Recuperación, gracia, supletorio, suficiencia, recalificación"
+  },
+  {
+    "id": "homologacion",
+    "nombre": "Homologación",
+    "descripcion": "Reconocer materias aprobadas y alcance"
+  },
+  {
+    "id": "cambios_academicos",
+    "nombre": "Cambios académicos",
+    "descripcion": "Carrera, modalidad o malla"
+  },
+  {
+    "id": "registro",
+    "nombre": "Registro",
+    "descripcion": "Fuera de plazo, tercer registro, incompleto"
+  },
+  {
+    "id": "retiros_continuidad",
+    "nombre": "Retiros y continuidad",
+    "descripcion": "Retiros y reincorporación"
+  },
+  {
+    "id": "apoyo_academico",
+    "nombre": "Apoyo académico",
+    "descripcion": "Ayudantía de cátedra, person to person"
+  }
+]
