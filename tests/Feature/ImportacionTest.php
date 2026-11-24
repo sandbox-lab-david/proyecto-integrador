@@ -15,6 +15,7 @@ use App\Services\Academico\EstudianteService;
 use App\Services\Academico\Importadores\Plantilla;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Storage;
@@ -115,6 +116,19 @@ class ImportacionTest extends TestCase
         $inscripcion = app(EstudianteService::class)->carrerasActivas($estudiante->id)->sole();
         $this->assertSame('En línea', $inscripcion->carreraModalidad->modalidad->nombre);
         $this->assertSame('2026', $inscripcion->malla->version);
+    }
+
+    public function test_el_estudiante_importado_queda_con_una_clave_temporal_cifrada(): void
+    {
+        Hash::setRounds(12);
+
+        $importacion = $this->importar('estudiantes', $this->csv('estudiantes.csv', "codigo,nombres,apellidos,correo,carrera_codigo,modalidad\n2026200020,Clave,Temporal,clave.temporal@uees.edu.ec,COMP,Presencial\n"));
+        $this->assertSame(1, $importacion->creadas);
+
+        $clave = Estudiante::where('codigo', '2026200020')->first()->user->password;
+        $this->assertSame('bcrypt', Hash::info($clave)['algoName']);
+        $this->assertSame(4, Hash::info($clave)['options']['cost']);
+        $this->assertFalse(Hash::check('password123', $clave));
     }
 
     public function test_volver_a_importar_actualiza_en_vez_de_duplicar(): void

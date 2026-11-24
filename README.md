@@ -10,6 +10,7 @@ Aplicación web en Laravel para que los estudiantes de la UEES pidan sus trámit
 |---|---|
 | Instalar el proyecto en mi computadora | [Instalar el proyecto](docs/instalacion/instalacion-local.md) |
 | Encender el servidor Prolog que usa el chatbot | [Servidor Prolog del chatbot](docs/instalacion/servidor-prolog.md) |
+| Instalar el sistema en el servidor con Docker | [Instalar con Docker](docs/instalacion/docker.md) |
 | Resolver un error al instalar o después de traer cambios | [Problemas comunes](docs/instalacion/problemas-comunes.md) |
 
 ### Uso del sistema

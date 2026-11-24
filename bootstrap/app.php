@@ -23,6 +23,8 @@ return Application::configure(basePath: dirname(__DIR__))
             'rol' => VerificarRol::class,
             'estudiante' => SoloEstudiante::class,
         ]);
+        $middleware->trustProxies(at: '*', headers: Request::HEADER_X_FORWARDED_PROTO);
+        $middleware->trustHosts(subdomains: false);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
         $exceptions->render(function (Throwable $e, Request $request) {
