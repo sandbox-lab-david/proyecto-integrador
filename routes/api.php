@@ -5,11 +5,10 @@ use App\Services\Academico\CatalogoAcademicoService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 
-// Endpoints API del Chatbot (middleware api: sin CSRF, stateless)
-// El throttle de 60 peticiones/minuto protege contra abuso.
+// Endpoints API del Chatbot: solo con sesión iniciada, con el throttle de 60 peticiones/minuto.
 Route::controller(ChatbotController::class)
     ->prefix('chatbot')
-    ->middleware('throttle:60,1')
+    ->middleware(['web', 'auth', 'throttle:60,1'])
     ->group(function () {
         Route::get('/catalogo', 'catalogo');
         Route::post('/mensaje', 'mensaje');

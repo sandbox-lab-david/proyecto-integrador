@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Models\User;
 use Tests\TestCase;
 
 class EstilosGeneralesTest extends TestCase
@@ -42,7 +43,8 @@ class EstilosGeneralesTest extends TestCase
 
     public function test_la_pagina_del_chat_carga_el_css_general_antes_que_el_suyo(): void
     {
-        $html = $this->get('/chatbot')->getContent();
+        $html = $this->actingAs((new User)->forceFill(['id' => 1, 'name' => 'Estudiante de prueba', 'tipo' => 'estudiante']))
+            ->get('/chatbot')->getContent();
 
         $this->assertLessThan(
             strpos($html, 'assets/chatbot/chatbot.css'),

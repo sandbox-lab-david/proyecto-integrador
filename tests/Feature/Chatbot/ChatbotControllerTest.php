@@ -20,6 +20,8 @@ class ChatbotControllerTest extends TestCase
 
     public function test_catalogo_retorna_version_3_y_listas(): void
     {
+        $this->actingAs(User::factory()->create());
+
         $response = $this->getJson('/chatbot/catalogo');
 
         $response->assertOk()
@@ -41,25 +43,25 @@ class ChatbotControllerTest extends TestCase
         $this->get('/chatbot/reporte')->assertNotFound();
     }
 
-    public function test_una_interaccion_anonima_se_guarda_para_metricas(): void
+    public function test_sin_sesion_no_se_puede_preguntar_ni_se_guarda_nada(): void
     {
-        $this->enviarPregunta('primera pregunta anónima');
+        $this->getJson('/chatbot/catalogo')->assertUnauthorized()->assertJsonPath('error.codigo', 'sesion_requerida');
+        $this->postJson('/chatbot/mensaje', ['version' => 3, 'texto' => 'pregunta sin sesión'])->assertUnauthorized();
+        $this->getJson('/api/chatbot/catalogo')->assertUnauthorized();
+        $this->postJson('/api/chatbot/mensaje', ['version' => 3, 'texto' => 'pregunta sin sesión por API'])->assertUnauthorized();
 
-        $anonima = Conversacion::sole();
-        $this->assertNull($anonima->user_id);
-        $this->assertSame(2, $anonima->mensajes()->count());
+        $this->assertSame(0, Conversacion::count());
     }
 
-    public function test_api_sin_sesion_tambien_guarda_la_interaccion_anonima(): void
+    public function test_una_interaccion_con_sesion_se_guarda_con_su_cuenta(): void
     {
-        $this->postJson('/api/chatbot/mensaje', [
-            'version' => 3,
-            'texto' => 'consulta anónima por API',
-        ])->assertOk();
+        $usuario = User::factory()->create();
+        $this->actingAs($usuario);
+
+        $this->enviarPregunta('primera pregunta con sesión');
 
         $conversacion = Conversacion::sole();
-        $this->assertNull($conversacion->user_id);
-        $this->assertNull($conversacion->session_id);
+        $this->assertSame($usuario->id, $conversacion->user_id);
         $this->assertSame(2, $conversacion->mensajes()->count());
     }
 
@@ -99,6 +101,8 @@ class ChatbotControllerTest extends TestCase
 
     public function test_mensaje_consulta_estado_solicitud_retorna_tipo_estado_solicitud(): void
     {
+        $this->actingAs(User::factory()->create());
+
         $response = $this->postJson('/chatbot/mensaje', [
             'version' => 3,
             'texto' => '¿Cómo va el estado de mi solicitud?',
@@ -120,6 +124,7 @@ class ChatbotControllerTest extends TestCase
         $m = $this->createMock(PrologClient::class);
         $m->method('consultar')->willThrowException(PrologException::noDisponible());
         $this->app->instance(PrologClient::class, $m);
+        $this->actingAs(User::factory()->create());
         $this->postJson('/chatbot/mensaje', ['version' => 3, 'texto' => 'requisitos de homologacion'])->assertStatus(503);
         $this->assertDatabaseHas('mensajes_chat', ['emisor' => 'usuario', 'resuelta' => false]);
     }

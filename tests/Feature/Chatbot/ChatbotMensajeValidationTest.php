@@ -28,6 +28,7 @@ class ChatbotMensajeValidationTest extends TestCase
 
     public function test_version_anterior_se_rechaza(): void
     {
+        $this->actingAs(User::factory()->create());
         $this->postJson('/chatbot/mensaje', ['version' => 2, 'texto' => 'hola'])->assertUnprocessable()->assertJsonPath('version', 3);
     }
 
@@ -63,6 +64,7 @@ class ChatbotMensajeValidationTest extends TestCase
 
     public function test_terna_pregunta_tramite_intencion_debe_coincidir(): void
     {
+        $this->actingAs(User::factory()->create());
         $this->postJson('/chatbot/mensaje', array_replace($this->payload('requisitos'), ['intencion' => 'consultar_costo']))->assertUnprocessable();
         $this->postJson('/chatbot/mensaje', array_replace($this->payload('requisitos'), ['tramite_id' => 'homologacion']))->assertUnprocessable();
         $this->postJson('/chatbot/mensaje', array_replace($this->payload('requisitos'), ['pregunta_id' => 'inexistente']))->assertUnprocessable();
@@ -70,6 +72,7 @@ class ChatbotMensajeValidationTest extends TestCase
 
     public function test_consultas_publicas_no_reciben_datos_personales(): void
     {
+        $this->actingAs(User::factory()->create());
         $this->motor();
         $this->postJson('/chatbot/mensaje', $this->payload('requisitos'))->assertOk();
         $this->postJson('/chatbot/mensaje', $this->payload('requisitos', ['gpa_general' => 72]))->assertUnprocessable();
@@ -85,6 +88,7 @@ class ChatbotMensajeValidationTest extends TestCase
 
     public function test_lenguaje_cotidiano_y_consultas_ambiguas(): void
     {
+        $this->actingAs(User::factory()->create());
         $this->motor();
         foreach (['quiero homologar' => 'homologacion', 'retirar una materia' => 'retiro_materia'] as $texto => $id) {
             $this->postJson('/chatbot/mensaje', ['version' => 3, 'texto' => $texto])->assertOk()->assertJsonPath('tramite_id', $id);
@@ -92,15 +96,17 @@ class ChatbotMensajeValidationTest extends TestCase
         $this->postJson('/chatbot/mensaje', ['version' => 3, 'texto' => 'homologacion o recuperacion', 'tramite_id' => 'retiro_materia'])->assertOk()->assertJsonPath('tipo', 'no_entendido');
     }
 
-    public function test_consultar_gpa_en_texto_libre_exige_sesion_pero_consultar_requisitos_no(): void
+    public function test_consultar_gpa_en_texto_libre_con_sesion_da_referencias_y_requisitos_sigue_igual(): void
     {
+        $this->actingAs(User::factory()->create());
         $this->motor();
-        $this->postJson('/chatbot/mensaje', ['version' => 3, 'texto' => 'calcular GPA para recuperación'])->assertOk()->assertJsonPath('tipo', 'sesion_requerida');
+        $this->postJson('/chatbot/mensaje', ['version' => 3, 'texto' => 'calcular GPA para recuperación'])->assertOk()->assertJsonPath('tipo', 'referencias');
         $this->postJson('/chatbot/mensaje', ['version' => 3, 'texto' => 'puedo pedir recuperación'])->assertOk()->assertJsonPath('tipo', 'requisitos');
     }
 
     public function test_seguimiento_redirige_sin_inventar_que_no_existen_solicitudes(): void
     {
+        $this->actingAs(User::factory()->create());
         $this->postJson('/chatbot/mensaje', ['version' => 3, 'texto' => 'mis solicitudes'])->assertOk()->assertJsonPath('acciones.0.url', '/estudiante/solicitudes')->assertJsonMissingPath('solicitudes');
     }
 
@@ -111,6 +117,7 @@ class ChatbotMensajeValidationTest extends TestCase
 
     public function test_api_tiene_limite_de_peticiones(): void
     {
+        $this->actingAs(User::factory()->create());
         $this->withServerVariables(['REMOTE_ADDR' => '10.10.1.90']);
         for ($i = 0; $i < 60; $i++) {
             $this->postJson('/api/chatbot/mensaje', ['version' => 3, 'texto' => 'consulta desconocida'])->assertOk();

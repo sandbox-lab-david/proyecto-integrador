@@ -123,6 +123,7 @@ class NormalizacionCatalogoG4Test extends TestCase
         $tipo->facultades()->attach(Facultad::factory()->create()->id);
         $tipo->palabrasClave()->create(['expresion' => 'expresion futura']);
         $this->assertEquals($antes, app(CatalogoTramites::class)->borrador());
+        $this->actingAs(\App\Models\User::factory()->create());
         $this->postJson('/chatbot/mensaje', ['version' => 3, 'texto' => 'expresion futura'])
             ->assertOk()->assertJsonPath('tipo', 'no_entendido');
         $this->assertCount(20, app(ChatbotCatalogoService::class)->obtenerCatalogo()['tramites']);
