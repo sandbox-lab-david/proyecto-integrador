@@ -3,7 +3,7 @@
 namespace App\Http\Controllers\Acceso;
 
 use App\Http\Controllers\Controller;
-use App\Services\Academico\AutorizacionService;
+use App\Services\Acceso\ModulosDelUsuario;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
@@ -11,14 +11,7 @@ use Illuminate\View\View;
 
 class PanelController extends Controller
 {
-    private const DESTINOS = [
-        ['roles' => ['admin'], 'ruta' => 'administracion.inicio'],
-        ['roles' => ['asistente'], 'ruta' => 'revision.asistente'],
-        ['roles' => ['director'], 'ruta' => 'revision.director'],
-        ['roles' => ['consulta'], 'ruta' => 'revision.resoluciones'],
-    ];
-
-    public function __invoke(Request $request, AutorizacionService $autorizacion): RedirectResponse|View
+    public function __invoke(Request $request, ModulosDelUsuario $modulos): RedirectResponse|View
     {
         $usuario = $request->user();
 
@@ -26,10 +19,10 @@ class PanelController extends Controller
             return redirect()->route('estudiante.catalogo');
         }
 
-        foreach (self::DESTINOS as $destino) {
-            if (Route::has($destino['ruta']) && $autorizacion->tieneRol($usuario, $destino['roles'])) {
-                return redirect()->route($destino['ruta']);
-            }
+        $disponibles = $modulos->de($usuario);
+
+        if ($disponibles) {
+            return redirect()->route(reset($disponibles));
         }
 
         return view('acceso.sin-modulo');

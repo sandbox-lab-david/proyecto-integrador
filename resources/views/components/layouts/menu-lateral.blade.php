@@ -29,6 +29,9 @@
 @endphp
 
 @php
+    $otrosModulos = $usuario && $usuario->tipo !== 'estudiante'
+        ? collect(app(\App\Services\Acceso\ModulosDelUsuario::class)->de($usuario))->except($modulo)
+        : collect();
     $paginaActual = collect($secciones)->flatten(1)->first(fn ($enlace) => request()->routeIs($enlace['activo'] ?? $enlace['ruta']))['texto'] ?? 'Ir a…';
 @endphp
 
@@ -57,6 +60,19 @@
                     </ul>
                 </div>
             @endforeach
+
+            @if ($otrosModulos->isNotEmpty())
+                <div>
+                    <p class="px-3 mb-chico text-mini font-bold uppercase tracking-[1.4px] text-gris">Otros módulos</p>
+                    <ul class="flex flex-col gap-1">
+                        @foreach ($otrosModulos as $nombre => $ruta)
+                            <li>
+                                <a href="{{ route($ruta) }}" class="block whitespace-nowrap rounded-control px-3 py-2 text-cuerpo no-underline text-texto hover:bg-fondo">{{ $nombre }} <span aria-hidden="true">→</span></a>
+                            </li>
+                        @endforeach
+                    </ul>
+                </div>
+            @endif
         </nav>
     </aside>
 @endif
