@@ -36,6 +36,8 @@
 
                 {{ $slot }}
             </div>
+
+            <x-pie-creditos />
         </main>
     </div>
 </body>

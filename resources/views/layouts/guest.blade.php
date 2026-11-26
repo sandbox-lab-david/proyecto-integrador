@@ -18,5 +18,7 @@
             </div>
         </div>
     </main>
+
+    <x-pie-creditos />
 </body>
 </html>
