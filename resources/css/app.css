@@ -138,8 +138,8 @@
     }
 
     .ui-barra img {
-        width: 76px;
-        height: auto;
+        width: auto;
+        height: 40px;
     }
 
     .ui-barra-titulo {
@@ -825,7 +825,7 @@
         }
 
         .ui-barra img {
-            width: 64px;
+            height: 34px;
         }
 
         .ui-barra-titulo {

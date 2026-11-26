@@ -176,7 +176,7 @@ HTML],
 </head>
 <body class="ui-pagina">
     <header class="ui-barra">
-        <img src="{{ asset('assets/chatbot/img/facultad-ingenieria-uees.png') }}" alt="UEES Facultad de Ingeniería">
+        <img src="{{ asset('images/logo-uees.png') }}" alt="Universidad Espíritu Santo">
         <span class="ui-barra-titulo">Estilos generales</span>
         <a class="ui-barra-enlace" href="{{ url('/') }}">Inicio</a>
     </header>

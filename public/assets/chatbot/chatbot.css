@@ -40,7 +40,7 @@ html:has(.cb-cuerpo),.cb-cuerpo{height:100%}
 .cb-pagina-main{flex:1;min-height:0;display:flex;flex-direction:column;overflow-y:auto}
 
 .cb-top{flex:none;height:68px;background:var(--cb-blanco);border-top:3px solid var(--cb-vino);border-bottom:1px solid var(--cb-linea);display:flex;align-items:center;gap:16px;padding:0 24px}
-.cb-top img{width:76px;height:auto}
+.cb-top img{width:auto;height:40px}
 .cb-top-titulo{font:700 16px var(--cb-titulo-fuente);border-left:1px solid var(--cb-linea);padding-left:16px}
 .cb-top-enlace{margin-left:auto;font-size:13px;font-weight:600;color:var(--cb-vino);text-decoration:none}
 .cb-top-enlace:hover{text-decoration:underline}
@@ -230,7 +230,7 @@ html:has(.cb-cuerpo),.cb-cuerpo{height:100%}
 
 @media (max-width:600px){
   .cb-top{height:58px;padding:0 16px}
-  .cb-top img{width:64px}
+  .cb-top img{height:34px}
   .cb-top-titulo{display:none}
   .cb-conversacion{padding:16px 14px}
   .cb-bot{max-width:100%}
