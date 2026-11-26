@@ -71,6 +71,8 @@ services:
       target: web
     image: solicitudes-uees-web
     restart: unless-stopped
+    environment:
+      PROXY_HTTPS_IP: ${PROXY_HTTPS_IP:-127.0.0.1}
     ports:
       - "${PUERTO_WEB:-8080}:80"
     depends_on:

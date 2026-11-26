@@ -18,6 +18,8 @@
     <main class="cb-pagina-main">
         {{ $slot }}
     </main>
+
+    <x-pie-creditos />
 </div>
 </body>
 </html>

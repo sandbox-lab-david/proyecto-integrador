@@ -10,7 +10,7 @@ La verificación se puede consumir de dos maneras:
 
 ### A. Vía HTTP (Para el Frontend, JavaScript o AJAX)
 - **URL con sesión:** `POST /chatbot/mensaje`
-- **URL API:** `POST /api/chatbot/mensaje`
+- **URL API:** `POST /api/chatbot/mensaje` (también pide sesión iniciada; sin ella responde 401)
 - **Headers:**
   - `Content-Type: application/json`
   - `X-CSRF-TOKEN: <csrf_token>` (para rutas web en formularios Blade)

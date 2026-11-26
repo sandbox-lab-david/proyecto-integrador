@@ -18,8 +18,10 @@ use App\Http\Controllers\Administracion\ParaleloController;
 use App\Http\Controllers\Administracion\CargaController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\Acceso\PanelController;
+use App\Http\Controllers\CreditosController;
 
 Route::get('/', fn () => auth()->check() ? redirect()->route('dashboard') : redirect()->route('login'));
+Route::get('/creditos', CreditosController::class)->name('creditos');
 
 Route::get('/dashboard', PanelController::class)->middleware('auth')->name('dashboard');
 

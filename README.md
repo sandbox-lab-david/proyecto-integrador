@@ -2,72 +2,7 @@
 
 Aplicación web en Laravel para que los estudiantes de la UEES pidan sus trámites académicos, las facultades los revisen y los lleven al Consejo, con un chatbot que responde con reglas en Prolog. La construyeron 4 grupos, cada uno a cargo de un módulo.
 
-## Índice
-
-### Instalación y puesta en marcha
-
-| Necesito… | Documento |
-|---|---|
-| Instalar el proyecto en mi computadora | [Instalar el proyecto](docs/instalacion/instalacion-local.md) |
-| Encender el servidor Prolog que usa el chatbot | [Servidor Prolog del chatbot](docs/instalacion/servidor-prolog.md) |
-| Instalar el sistema en el servidor con Docker | [Instalar con Docker](docs/instalacion/docker.md) |
-| Resolver un error al instalar o después de traer cambios | [Problemas comunes](docs/instalacion/problemas-comunes.md) |
-
-### Uso del sistema
-
-| Necesito… | Documento |
-|---|---|
-| Entrar al sistema, crear mi contraseña y usar la administración académica | [Manual de acceso y administración](docs/uso/administracion-y-acceso.md) |
-| Saber qué comportamientos conocidos no se van a cambiar por ahora | [Limitaciones conocidas](docs/limitaciones-conocidas.md) |
-
-### Para programadores (todos los grupos)
-
-| Necesito… | Documento |
-|---|---|
-| Poner mi página dentro del marco común (barra superior y menú lateral) | [Marco común de las páginas](docs/desarrollo/marco-comun.md) |
-| Proteger mis páginas con el inicio de sesión y los roles, y conocer los usuarios de prueba | [Acceso, registro y roles](docs/desarrollo/acceso-y-roles.md) |
-| Agregar una pantalla o un módulo nuevo paso a paso | [Cómo agregar una pantalla](docs/desarrollo/agregar-pantalla.md) |
-| Dar estilo a una página con las clases comunes `ui-` | [Estilos generales](docs/desarrollo/estilos-generales.md) |
-
-### Módulo 1 · Administración académica (Grupo 1)
-
-| Necesito… | Documento |
-|---|---|
-| Conocer las pantallas y los archivos principales del módulo | [Resumen del Módulo 1](docs/modulos/grupo-1-administracion/README.md) |
-| Usar los servicios, componentes y permisos del Grupo 1 (contratos C01–C41) | [Contratos del Grupo 1](docs/modulos/grupo-1-administracion/contratos.md) |
-| Llenar listas de facultades, carreras o periodos con JavaScript (API C32–C35) | [API interna](docs/modulos/grupo-1-administracion/api.md) |
-| Entender las 19 tablas del Grupo 1 y cómo se relacionan | [Modelo de datos](docs/modulos/grupo-1-administracion/modelo-datos.md) |
-
-### Módulo 2 · Portal del estudiante (Grupo 2)
-
-| Necesito… | Documento |
-|---|---|
-| Entender cómo el portal arma el formulario y genera el documento oficial en Word o PDF | [Documentos del portal](docs/modulos/grupo-2-portal/documentos.md) |
-| Configurar la subida de archivos de hasta 10 MB y la descarga en PDF | [Subidas de 10 MB y descarga PDF](docs/modulos/grupo-2-portal/archivos-pdf.md) |
-| Avisar al estudiante en la campana y por correo (C52 y C53) | [Notificaciones del portal](docs/modulos/grupo-2-portal/notificaciones.md) |
-| Saber qué datos declara el estudiante en lugar de importarlos del SIAC | [Formularios sin importación del SIAC](docs/modulos/grupo-2-portal/datos-manuales.md) |
-| Revisar qué campos pide cada uno de los 20 trámites | [Revisión de campos de los trámites](docs/modulos/grupo-2-portal/revision-campos-tramites.md) |
-
-### Módulo 3 · Revisión y Consejo (Grupo 3)
-
-Este módulo todavía no tiene documentación propia.
-
-### Módulo 4 · Catálogo de trámites y chatbot (Grupo 4)
-
-| Necesito… | Documento |
-|---|---|
-| Entender cómo funciona el chatbot y qué cambió en el módulo | [Resumen del chatbot](docs/modulos/grupo-4-chatbot/resumen-cambios.md) |
-| Conocer qué responde el chatbot y el contrato del catálogo publicado (v3) | [Chatbot informativo · contrato v3](docs/modulos/grupo-4-chatbot/contrato-v3.md) |
-| Administrar el catálogo normalizado de trámites | [Catálogo normalizado del Grupo 4](docs/modulos/grupo-4-chatbot/catalogo-administracion.md) |
-| Enviar datos al chatbot para verificar los documentos de respaldo | [Verificación de documentos](docs/modulos/grupo-4-chatbot/verificacion-documentos-frontend.md) |
-
-### Créditos
-
-Integrantes de cada grupo y lo que hizo cada uno: [ir a los créditos](#créditos-de-los-grupos).
-
----
-
-## Créditos de los grupos
+## Créditos
 
 ### Grupo 1 · Administración académica
 
@@ -285,3 +220,18 @@ Construimos el **Chatbot con Prolog**: el asistente que orienta sobre los trámi
 | Allan Becerra | [@becerrallan](https://github.com/becerrallan) | API del chatbot: persistencia en base de datos, contrato v2, seguridad de la API, rutas de trámites y verificación de documentos de respaldo en Prolog |
 | Saskia Brito | [@saskiabrito](https://github.com/saskiabrito) | Puente HTTP entre Laravel y Prolog: servidor, clave de acceso, límites y pruebas |
 | Bryan Grogan | [@BryanGrogan24](https://github.com/BryanGrogan24) | Base de conocimiento en Prolog: catálogo de hechos de los trámites y su documentación |
+
+---
+
+## Documentación
+
+| Necesito… | Documento |
+|---|---|
+| Instalar el proyecto en mi computadora | [Instalar el proyecto](docs/instalacion/instalacion-local.md) |
+| Instalar el sistema en el servidor con Docker | [Instalar con Docker](docs/instalacion/docker.md) |
+| Encender el servidor Prolog que usa el chatbot | [Servidor Prolog del chatbot](docs/instalacion/servidor-prolog.md) |
+| Resolver un error al instalar o después de traer cambios | [Problemas comunes](docs/instalacion/problemas-comunes.md) |
+| Entrar al sistema, crear mi contraseña y usar la administración académica | [Manual de acceso y administración](docs/uso/administracion-y-acceso.md) |
+| Saber qué comportamientos conocidos no se van a cambiar por ahora | [Limitaciones conocidas](docs/limitaciones-conocidas.md) |
+
+La documentación técnica de cada módulo y la guía para programadores están en la carpeta [`docs/`](docs/).

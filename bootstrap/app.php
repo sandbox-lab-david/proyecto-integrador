@@ -3,6 +3,7 @@
 use App\Http\Middleware\VerificarRol;
 use App\Http\Middleware\SoloEstudiante;
 use App\Services\Chatbot\Prolog\PrologException;
+use Illuminate\Auth\AuthenticationException;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
@@ -39,6 +40,9 @@ return Application::configure(basePath: dirname(__DIR__))
                     $codigo = 'datos_invalidos';
                     $reintentable = false;
                     $campos = $e->errors();
+                } elseif ($e instanceof AuthenticationException) {
+                    $statusCode = 401;
+                    $codigo = 'sesion_requerida';
                 } elseif ($e instanceof PrologException) {
                     $statusCode = $e->status;
                     $codigo = $e->codigo;
@@ -60,7 +64,9 @@ return Application::configure(basePath: dirname(__DIR__))
 
                 // Fix 10: nunca exponer getMessage() en 500s ni detalles internos.
                 // El 419 (CSRF/sesión vencida) se mapea a un mensaje legible.
-                if ($statusCode === 419) {
+                if ($e instanceof AuthenticationException) {
+                    $mensaje = 'Inicia sesión para usar el asistente.';
+                } elseif ($statusCode === 419) {
                     $codigo = 'sesion_vencida';
                     $mensaje = 'Tu sesión ha vencido. Recarga la página e intenta de nuevo.';
                 } elseif ($statusCode === 422) {

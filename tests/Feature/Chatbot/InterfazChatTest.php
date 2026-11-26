@@ -2,13 +2,19 @@
 
 namespace Tests\Feature\Chatbot;
 
+use App\Models\User;
 use Tests\TestCase;
 
 class InterfazChatTest extends TestCase
 {
+    private function comoEstudiante(): static
+    {
+        return $this->actingAs((new User)->forceFill(['id' => 1, 'name' => 'Estudiante de prueba', 'tipo' => 'estudiante']));
+    }
+
     public function test_la_pagina_del_chat_carga_con_el_widget(): void
     {
-        $this->get('/chatbot')
+        $this->comoEstudiante()->get('/chatbot')
             ->assertOk()
             ->assertSee('data-chatbot', false)
             ->assertSee('assets/chatbot/chatbot.js', false)
@@ -17,7 +23,7 @@ class InterfazChatTest extends TestCase
 
     public function test_el_widget_trae_todas_las_plantillas(): void
     {
-        $html = $this->get('/chatbot')->getContent();
+        $html = $this->comoEstudiante()->get('/chatbot')->getContent();
 
         foreach (['bot', 'usuario', 'espera', 'respuesta', 'documento', 'solicitud', 'sugerencias', 'error', 'formulario',
             'campo-texto', 'campo-numero', 'campo-seleccion', 'campo-booleano', 'campo-fecha'] as $plantilla) {
@@ -27,7 +33,7 @@ class InterfazChatTest extends TestCase
 
     public function test_el_widget_recibe_el_tramite_inicial(): void
     {
-        $this->get('/chatbot?tramite=examen_recuperacion')
+        $this->comoEstudiante()->get('/chatbot?tramite=examen_recuperacion')
             ->assertOk()
             ->assertSee('data-tramite="examen_recuperacion"', false);
     }
@@ -54,6 +60,8 @@ class InterfazChatTest extends TestCase
 
     public function test_la_pagina_de_demo_muestra_la_burbuja_y_el_boton_de_la_ficha(): void
     {
+        config(['app.env' => 'local']);
+
         $this->get('/chatbot/demo')
             ->assertOk()
             ->assertSee('cb-modo-flotante', false)
