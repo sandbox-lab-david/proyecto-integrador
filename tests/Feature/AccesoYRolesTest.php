@@ -2,7 +2,7 @@
 
 namespace Tests\Feature;
 
-use App\Http\Controllers\Acceso\PanelController;
+use App\Services\Acceso\ModulosDelUsuario;
 use App\Models\Trabajador;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -72,7 +72,7 @@ class AccesoYRolesTest extends TestCase
 
     public function test_cada_destino_deja_entrar_a_su_rol(): void
     {
-        $destinos = (new \ReflectionClassConstant(PanelController::class, 'DESTINOS'))->getValue();
+        $destinos = ModulosDelUsuario::ENTRADAS;
 
         foreach ($destinos as $destino) {
             $this->assertTrue(Route::has($destino['ruta']), "No existe la ruta {$destino['ruta']}");
