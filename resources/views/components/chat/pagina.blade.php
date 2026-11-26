@@ -11,7 +11,7 @@
 <body class="cb cb-cuerpo">
 <div class="cb-pagina">
     <header class="cb-top">
-        <img src="{{ asset('assets/chatbot/img/facultad-ingenieria-uees.png') }}" alt="UEES Facultad de Ingeniería">
+        <img src="{{ asset('images/logo-uees.png') }}" alt="Universidad Espíritu Santo">
         <span class="cb-top-titulo">{{ $titulo }}</span>
         <a class="cb-top-enlace" href="{{ url('/') }}">Inicio</a>
     </header>

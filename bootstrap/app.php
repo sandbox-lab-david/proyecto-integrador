@@ -5,6 +5,9 @@ use App\Http\Middleware\SoloEstudiante;
 use App\Services\Chatbot\Prolog\PrologException;
 use Illuminate\Auth\AuthenticationException;
 use Illuminate\Foundation\Application;
+use Illuminate\Session\TokenMismatchException;
+use Illuminate\Support\Arr;
+use Symfony\Component\HttpKernel\Exception\HttpException;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
 use Illuminate\Http\Request;
@@ -28,6 +31,23 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->trustHosts(subdomains: false);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
+        $exceptions->render(function (HttpException $e, Request $request) {
+            if (! $e->getPrevious() instanceof TokenMismatchException || $request->expectsJson()) {
+                return null;
+            }
+
+            if ($request->routeIs('logout')) {
+                return redirect()->route('login')->with('status', 'Tu sesión ya estaba cerrada.');
+            }
+
+            $mensaje = 'La página estuvo abierta mucho tiempo. Vuelve a intentarlo.';
+
+            return redirect()->back()
+                ->withInput(Arr::except($request->input(), ['_token', 'password', 'password_confirmation', 'current_password']))
+                ->with('error', $mensaje)
+                ->with('status', $mensaje);
+        });
+
         $exceptions->render(function (Throwable $e, Request $request) {
             if ($request->is('chatbot/*') || $request->is('api/chatbot/*')) {
                 $statusCode = 500;

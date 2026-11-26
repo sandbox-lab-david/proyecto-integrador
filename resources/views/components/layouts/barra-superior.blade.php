@@ -1,7 +1,7 @@
 @props(['modulo'])
 
 <header class="ui-barra">
-    <img src="{{ asset('assets/chatbot/img/facultad-ingenieria-uees.png') }}" alt="UEES Facultad de Ingeniería">
+    <img src="{{ asset('images/logo-uees.png') }}" alt="Universidad Espíritu Santo">
     <span class="ui-barra-titulo">{{ $modulo }}</span>
     <div class="ml-auto flex items-center gap-medio">
         @auth
