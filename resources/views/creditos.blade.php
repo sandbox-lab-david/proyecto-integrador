@@ -22,6 +22,11 @@
         .creditos img { display: inline-block; max-width: 100%; }
         .creditos td img[width="100"] { width: 88px; height: 88px; border-radius: 9999px; }
         .creditos .tabla-desplazable { overflow-x: auto; }
+        @media (max-width: 600px) {
+            .creditos table, .creditos tbody { display: block; }
+            .creditos tr { display: flex; flex-wrap: wrap; }
+            .creditos td { width: 50%; border: 0; border-bottom: 1px solid #eeefec; }
+        }
     </style>
 </head>
 <body class="ui-pagina">

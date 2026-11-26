@@ -122,7 +122,7 @@
                                         @endif
                                     </td>
                                     <td>
-                                        <div class="flex flex-col items-end gap-chico">
+                                        <div class="flex flex-col items-end gap-chico max-sm:flex-row max-sm:items-center">
                                             <a href="{{ route('administracion.personal.editar', $persona) }}" class="ui-btn ui-btn-quieto ui-btn-chico">Editar</a>
                                             @unless ($persona->user_id && $persona->user_id === auth()->id())
                                                 <form method="POST" action="{{ route('administracion.personal.estado', $persona) }}">

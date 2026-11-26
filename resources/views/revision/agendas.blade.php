@@ -39,7 +39,7 @@
     @if($filtrosAplicados && app(\App\Services\Academico\AutorizacionService::class)->tieneRol(auth()->user(), ['admin', 'asistente']))
         <div class="mb-8 flex flex-wrap justify-end gap-2">
             <button type="submit" form="crear-agenda" name="accion" value="rechazar" formaction="{{ route('revision.agendas.solicitudes.rechazar-varias') }}" formnovalidate @disabled($aprobadas->isEmpty()) onclick="return confirm('¿Rechazar todas las solicitudes seleccionadas?')" class="rounded-lg border border-red-300 bg-white px-4 py-2 font-semibold text-red-700 transition hover:bg-red-50 disabled:opacity-40">Rechazar seleccionadas</button>
-            <button type="submit" form="crear-agenda" name="accion" value="crear_agenda" @disabled($aprobadas->isEmpty()) class="rounded-lg bg-red-700 px-4 py-2 font-semibold text-white transition hover:bg-red-800 disabled:opacity-40">Crear agenda</button>
+            <button type="submit" form="crear-agenda" name="accion" value="crear_agenda" @disabled($aprobadas->isEmpty()) class="rounded-lg bg-vino px-4 py-2 font-semibold text-white transition hover:bg-vino-oscuro disabled:opacity-40">Crear agenda</button>
         </div>
     @endif
 @endsection

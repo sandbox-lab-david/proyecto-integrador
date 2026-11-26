@@ -10,7 +10,7 @@
 
     <div class="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
         <div class="overflow-x-auto">
-            <table class="w-full border-collapse text-left">
+            <table class="ui-tabla-movil w-full border-collapse text-left">
                 <thead>
                     <tr class="border-b border-slate-200 bg-[#f4f3ef] text-xs uppercase text-slate-600">
                         <th class="p-4 font-semibold">ID solicitud</th>
@@ -24,11 +24,11 @@
                 <tbody class="divide-y divide-slate-200 text-sm">
                     @forelse($solicitudes as $solicitud)
                         <tr class="transition hover:bg-[#faf9f6]">
-                            <td class="p-4 font-medium text-red-800"><a href="{{ route('revision.detalle', $solicitud->id) }}" class="hover:underline">{{ $solicitud->id }}</a></td>
-                            <td class="p-4"><div class="font-medium text-slate-900">{{ $solicitud->estudiante ?? 'N/D' }}</div><div class="text-xs text-slate-500">{{ $solicitud->codigo ?? 'N/D' }}</div></td>
-                            <td class="p-4 text-slate-700">{{ $solicitud->carrera ?? 'N/D' }}</td>
-                            <td class="p-4 text-slate-700">{{ $solicitud->tramite ?? 'N/D' }}</td>
-                            <td class="p-4">
+                            <td data-label="ID solicitud" class="p-4 font-medium text-red-800"><a href="{{ route('revision.detalle', $solicitud->id) }}" class="hover:underline">{{ $solicitud->id }}</a></td>
+                            <td data-label="Estudiante" class="p-4"><div class="font-medium text-slate-900">{{ $solicitud->estudiante ?? 'N/D' }}</div><div class="text-xs text-slate-500">{{ $solicitud->codigo ?? 'N/D' }}</div></td>
+                            <td data-label="Carrera" class="p-4 text-slate-700">{{ $solicitud->carrera ?? 'N/D' }}</td>
+                            <td data-label="Trámite" class="p-4 text-slate-700">{{ $solicitud->tramite ?? 'N/D' }}</td>
+                            <td data-label="Estado" class="p-4">
                                 @php
                                     $estado = $solicitud->estado ?? 'Enviado por estudiante';
                                     $claseEstado = match($estado) {
@@ -44,7 +44,7 @@
                                 @endphp
                                 <span class="rounded-full border px-2.5 py-1 text-xs font-medium {{ $claseEstado }}">{{ $estado }}</span>
                             </td>
-                            <td class="p-4 text-right"><a href="{{ route('revision.detalle', $solicitud->id) }}" class="inline-block rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 transition hover:border-red-700 hover:text-red-800">Revisar caso</a></td>
+                            <td data-label="Acciones" class="p-4 text-right"><a href="{{ route('revision.detalle', $solicitud->id) }}" class="inline-block rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 transition hover:border-red-700 hover:text-red-800">Revisar caso</a></td>
                         </tr>
                     @empty
                         <tr><td colspan="6" class="p-8 text-center text-sm text-slate-500">@if($filtrosAplicados) No se encontraron solicitudes que coincidan con los filtros. @else Usa los filtros y presiona “Filtrar” para consultar las solicitudes. @endif</td></tr>

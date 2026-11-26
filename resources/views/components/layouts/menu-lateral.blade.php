@@ -28,13 +28,22 @@
     }
 @endphp
 
+@php
+    $paginaActual = collect($secciones)->flatten(1)->first(fn ($enlace) => request()->routeIs($enlace['activo'] ?? $enlace['ruta']))['texto'] ?? 'Ir a…';
+@endphp
+
 @if ($secciones)
-    <aside class="md:w-64 shrink-0 bg-superficie border-b md:border-b-0 md:border-r border-linea px-normal py-amplio">
-        <nav aria-label="Menú de {{ $modulo }}" class="flex md:flex-col gap-amplio overflow-x-auto">
+    <aside class="md:w-64 shrink-0 bg-superficie border-b md:border-b-0 md:border-r border-linea px-normal py-medio md:py-amplio">
+        <input type="checkbox" id="menu-movil" class="peer sr-only">
+        <label for="menu-movil" class="md:hidden flex cursor-pointer items-center justify-between gap-medio rounded-control border border-linea px-3 py-2 text-cuerpo">
+            <span><span class="text-gris">Menú ·</span> <span class="font-semibold text-vino">{{ $paginaActual }}</span></span>
+            <span aria-hidden="true">▾</span>
+        </label>
+        <nav aria-label="Menú de {{ $modulo }}" class="hidden peer-checked:flex md:flex flex-col gap-amplio mt-medio md:mt-0">
             @foreach ($secciones as $seccion => $enlaces)
-                <div class="shrink-0">
+                <div>
                     <p class="px-3 mb-chico text-mini font-bold uppercase tracking-[1.4px] text-gris">{{ $seccion }}</p>
-                    <ul class="flex md:flex-col gap-1">
+                    <ul class="flex flex-col gap-1">
                         @foreach ($enlaces as $enlace)
                             @php $activo = request()->routeIs($enlace['activo'] ?? $enlace['ruta']); @endphp
                             <li>

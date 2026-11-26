@@ -138,7 +138,7 @@
 
     <section class="mb-6 rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
         <h2 class="mb-4 text-lg font-semibold text-slate-900">Historial del expediente</h2>
-        <ol class="space-y-3 border-l-2 border-red-100 pl-4">@forelse($lineaTiempo as $evento)<li class="relative"><span class="absolute -left-[22px] top-1 h-3 w-3 rounded-full bg-red-700"></span><p class="text-sm font-semibold text-slate-900">{{ $evento->estado_anterior ?: 'Inicio' }} → {{ $evento->estado_nuevo }}</p>@if($evento->comentario)<p class="text-sm text-slate-600">{{ $evento->comentario }}</p>@endif @if($evento->observacion_interna)<p class="rounded-md bg-amber-50 px-3 py-2 text-sm text-amber-900">Nota interna: {{ $evento->observacion_interna }}</p>@endif<p class="text-xs text-slate-500">{{ $evento->created_at?->format('d/m/Y H:i') }} · {{ $evento->user?->name ?? 'Sistema' }}</p></li>@empty<li class="text-sm text-slate-500">No hay movimientos registrados todavía.</li>@endforelse</ol>
+        <ol class="space-y-3 border-l-2 border-red-100 pl-4">@forelse($lineaTiempo as $evento)<li class="relative"><span class="absolute -left-[22px] top-1 h-3 w-3 rounded-full bg-vino"></span><p class="text-sm font-semibold text-slate-900">{{ $evento->estado_anterior ?: 'Inicio' }} → {{ $evento->estado_nuevo }}</p>@if($evento->comentario)<p class="text-sm text-slate-600">{{ $evento->comentario }}</p>@endif @if($evento->observacion_interna)<p class="rounded-md bg-amber-50 px-3 py-2 text-sm text-amber-900">Nota interna: {{ $evento->observacion_interna }}</p>@endif<p class="text-xs text-slate-500">{{ $evento->created_at?->format('d/m/Y H:i') }} · {{ $evento->user?->name ?? 'Sistema' }}</p></li>@empty<li class="text-sm text-slate-500">No hay movimientos registrados todavía.</li>@endforelse</ol>
     </section>
 
     @if($puedeSeleccionarDocumentos)
@@ -157,7 +157,7 @@
                 </div>
             @endif
             <label class="mb-4 block text-sm font-medium text-slate-700">Observaciones para el estudiante <textarea name="observaciones" rows="4" class="mt-1 w-full rounded-lg border border-slate-300 p-3" placeholder="Escribe aquí una observación para el estudiante.">{{ old('observaciones') }}</textarea></label>
-            <div class="flex flex-wrap justify-end gap-2"><button name="accion" value="observar" class="rounded-lg border border-amber-300 bg-amber-50 px-4 py-2 text-sm font-semibold text-amber-900">Marcar como observado</button><button name="accion" value="rechazar" class="rounded-lg border border-red-300 bg-white px-4 py-2 text-sm font-semibold text-red-800">Rechazar</button><button name="accion" value="aprobar" class="rounded-lg bg-red-700 px-4 py-2 text-sm font-semibold text-white">Enviar al director</button></div>
+            <div class="flex flex-wrap justify-end gap-2"><button name="accion" value="observar" class="rounded-lg border border-amber-300 bg-amber-50 px-4 py-2 text-sm font-semibold text-amber-900">Marcar como observado</button><button name="accion" value="rechazar" class="rounded-lg border border-red-300 bg-white px-4 py-2 text-sm font-semibold text-red-800">Rechazar</button><button name="accion" value="aprobar" class="rounded-lg bg-vino px-4 py-2 text-sm font-semibold text-white">Enviar al director</button></div>
         </form>
     @endif
 @endsection
