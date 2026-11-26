@@ -33,7 +33,7 @@ Los datos viven en dos volúmenes que **no se borran** al apagar, actualizar o r
 |---|---|
 | `Dockerfile` | Receta de las cajas `app`, `worker` y `prolog` (una misma imagen), y de `web` |
 | `docker-compose.yml` | Lista de las 5 cajas y cómo se conectan |
-| `docker/nginx/default.conf` | Puerta de entrada: límite de 13 MB por envío, cabeceras de seguridad |
+| `docker/nginx/default.conf.template` | Puerta de entrada: límite de 13 MB por envío, cabeceras de seguridad e IP real (`PROXY_HTTPS_IP`) |
 | `docker/php/php.ini` | PHP: 12 MB por archivo, hora de Ecuador, OPcache |
 | `docker/app/entrypoint.sh` | Lo que hace la caja al encender: preparar la caché y, en `app`, migrar |
 | `.dockerignore` | Lo que **no** entra en la imagen (`.env`, `vendor`, `node_modules`, `.git`, pruebas) |
@@ -137,7 +137,15 @@ Docker atiende en `http`. El candado (`https`) lo pone quien administra el servi
 - Laravel confía en la cabecera `X-Forwarded-Proto` que manda ese proxy (`bootstrap/app.php`, `trustProxies`), así que los enlaces de los correos salen con `https://`.
 - Laravel solo acepta visitas al dominio de `APP_URL` (`trustHosts`). Una visita con otro nombre recibe un error 400. Por eso `APP_URL` debe ser exactamente la dirección pública.
 - Mientras no haya `https`, deja `SESSION_SECURE_COOKIE=false`. Si no, el inicio de sesión no funciona (la sesión solo viaja por `https`).
-- Cuando haya proxy, conviene que la caja `web` reciba la IP real del usuario: en `docker/nginx/default.conf` se agrega `set_real_ip_from IP-DEL-PROXY;` y `real_ip_header X-Forwarded-For;`.
+- Cuando haya proxy, la caja `web` tiene que conocer la IP real de cada usuario; si no, el bloqueo por 5 intentos fallidos de login afecta a todos a la vez. Se configura en el `.env`:
+
+| Caso | `PUERTO_WEB` | `PROXY_HTTPS_IP` |
+|---|---|---|
+| Sin https (todavía) | `8080` | vacío |
+| Caddy en el mismo servidor | `127.0.0.1:8080` | `172.16.0.0/12` |
+| El https lo pone TI | `8080` | la IP de su equipo |
+
+`PROXY_HTTPS_IP` vacío significa "no confiar en nadie": así nadie puede inventarse su IP cuando no hay proxy. Lo usa `docker/nginx/default.conf.template`. Después de cambiarlo: `docker compose up -d`.
 
 ## Probar Docker en tu computadora
 
@@ -157,7 +165,7 @@ Para borrar la prueba por completo: `docker compose down -v`.
 
 | Valor | Dónde | Por qué |
 |---|---|---|
-| 12 MB por archivo, 13 MB por envío | `docker/php/php.ini`, `docker/nginx/default.conf` | Laravel rechaza lo que pasa de 10 MB con su propio mensaje en español; el margen evita una página de error del servidor |
+| 12 MB por archivo, 13 MB por envío | `docker/php/php.ini`, `docker/nginx/default.conf.template` | Laravel rechaza lo que pasa de 10 MB con su propio mensaje en español; el margen evita una página de error del servidor |
 | `DB_QUEUE_RETRY_AFTER=660` | `docker-compose.yml` | La importación puede durar hasta 600 s (`app/Jobs/ProcesarImportacion.php`). Con el valor por defecto (90 s), la cola la repetiría mientras sigue corriendo. **Si se instala sin Docker, poner este valor en el `.env`.** |
 | `queue:work --timeout=600 --max-time=3600` | `docker-compose.yml` | Igual que el tiempo de la importación; el worker se renueva cada hora |
 | PostgreSQL 18 | `docker-compose.yml` | La misma versión con la que se desarrolló |
